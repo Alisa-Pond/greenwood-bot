@@ -265,4 +265,25 @@ def process_activity(message):
     bot.register_next_step_handler(msg, process_activity)
 
 Thread(target=run_server).start()
+# Команда для повного обнулення твого прогресу
+@bot.message_handler(commands=['reset'])
+def reset_progress(message):
+    user_id = str(message.from_user.id)
+    
+    # Завантажуємо актуальну базу даних
+    data = load_data()
+    
+    if user_id in data:
+        # Скидаємо всі значення до стартових
+        data[user_id] = {
+            "level": 1,
+            "xp": 0,
+            "gold": 0,
+            "inventory": [],
+            "tasks": []  # Очищуємо список тестових задач
+        }
+        save_data(data)
+        bot.send_message(message.chat.id, "🔮 *Заклинання забуття спрацювало!* Твій прогрес очищено. Шлях починається з чистого аркуша.", parse_mode="Markdown")
+    else:
+        bot.send_message(message.chat.id, "Хм, твого персонажа ще немає в базі даних. Напиши /start")
 bot.polling(none_stop=True)
