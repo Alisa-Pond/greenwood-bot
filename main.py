@@ -20,7 +20,7 @@ def run_server():
 
 # 🎫 ВСТАВ СВІЙ ТОКЕН СЮДИ
 bot = telebot.TeleBot("import os
-bot = telebot.TeleBot(os.environ.get("BOT_TOKEN", "ТУТ_ТВІЙ_НОВИЙ_ТОКЕН"))")
+bot = telebot.TeleBot(os.environ.get("BOT_TOKEN", "no_local_t"))")
 
 DATA_FILE = "players_database.json"
 
