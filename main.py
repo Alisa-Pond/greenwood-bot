@@ -265,25 +265,26 @@ def process_activity(message):
     bot.register_next_step_handler(msg, process_activity)
 
 Thread(target=run_server).start()
-# Команда для повного обнулення твого прогресу
+# Надійна команда для повного обнулення прогресу
 @bot.message_handler(commands=['reset'])
 def reset_progress(message):
     user_id = str(message.from_user.id)
     
-    # Завантажуємо актуальну базу даних
+    # 1. Завантажуємо актуальну базу даних
     data = load_data()
     
-    if user_id in data:
-        # Скидаємо всі значення до стартових
-        data[user_id] = {
-            "level": 1,
-            "xp": 0,
-            "gold": 0,
-            "inventory": [],
-            "tasks": []  # Очищуємо список тестових задач
-        }
-        save_data(data)
-        bot.send_message(message.chat.id, "🔮 *Заклинання забуття спрацювало!* Твій прогрес очищено. Шлях починається з чистого аркуша.", parse_mode="Markdown")
-    else:
-        bot.send_message(message.chat.id, "Хм, твого персонажа ще немає в базі даних. Напиши /start")
+    # 2. Створюємо абсолютно чистий профіль для гравця (навіть якщо його не було в базі)
+    data[user_id] = {
+        "level": 1,
+        "xp": 0,
+        "gold": 0,
+        "inventory": [],
+        "tasks": []
+    }
+    
+    # 3. Записуємо оновлену базу назад у файл
+    save_data(data)
+    
+    # 4. Надсилаємо просте текстове повідомлення без жодних Markdown-символів
+    bot.send_message(message.chat.id, "Заклинання забуття спрацювало! Твій прогрес повністю очищено.")
 bot.polling(none_stop=True)
