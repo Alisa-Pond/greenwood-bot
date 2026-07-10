@@ -278,6 +278,7 @@ def getMessage():
     return "!", 200
 
 if __name__ == "__main__":
-    # Запускаємо веб-сервер Flask на порту, який дає Render
+    bot.remove_webhook()
+    bot.set_webhook(url="https://greenwood-bot-yw5w.onrender.com/" + str(TOKEN_FOR_FLASK))
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
