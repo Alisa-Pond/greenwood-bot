@@ -256,18 +256,27 @@ def process_activity(message):
     msg = bot.send_message(message.chat.id, final_report, parse_mode="Markdown", reply_markup=markup)
     bot.register_next_step_handler(msg, process_activity)
 
-# --- БЛОК ДЛЯ ПІДТРИМКИ РОБОТИ НА RENDER ---
-app = Flask('')
+from flask import Flask, request
 
+app = Flask(__name__)
+
+# Маршрут для перевірки працездатності Render (те, що видає 200 OK)
 @app.route('/')
-def home():
-    return "Бот живий і працює!"
+def index():
+    return "Greenwood Chronicles Bot is Running!"
 
-def run():
-    app.run(host='0.0.0.0', port=10000)
+# Маршрут, куди Телеграм має надсилати повідомлення (Webhook)
+@app.route('/' + BOT_TOKEN, methods=['POST'])
+def getMessage():
+    json_string = request.stream.read().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
 
-# Запускаємо веб-сервер у фоні
-Thread(target=run).start()
-
-# Самий кінець файлу — запуск бота
-bot.polling(none_stop=True)
+if __name__ == "__main__":
+    # ВИДАЛЯЄМО bot.remove_webhook() і bot.set_webhook() звідси, 
+    # бо при кожному перезапуску вони можуть злітати, якщо вказано неправильний URL.
+    
+    # Запускаємо веб-сервер Flask на порту, який дає Render
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
