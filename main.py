@@ -72,7 +72,10 @@ def get_main_menu():
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
-  user_id = str(message.from_user.id)
+    user_id = str(message.from_user.id)
+    # Автоматично створюємо гравця в Supabase при старті, якщо його там ще немає
+    get_player(user_id)
+    
     # Повідомлення 1: Привітання та знайомство з Лілі-Понд
     msg_1 = (
         "🌲 **Вітаємо у Greenwood Chronicles!** 🌲\n\n"
@@ -80,9 +83,11 @@ def welcome(message):
         "Я допомагатиму тобі перетворювати твої реальні  досягнення на справжню силу персонажа!"
     )
     bot.send_message(message.chat.id, msg_1, parse_mode="Markdown")
-
-    time.sleep(2)
     
+    # Затримка 3 секунди
+    time.sleep(3)
+    
+    # Повідомлення 2: Детальна інструкція та сфери життя
     msg_2 = (
         "🔮 **Як влаштований наш світ:**\n"
         "Твій персонаж розвиває 5 основних сфер життя. Кожна з них стартує з 1 рівня і потребує **10 XP** для першого підвищення левелу.\n\n"
@@ -92,7 +97,6 @@ def welcome(message):
         "💵 **Фінанси** — робота, планування бюджету і тд.\n"
         "🤝 **Зв'язки** — спілкування з близькими, допомога, турбота про рослин чи тварин.\n\n"
         "📥 **Як записати справу:** натисни кнопку нижче і надішли звіт, який починається з емодзі сфери та оцінки її складності **від 4 до 14 балів**.\n\n"
-        
     )
     bot.send_message(message.chat.id, msg_2, parse_mode="Markdown", reply_markup=get_main_menu())
 
