@@ -55,7 +55,7 @@ def update_player(user_id, player_data):
     supabase.table("players").update(player_data).eq("user_id", user_id).execute()
 
 # Шанс 0.2% на кожен артефакт (0.002)
-LOOT_CHANCE = 0.002
+LOOT_CHANCE = 0.003
 POSSIBLE_LOOT = [
     "🧪 Настій Бадьорості",
     "📜 Стародавній Сувій",
