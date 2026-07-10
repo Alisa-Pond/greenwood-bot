@@ -257,6 +257,7 @@ def process_activity(message):
     bot.register_next_step_handler(msg, process_activity)
 
 from flask import Flask, request
+import os
 
 app = Flask(__name__)
 
@@ -265,8 +266,11 @@ app = Flask(__name__)
 def index():
     return "Greenwood Chronicles Bot is Running!"
 
+# Читаємо токен прямо з пам'яті Render, щоб точно не було NameError
+TOKEN_FOR_FLASK = os.environ.get("BOT_TOKEN")
+
 # Маршрут, куди Телеграм має надсилати повідомлення (Webhook)
-@app.route('/' + BOT_TOKEN, methods=['POST'])
+@app.route('/' + str(TOKEN_FOR_FLASK), methods=['POST'])
 def getMessage():
     json_string = request.stream.read().decode('utf-8')
     update = telebot.types.Update.de_json(json_string)
@@ -274,9 +278,6 @@ def getMessage():
     return "!", 200
 
 if __name__ == "__main__":
-    # ВИДАЛЯЄМО bot.remove_webhook() і bot.set_webhook() звідси, 
-    # бо при кожному перезапуску вони можуть злітати, якщо вказано неправильний URL.
-    
     # Запускаємо веб-сервер Flask на порту, який дає Render
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
