@@ -264,7 +264,20 @@ def process_activity(message):
     msg = bot.send_message(message.chat.id, final_report, parse_mode="Markdown", reply_markup=markup)
     bot.register_next_step_handler(msg, process_activity)
 
-Thread(target=run_server).start()
+# --- БЛОК ДЛЯ ПІДТРИМКИ РОБОТИ НА RENDER ---
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Бот живий і працює!"
+
+def run():
+    app.run(host='0.0.0.0', port=10000)
+
+# Запускаємо веб-сервер у фоні
+Thread(target=run).start()
+# -------------------------------------------
+
 # Надійна команда для повного обнулення прогресу
 @bot.message_handler(commands=['reset'])
 def reset_progress(message):
@@ -273,10 +286,11 @@ def reset_progress(message):
     # 1. Завантажуємо актуальну базу даних
     data = load_data()
     
-    # 2. Створюємо абсолютно чистий профіль для гравця (навіть якщо його не було в базі)
+    # 2. Створюємо абсолютно чистий профіль для гравця
     data[user_id] = {
         "level": 1,
         "xp": 0,
+        "xp_total": 0,  # Додав цей рядок, бо у твоєму коді вище розрахунок рівня йде через xp_total!
         "gold": 0,
         "inventory": [],
         "tasks": []
@@ -285,6 +299,8 @@ def reset_progress(message):
     # 3. Записуємо оновлену базу назад у файл
     save_data(data)
     
-    # 4. Надсилаємо просте текстове повідомлення без жодних Markdown-символів
-    bot.send_message(message.chat.id, "Заклинання забуття спрацювало! Твій прогрес повністю очищено.")
+    # 4. Надсилаємо просте текстове повідомлення
+    bot.send_message(message.chat.id, "🔮 Заклинання забуття спрацювало! Твій прогрес повністю очищено до 1 рівня. Напиши /start або заверши ритуал.")
+
+# Самий кінець файлу — запуск бота
 bot.polling(none_stop=True)
