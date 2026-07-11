@@ -280,19 +280,17 @@ def getMessage():
     json_string = request.stream.read().decode('utf-8')
     update = telebot.types.Update.de_json(json_string)
     
-    # 🎯 ПРЯМИЙ ТЕСТ: якщо бот отримав хоч щось, він ТУТ ЖЕ кидає відповідь
-    if update.message:
-        chat_id = update.message.chat.id
-        try:
-            bot.send_message(chat_id, "🌲 Магія працює! Я тебе чую через вебхук!")
-        except Exception as telegram_error:
-            print(f"❌ Помилка відправки в ТГ: {telegram_error}")
-            
+@app.route('/' + str(TOKEN_FOR_FLASK), methods=['POST'])
+def getMessage():
+    json_string = request.stream.read().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    
+    # ПУСКАЄМО ПОВІДОМЛЕННЯ В ГРУ: тепер воно піде в твої хендлери кнопок
     bot.process_new_updates([update])
     return "!", 200
 
 if __name__ == "__main__":
     bot.remove_webhook()
-    bot.set_webhook(url="https://greenwood-bot-yw5w.onrender.com/" + str(TOKEN_FOR_FLASK))
+    bot.set_webhook(url="https://greenwood-bot-yw5w.onrender.com/" + str(BOT_TOKEN))
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
