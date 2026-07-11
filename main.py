@@ -273,16 +273,19 @@ import traceback  # Додай цей імпорт на самий верх аб
 
 @app.route('/' + str(TOKEN_FOR_FLASK), methods=['POST'])
 def getMessage():
-    try:
-        json_string = request.stream.read().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return "!", 200
-    except Exception as e:
-        # Цей рядок виведе ПОВНУ помилку в логи Render
-        print("❌ КРИТИЧНА ПОМИЛКА В ОБРОБЦІ ПОВІДОМЛЕННЯ:")
-        print(traceback.format_exc())
-        return "!", 200
+    json_string = request.stream.read().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    
+    # 🎯 ПРЯМИЙ ТЕСТ: якщо бот отримав хоч щось, він ТУТ ЖЕ кидає відповідь
+    if update.message:
+        chat_id = update.message.chat.id
+        try:
+            bot.send_message(chat_id, "🌲 Магія працює! Я тебе чую через вебхук!")
+        except Exception as telegram_error:
+            print(f"❌ Помилка відправки в ТГ: {telegram_error}")
+            
+    bot.process_new_updates([update])
+    return "!", 200
 
 if __name__ == "__main__":
     bot.remove_webhook()
