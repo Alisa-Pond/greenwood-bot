@@ -115,18 +115,17 @@ def handle_menu(message):
     user_id = str(message.from_user.id)
     
     if message.text == "🧙‍♂️ Персонаж":
-    current_player = get_player(user_id)
+        # ⚠️ Усі ці рядки мають бути зсунуті праворуч (всередині if)!
+        current_player = get_player(user_id)
 
-    status = f"🧙‍♂️ **Лист Персонажа (Рівень {current_player['level']})**\n"
-    status += f"✨ Загальний досвід: {float(current_player['xp_total']):.1f} XP\n"
-    status += "────────────────────\n"
-    
-    # Цей цикл просто бере "name" (де вже є емодзі+текст), lvl та xp. 
-    # Йому байдуже, які ключі (health чи Здоров'я), бо він перебирає їх автоматично!
-    for key, sphere in current_player["spheres"].items():
-        status += f"{sphere['name']}: Лвл {sphere['lvl']} ({float(sphere['xp']):.1f}/{float(sphere['max_xp']):.1f} XP)\n"
+        status = f"🧙‍♂️ **Лист Персонажа (Рівень {current_player['level']})**\n"
+        status += f"✨ Загальний досвід: {float(current_player['xp_total']):.1f} XP\n"
+        status += "────────────────────\n"
         
-    bot.send_message(message.chat.id, status, parse_mode="Markdown")
+        for key, sphere in current_player["spheres"].items():
+            status += f"{sphere['name']}: Лвл {sphere['lvl']} ({float(sphere['xp']):.1f}/{float(sphere['max_xp']):.1f} XP)\n"
+            
+        bot.send_message(message.chat.id, status, parse_mode="Markdown")
         
     elif message.text == "🎒 Рюкзак":
         current_player = get_player(user_id)
