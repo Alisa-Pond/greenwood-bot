@@ -23,8 +23,12 @@ def run_server():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-bot = telebot.TeleBot(os.environ.get("BOT_TOKEN", "no_local_token"))
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
+if not BOT_TOKEN:
+    raise ValueError("❌ ПОМИЛКА: Render не передав BOT_TOKEN! Перевір налаштування Environment Variables!")
+
+bot = telebot.TeleBot(BOT_TOKEN)
 def get_player(user_id):
     """Отримує дані гравця з Supabase. Якщо гравця немає — створює його."""
     user_id = str(user_id)
