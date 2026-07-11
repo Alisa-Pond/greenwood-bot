@@ -263,20 +263,22 @@ def process_activity(message):
 
 app = Flask(__name__)
 
-# Маршрут для перевірки працездатності Render (те, що видає 200 OK)
-@app.route('/')
-def index():
-    return "Greenwood Chronicles Bot is Running!"
+import traceback
 
 @app.route('/' + str(BOT_TOKEN), methods=['POST'])
 def getMessage():
-    json_string = request.stream.read().decode('utf-8')
-    update = telebot.types.Update.de_json(json_string)
-    
-    # ПУСКАЄМО ПОВІДОМЛЕННЯ В ГРУ: тепер воно піде в твої хендлери кнопок
-    bot.process_new_updates([update])
-    return "!", 200
-
+    try:
+        json_string = request.stream.read().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        
+        # Запускаємо обробку повідомлень Телеграму всередині блоку перевірки
+        bot.process_new_updates([update])
+        return "!", 200
+    except Exception as e:
+        print("❌ КРИТИЧНА ПОМИЛКА В ЛОГІЦІ БОТА:")
+        print(traceback.format_exc())
+        return "!", 200
+        
 if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url="https://greenwood-bot-yw5w.onrender.com/" + str(BOT_TOKEN))
