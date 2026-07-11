@@ -48,11 +48,11 @@ def get_player(user_id):
         "xp_total": 0.0,
         "inventory": [],
         "spheres": {
-            "Здоров'я": {"name": "💪 Здоров'я", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-            "Мудрість": {"name": "🧠 Мудрість", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-            "Творчість": {"name": "🎨 Творчість", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-            "Фінанси": {"name": "💵 Фінанси", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-            "Зв'язки": {"name": "🤝 Зв'язки", "lvl": 1, "xp": 0.0, "max_xp": 10.0}
+            "health": {"name": "💪 Здоров'я", "emoji": "💪", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+            "wisdom": {"name": "🧠 Мудрість", "emoji": "🧠", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+            "art": {"name": "🎨 Творчість", "emoji": "🎨", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+            "finance": {"name": "💵 Фінанси", "emoji": "💵", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+            "relations": {"name": "🤝 Зв'язки", "emoji": "🤝", "lvl": 1, "xp": 0.0, "max_xp": 10.0}
         }
     }
     
@@ -115,14 +115,18 @@ def handle_menu(message):
     user_id = str(message.from_user.id)
     
     if message.text == "🧙‍♂️ Персонаж":
-        current_player = get_player(user_id)
+    current_player = get_player(user_id)
+
+    status = f"🧙‍♂️ **Лист Персонажа (Рівень {current_player['level']})**\n"
+    status += f"✨ Загальний досвід: {float(current_player['xp_total']):.1f} XP\n"
+    status += "────────────────────\n"
     
-        status = f"🧙‍♂️ **Лист Персонажа (Рівень {current_player['level']})**\n"
-        status += f"✨ Загальний досвід: {float(current_player['xp_total']):.1f} XP\n"
-        status += "────────────────────\n"
-        for key, sphere in current_player["spheres"].items():
-            status += f"{sphere['name']}: Лвл {sphere['lvl']} ({float(sphere['xp']):.1f}/{float(sphere['max_xp']):.1f} XP)\n"
-        bot.send_message(message.chat.id, status, parse_mode="Markdown")
+    # Цей цикл просто бере "name" (де вже є емодзі+текст), lvl та xp. 
+    # Йому байдуже, які ключі (health чи Здоров'я), бо він перебирає їх автоматично!
+    for key, sphere in current_player["spheres"].items():
+        status += f"{sphere['name']}: Лвл {sphere['lvl']} ({float(sphere['xp']):.1f}/{float(sphere['max_xp']):.1f} XP)\n"
+        
+    bot.send_message(message.chat.id, status, parse_mode="Markdown")
         
     elif message.text == "🎒 Рюкзак":
         current_player = get_player(user_id)
