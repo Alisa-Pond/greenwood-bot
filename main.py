@@ -10,6 +10,9 @@ from threading import Thread
 from flask import Flask, request
 from supabase import create_client, Client
 
+import logging
+telebot.logger.setLevel(logging.DEBUG) # Додай це відразу після import telebot
+
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -35,24 +38,26 @@ def get_player(user_id):
     user_id = str(user_id)
     response = supabase.table("players").select("*").eq("user_id", user_id).execute()
     
-    if response.data:
+    if response.data and len(response.data) > 0:
         return response.data[0]
-    else:
-        new_player = {
-            "user_id": user_id,
-            "level": 1,
-            "xp_total": 0.0,
-            "inventory": [],
-            "spheres": {
-                "health": {"name": "Здоров'я", "emoji": "💪", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-                "mind": {"name": "Мудрість", "emoji": "🧠", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-                "art": {"name": "Творчість", "emoji": "🎨", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-                "finance": {"name": "Фінанси", "emoji": "💵", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-                "social": {"name": "Зв'язки", "emoji": "🤝", "lvl": 1, "xp": 0.0, "max_xp": 10.0}
-            }
+    
+    # 🎯 Створюємо структуру, яку ОЧІКУЄ твоє меню handle_menu
+    new_player = {
+        "user_id": user_id,
+        "level": 1,
+        "xp_total": 0.0,
+        "inventory": [],
+        "spheres": {
+            "Здоров'я": {"name": "💪 Здоров'я", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+            "Мудрість": {"name": "🧠 Мудрість", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+            "Творчість": {"name": "🎨 Творчість", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+            "Фінанси": {"name": "💵 Фінанси", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+            "Зв'язки": {"name": "🤝 Зв'язки", "lvl": 1, "xp": 0.0, "max_xp": 10.0}
         }
-        supabase.table("players").insert(new_player).execute()
-        return new_player
+    }
+    
+    supabase.table("players").insert(new_player).execute()
+    return new_player
 
 def update_player(user_id, player_data):
     """Оновлює дані гравця в базі Supabase."""
@@ -262,8 +267,6 @@ def process_activity(message):
     bot.register_next_step_handler(msg, process_activity)
 
 app = Flask(__name__)
-
-import traceback
 
 @app.route('/' + str(BOT_TOKEN), methods=['POST'])
 def getMessage():
