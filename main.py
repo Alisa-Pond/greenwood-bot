@@ -269,13 +269,20 @@ def index():
 # Читаємо токен прямо з пам'яті Render, щоб точно не було NameError
 TOKEN_FOR_FLASK = os.environ.get("BOT_TOKEN")
 
-# Маршрут, куди Телеграм має надсилати повідомлення (Webhook)
+import traceback  # Додай цей імпорт на самий верх або прямо сюди
+
 @app.route('/' + str(TOKEN_FOR_FLASK), methods=['POST'])
 def getMessage():
-    json_string = request.stream.read().decode('utf-8')
-    update = telebot.types.Update.de_json(json_string)
-    bot.process_new_updates([update])
-    return "!", 200
+    try:
+        json_string = request.stream.read().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return "!", 200
+    except Exception as e:
+        # Цей рядок виведе ПОВНУ помилку в логи Render
+        print("❌ КРИТИЧНА ПОМИЛКА В ОБРОБЦІ ПОВІДОМЛЕННЯ:")
+        print(traceback.format_exc())
+        return "!", 200
 
 if __name__ == "__main__":
     bot.remove_webhook()
