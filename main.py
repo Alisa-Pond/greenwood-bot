@@ -5,8 +5,9 @@ import os
 import random
 import time
 import re
+import traceback
 from threading import Thread
-from flask import Flask
+from flask import Flask, request
 from supabase import create_client, Client
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -203,7 +204,7 @@ def process_activity(message):
         base_xp = int(match.group())
         
         if base_xp < 4 or base_xp > 14:
-            final_report += f"❌ `{line[:20]}...` — Твої бали ({base_xp}) поза магічним лімітом (від 4 до 14).\n"
+            final_report += f"❌ `{line[:20]}...` — Твої бали ({base_xp}) поза магічним лімітом (вкажи від 4 до 14).\n"
             continue
 
         any_success = True
@@ -260,9 +261,6 @@ def process_activity(message):
     msg = bot.send_message(message.chat.id, final_report, parse_mode="Markdown", reply_markup=markup)
     bot.register_next_step_handler(msg, process_activity)
 
-from flask import Flask, request
-import os
-
 app = Flask(__name__)
 
 # Маршрут для перевірки працездатності Render (те, що видає 200 OK)
@@ -270,17 +268,7 @@ app = Flask(__name__)
 def index():
     return "Greenwood Chronicles Bot is Running!"
 
-# Читаємо токен прямо з пам'яті Render, щоб точно не було NameError
-TOKEN_FOR_FLASK = os.environ.get("BOT_TOKEN")
-
-import traceback  # Додай цей імпорт на самий верх або прямо сюди
-
-@app.route('/' + str(TOKEN_FOR_FLASK), methods=['POST'])
-def getMessage():
-    json_string = request.stream.read().decode('utf-8')
-    update = telebot.types.Update.de_json(json_string)
-    
-@app.route('/' + str(TOKEN_FOR_FLASK), methods=['POST'])
+@app.route('/' + str(BOT_TOKEN), methods=['POST'])
 def getMessage():
     json_string = request.stream.read().decode('utf-8')
     update = telebot.types.Update.de_json(json_string)
