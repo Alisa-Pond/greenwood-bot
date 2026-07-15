@@ -37,7 +37,6 @@ def get_player(user_id):
     user_id = str(user_id)
     response = supabase.table("players").select("*").eq("user_id", user_id).execute()
     
-    # Дефолтна структура для нових елементів квестів
     default_quests = {
         "scrolls": [],    # Одноразові та накопичувальні сувої
         "rituals": [],    # Щоденні ритуали
@@ -46,13 +45,11 @@ def get_player(user_id):
     
     if response.data and len(response.data) > 0:
         player = response.data[0]
-        # Авто-міграція: якщо у старого гравця ще немає цих полів, додаємо їх
         updated = False
         if "quests" not in player:
             player["quests"] = default_quests
             updated = True
         else:
-            # Перестраховка для окремих підтипів
             for key in ["scrolls", "rituals", "plants"]:
                 if key not in player["quests"]:
                     player["quests"][key] = []
@@ -61,7 +58,6 @@ def get_player(user_id):
             update_player(user_id, player)
         return player
     
-    # Створюємо нового гравця
     new_player = {
         "user_id": user_id,
         "level": 1,
@@ -103,35 +99,31 @@ def get_main_menu():
     return markup
 
 def get_quests_menu():
-    """Головне меню розділу Мої Квести"""
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("📜 Сувої завдань"), types.KeyboardButton("🔄 Щоденні ритуали"))
     markup.row(types.KeyboardButton("🏡 Теплиця Грінвуду"))
-    markup.row(types.KeyboardButton("🔙"))
+    markup.row(types.KeyboardButton("🔙 Назад у таверну"))
     return markup
 
 def get_scrolls_menu():
-    """Меню для взаємодії із Сувоями"""
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("➕ Створити сувой"), types.KeyboardButton("✅ Позначити виконаним"))
     markup.row(types.KeyboardButton("🗑️ Спалити сувой"), types.KeyboardButton("🔙 Назад до квестів"))
     return markup
 
 def get_rituals_menu():
-    """Меню для взаємодії з Ритуалами"""
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("➕ Створити ритуал"), types.KeyboardButton("✅ Виконати ритуал"))
     markup.row(types.KeyboardButton("🗑️ Спалити ритуал"), types.KeyboardButton("🔙 Назад до квестів"))
     return markup
 
 def get_greenhouse_menu():
-    """Меню для взаємодії з Теплицею"""
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("🌱 Посадити насіння"), types.KeyboardButton("🌸 Задокументувати цвітіння"))
+    markup.row(types.KeyboardButton("🌱 Посадити насіння"), types.KeyboardButton("🌸 Квітка розквітла"))
     markup.row(types.KeyboardButton("🗑️ Вирвати бур'ян"), types.KeyboardButton("🔙 Назад до квестів"))
     return markup
 
-# --- ВІТАЛЬНЕ ПОВІДОМЛЕННЯ ПРИ СТАРТІ ---
+# --- ВІТАЛЬНЕ ПОВІДОМЛЕННЯ ---
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
@@ -145,11 +137,11 @@ def welcome(message):
     )
     bot.send_message(message.chat.id, msg_1, parse_mode="Markdown")
     
-    time.sleep(2)
+    time.sleep(3)
     
     msg_2 = (
         "🔮 **Як влаштований наш світ:**\n"
-        "Твій персонаж розвиває 5 основних сфер життя. Кожна з них стартує з 1 рівня.\n\n"
+        "Твій персонаж розвиває 5 основних сфер життя. Кожна з них стартує з 1 рівня і потребує **10 XP** для першого підвищення левелу.\n\n"
         "💪 **Здоров'я** — yoga, тренування, корисна їжа і тд.\n"
         "🧠 **Мудрість** — читання, навчання, вивчення мов, кодинг і тд.\n"
         "🎨 **Творчість** — малювання, гра на інструментах, в'язання і тд.\n"
@@ -165,7 +157,6 @@ def welcome(message):
 def handle_menu(message):
     user_id = str(message.from_user.id)
     
-    # --- МЕНЮ ПЕРСОНАЖА ТА ІНВЕНТАРЮ ---
     if message.text == "🧙‍♂️ Персонаж":
         current_player = get_player(user_id)
         status = f"🧙‍♂️ **Лист Персонажа (Рівень {current_player['level']})**\n"
@@ -193,7 +184,6 @@ def handle_menu(message):
     elif message.text == "📜 Основний квест":
         bot.send_message(message.chat.id, "🔒 **Основний квест заблоковано.**\n\nНакопичуй магічний досвід, щоб відкрити наступні глави сюжету!")
         
-    # --- НАВІГАЦІЯ РОЗДІЛУ "МОЇ КВЕСТИ" ---
     elif message.text == "🎯 Мої Квести" or message.text == "🔙 Назад до квестів":
         bot.send_message(
             message.chat.id, 
@@ -201,19 +191,17 @@ def handle_menu(message):
             reply_markup=get_quests_menu()
         )
         
-    elif message.text == "🔙 Назад":
+    elif message.text == "🔙 Назад у таверну":
         bot.send_message(
             message.chat.id, 
-            "🚪 З поверненням.", 
+            "🚪 Ти повернувся до затишної головної зали таверни.", 
             reply_markup=get_main_menu()
         )
 
-    # --- РАЗОВІ СУВОЇ ЗАВДАНЬ ---
+    # --- СУВОЇ ЗАВДАНЬ ---
     elif message.text == "📜 Сувої завдань":
         player = get_player(user_id)
         scrolls = player["quests"].get("scrolls", [])
-        
-        # Відображаємо тільки невиконані сувої
         active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
         
         status_text = "📜 **Твої активні сувої завдань:**\n"
@@ -227,6 +215,51 @@ def handle_menu(message):
                 
         status_text += "\n👇 **Обери магічну дію для сувоїв:**"
         bot.send_message(message.chat.id, status_text, parse_mode="Markdown", reply_markup=get_scrolls_menu())
+
+    elif message.text == "➕ Створити сувой":
+        guide = (
+            "📜 **Створення нового сувою завдань**\n\n"
+            "✨ **Ліли Понд:** *«Напиши мені умови нашого договору одним рядком у такому форматі:»*\n\n"
+            "`[Емодзі] [Кратність] [Бали за раз] [Дедлайн ДД.ММ] [Опис справи та нагорода]`\n\n"
+            "📌 *Приклад:* `💪 3 10 20.07 Побігати (Нагорода: какао з маршмелоу)`\n"
+            "*(Тобі потрібно буде виконати це завдання 3 рази до 20 липня. За кожне виконання ти отримуватимеш по 10 XP)*"
+        )
+        msg = bot.send_message(message.chat.id, guide, parse_mode="Markdown", reply_markup=types.ForceReply(selective=True))
+        bot.register_next_step_handler(msg, process_create_scroll)
+
+    elif message.text == "✅ Позначити виконаним":
+        player = get_player(user_id)
+        scrolls = player["quests"].get("scrolls", [])
+        active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
+        
+        if not active_scrolls:
+            bot.send_message(message.chat.id, "✨ **Лілі Понд:** *«На твоїх полицях немає активних сувоїв для виконання.»*")
+            return
+            
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        for s in active_scrolls:
+            markup.add(types.KeyboardButton(s['task']))
+        markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+        
+        msg = bot.send_message(message.chat.id, "✨ **Лілі Понд:** *«Обери сувой, у якому ти сьогодні зробила крок вперед:»*", reply_markup=markup)
+        bot.register_next_step_handler(msg, process_complete_scroll)
+
+    elif message.text == "🗑️ Спалити сувой":
+        player = get_player(user_id)
+        scrolls = player["quests"].get("scrolls", [])
+        active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
+        
+        if not active_scrolls:
+            bot.send_message(message.chat.id, "✨ **Лілі Понд:** *«Тобі нема чого спалювати, твій стіл чистий!»*")
+            return
+            
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        for s in active_scrolls:
+            markup.add(types.KeyboardButton(s['task']))
+        markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+        
+        msg = bot.send_message(message.chat.id, "✨ **Лілі Понд:** *«Який сувой ти хочеш спалити у синьому вогні без отримання досвіду?»*", reply_markup=markup)
+        bot.register_next_step_handler(msg, process_delete_scroll)
 
     # --- ЩОДЕННІ РИТУАЛИ ---
     elif message.text == "🔄 Щоденні ритуали":
@@ -246,7 +279,7 @@ def handle_menu(message):
         status_text += "\n👇 **Обери магічну дію для ритуалів:**"
         bot.send_message(message.chat.id, status_text, parse_mode="Markdown", reply_markup=get_rituals_menu())
 
-    # --- ТЕПЛИЦЯ (КОЛИШНІ БОСИ) ---
+    # --- ТЕПЛИЦЯ ---
     elif message.text == "🏡 Теплиця Грінвуду":
         player = get_player(user_id)
         plants = player["quests"].get("plants", [])
@@ -265,7 +298,7 @@ def handle_menu(message):
         status_text += "\n👇 **Обери магічну дію для саду:**"
         bot.send_message(message.chat.id, status_text, parse_mode="Markdown", reply_markup=get_greenhouse_menu())
 
-    # --- РЕЖИМ ДОДАВАННЯ СПРАВИ (ЗВИТ) ---
+    # --- РЕЖИМ ДОДАВАННЯ СПРАВИ ---
     elif message.text == "➕ Додати Справу":
         guide = (
             "➕ **Режим магічного звіту активовано!**\n\n"
@@ -282,7 +315,7 @@ def handle_menu(message):
         msg = bot.send_message(message.chat.id, guide, parse_mode="Markdown", reply_markup=types.ForceReply(selective=True))
         bot.register_next_step_handler(msg, process_activity)
 
-# --- ЛОГІКА ДОДАВАННЯ ЗВИЧАЙНИХ СПРАВ (БЕЗ ЗМІН) ---
+# --- ЛОГІКА ДОДАВАННЯ ЗВИЧАЙНИХ СПРАВ ТА СУВОЇВ ---
 
 def process_activity(message):
     user_id = str(message.from_user.id) 
@@ -301,14 +334,16 @@ def process_activity(message):
     if not text:
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.row(types.KeyboardButton("🧙‍♂️ Завершити ритуал"))
-        msg = bot.send_message(message.chat.id, "Ой-йой, ти написав невидими чорнилами, спробуй ще раз", reply_markup=markup)
+        msg = bot.send_message(message.chat.id, "Ой-йой, ти написала невидимими чорнилами, спробуй ще раз", reply_markup=markup)
         bot.register_next_step_handler(msg, process_activity)
         return
 
     lines = text.split('\n')
-    final_report = "📝 **Магічні підрахнуки 🧚‍♀️:**\n\n"
+    final_report = "📝 **Магічні підрахунки від Лілі Понд 🧚‍♀️:**\n\n"
     lvl_up_text = ""
     any_success = False
+    
+    scrolls = player["quests"].get("scrolls", [])
     
     for line in lines:
         line = line.strip()
@@ -321,12 +356,12 @@ def process_activity(message):
                 detected_spheres.append(key)
                 
         if not detected_spheres:
-            final_report += f"❌ `{line[:20]}...` — Ой-йой, до якої сфери варто віднести бали?.\n"
+            final_report += f"❌ `{line[:20]}...` — До якої сфери варто віднести ці бали?.\n"
             continue
 
         match = re.search(r'\d+', line)
         if not match:
-            final_report += f"❌ `{line[:20]}...` — На скільке важке було це закляття?\n"
+            final_report += f"❌ `{line[:20]}...` — Наскільки важким було це закляття?\n"
             continue
             
         base_xp = int(match.group())
@@ -335,28 +370,41 @@ def process_activity(message):
             final_report += f"❌ `{line[:20]}...` — Твої бали ({base_xp}) поза магічним лімітом (вкажи від 4 до 14).\n"
             continue
 
-        any_success = True
-        xp_per_sphere = base_xp / len(detected_spheres)
-        
         clean_task = re.sub(r'^[^\w\s]+', '', line).strip()
         clean_task = re.sub(r'^\d+', '', clean_task).strip()
         if not clean_task: 
             clean_task = "Корисна дія"
+
+        any_success = True
+        
+        # Перевірка на сувой
+        matched_scroll = None
+        for s in scrolls:
+            if s["task"].strip().lower() == clean_task.lower() and s["done_count"] < s["max_count"]:
+                matched_scroll = s
+                break
+                
+        if matched_scroll:
+            matched_scroll["done_count"] += 1
+            xp_per_sphere = float(matched_scroll["xp_per_once"]) / len(detected_spheres)
             
-        final_report += f"✨ *{clean_task}*:\n"
+            final_report += f"📜 **Сувой: {matched_scroll['task']}** ({matched_scroll['done_count']}/{matched_scroll['max_count']}):\n"
+            if matched_scroll["done_count"] == matched_scroll["max_count"]:
+                final_report += "🎉 *Сувой виконано повністю! Отримай свою реальну нагороду!*\n"
+        else:
+            xp_per_sphere = base_xp / len(detected_spheres)
+            final_report += f"✨ *{clean_task}*:\n"
         
         for key in detected_spheres:
             sphere = player["spheres"][key]
-            
             sphere["xp"] = float(sphere["xp"]) + xp_per_sphere
             player["xp_total"] = float(player["xp_total"]) + xp_per_sphere
-            sphere["max_xp"] = float(sphere["max_xp"])
             
-            while sphere["xp"] >= sphere["max_xp"]:
-                sphere["xp"] -= sphere["max_xp"]
+            while sphere["xp"] >= float(sphere["max_xp"]):
+                sphere["xp"] -= float(sphere["max_xp"])
                 sphere["lvl"] += 1
                 sphere["max_xp"] += 5.0
-                lvl_up_text += f"⚡️ **РІВЕНЬ 📈 Ти стаєш краще з кожним днем:** Сфера {sphere['name']} піднялася до **{sphere['lvl']} рівня**! 🎉\n"
+                lvl_up_text += f"⚡️ **РІВЕНЬ 📈:** Сфера {sphere['name']} піднялася до **{sphere['lvl']} рівня**! 🎉\n"
                 
             final_report += f"  • {sphere['name']}  +{xp_per_sphere:.1f} XP\n"
         final_report += "\n"
@@ -364,7 +412,7 @@ def process_activity(message):
     new_global_lvl = int(float(player["xp_total"]) // 50) + 1
     if new_global_lvl > int(player["level"]):
         player["level"] = new_global_lvl
-        lvl_up_text += f"\n🌟 **НОВИЙ РІВЕНЬ ГЕРОЯ!** Твій рівень оновився до **{new_global_lvl}**! 🧙‍♂️\n"
+        lvl_up_text += f"\n🌟 **НОВИЙ РІВЕНЬ ГЕРОЯ!** Рівень оновлено до **{new_global_lvl}**! 🧙‍♂️\n"
 
     if lvl_up_text:
         final_report += "────────────────────\n" + lvl_up_text
@@ -378,7 +426,7 @@ def process_activity(message):
         if found_loot:
             final_report += f"\n🎒 **НЕЙМОВІРНА УДАЧА!** {', '.join(found_loot)} додано в рюкзак!"
 
-    final_report += "\n🔮 *Режим введення активний. Ти можеш надіслати ще справи або завершити ритуал.*"
+    final_report += "\n🔮 *Я готова записувати твої наступні звершення або завершимо ритуал.*"
     
     update_player(user_id, player)
     
@@ -387,6 +435,146 @@ def process_activity(message):
     
     msg = bot.send_message(message.chat.id, final_report, parse_mode="Markdown", reply_markup=markup)
     bot.register_next_step_handler(msg, process_activity)
+
+# --- ЛОГІКА РОБОТИ ІЗ СУВОЯМИ ---
+
+def process_create_scroll(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    if text == "🔙 Назад до квестів":
+        bot.send_message(message.chat.id, "Створення скасовано, повертаємось.", reply_markup=get_scrolls_menu())
+        return
+
+    match = re.match(r"^([^\w\s])\s+(\d+)\s+(\d+)\s+(\d{2}\.\d{2})\s+(.+)$", text)
+    
+    if not match:
+        msg = bot.send_message(
+            message.chat.id, 
+            "✨ **Лілі Понд:** *«Ой, щось пішло не так із чорнилом. Спробуй ще раз за моїм шаблоном або напиши `🔙 Назад до квестів`, щоб скасувати:* \n`[Емодзі] [Кратність] [Бали] [Дедлайн ДД.ММ] [Опис]`»",
+            parse_mode="Markdown"
+        )
+        bot.register_next_step_handler(msg, process_create_scroll)
+        return
+        
+    emoji, max_count, xp_per_once, deadline, task_desc = match.groups()
+    max_count = int(max_count)
+    xp_per_once = int(xp_per_once)
+    task_desc = task_desc.strip()
+    
+    if xp_per_once < 4 or xp_per_once > 14:
+        msg = bot.send_message(message.chat.id, "✨ **Лілі Понд:** *«Пам'ятай, що магічний ліміт балів за одне виконання має бути від 4 до 14! Спробуй ще раз ввести умови:»*")
+        bot.register_next_step_handler(msg, process_create_scroll)
+        return
+
+    player = get_player(user_id)
+    
+    scrolls = player["quests"].get("scrolls", [])
+    if any(s["task"].lower() == task_desc.lower() and s["done_count"] < s["max_count"] for s in scrolls):
+        msg = bot.send_message(message.chat.id, f"✨ **Лілі Понд:** *«У твоїх хроніках уже є активний сувой з назвою \"{task_desc}\". Придумай іншу назву або заверши попередній квест!»*")
+        bot.register_next_step_handler(msg, process_create_scroll)
+        return
+
+    new_scroll = {
+        "emoji": emoji,
+        "max_count": max_count,
+        "done_count": 0,
+        "xp_per_once": float(xp_per_once),
+        "deadline": deadline,
+        "task": task_desc
+    }
+    
+    player["quests"]["scrolls"].append(new_scroll)
+    update_player(user_id, player)
+    
+    bot.send_message(
+        message.chat.id, 
+        f"✨ **Лілі Понд:** *«Прекрасно! Новий сувой успішно запечатано у твою книгу квестів. Я нагадуватиму тобі про нього!»*\n\n{emoji} **{task_desc}**\n• Повторень: **{max_count}**\n• Сила кроку: **{xp_per_once} XP**\n• Термін: до **{deadline}**",
+        parse_mode="Markdown",
+        reply_markup=get_scrolls_menu()
+    )
+
+def process_complete_scroll(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    if text == "🔙 Назад до квестів":
+        bot.send_message(message.chat.id, "Повертаємось.", reply_markup=get_scrolls_menu())
+        return
+        
+    task_clean = text.strip()
+    player = get_player(user_id)
+    scrolls = player["quests"].get("scrolls", [])
+    
+    found_scroll = None
+    for s in scrolls:
+        if s["task"].strip().lower() == task_clean.lower() and s["done_count"] < s["max_count"]:
+            found_scroll = s
+            break
+            
+    if not found_scroll:
+        bot.send_message(message.chat.id, "✨ **Лілі Понд:** *«Я не знайшла такого активного сувою у твоїх записах. Спробуй обрати з кнопок на клавіатурі!»*", reply_markup=get_scrolls_menu())
+        return
+        
+    found_scroll["done_count"] += 1
+    xp_to_add = found_scroll["xp_per_once"]
+    
+    sphere_key = None
+    for key, sphere in player["spheres"].items():
+        if sphere["emoji"] == found_scroll["emoji"]:
+            sphere_key = key
+            break
+            
+    lvl_up_text = ""
+    if sphere_key:
+        sphere = player["spheres"][sphere_key]
+        sphere["xp"] = float(sphere["xp"]) + xp_to_add
+        player["xp_total"] = float(player["xp_total"]) + xp_to_add
+        
+        while sphere["xp"] >= float(sphere["max_xp"]):
+            sphere["xp"] -= float(sphere["max_xp"])
+            sphere["lvl"] += 1
+            sphere["max_xp"] += 5.0
+            lvl_up_text += f"\n⚡️ **РІВЕНЬ📈:** Сфера {sphere['name']} піднялася до **{sphere['lvl']} рівня**! 🎉"
+            
+        new_global_lvl = int(float(player["xp_total"]) // 50) + 1
+        if new_global_lvl > int(player["level"]):
+            player["level"] = new_global_lvl
+            lvl_up_text += f"\n🌟 **НОВИЙ РІВЕНЬ ГЕРОЯ!** Твій рівень зріс до **{new_global_lvl}**! 🧙‍♂️"
+            
+    report = f"✨ **Лілі Понд:** *«Чудовий крок! Записую прогрес у твій сувой!»*\n\n{found_scroll['emoji']} **{found_scroll['task']}** ({found_scroll['done_count']}/{found_scroll['max_count']})\n🔋 Отримано: **+{xp_to_add:.1f} XP**!"
+    
+    if found_scroll["done_count"] == found_scroll["max_count"]:
+        report += f"\n\n🎉 **СУВОЙ ПОВНІСТЮ ЗАВЕРШЕНО!**\n✨ **Лілі Понд:** *«Ти впоралась! Не забудь забрати свою заслужену нагороду в реальному житті!»*"
+        
+    if lvl_up_text:
+        report += "\n\n────────────────────" + lvl_up_text
+        
+    update_player(user_id, player)
+    bot.send_message(message.chat.id, report, parse_mode="Markdown", reply_markup=get_scrolls_menu())
+
+def process_delete_scroll(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    if text == "🔙 Назад до квестів":
+        bot.send_message(message.chat.id, "Повертаємось.", reply_markup=get_scrolls_menu())
+        return
+        
+    task_clean = text.strip()
+    player = get_player(user_id)
+    scrolls = player["quests"].get("scrolls", [])
+    
+    new_scrolls = [s for s in scrolls if not (s["task"].strip().lower() == task_clean.lower() and s["done_count"] < s["max_count"])]
+    
+    if len(scrolls) == len(new_scrolls):
+        bot.send_message(message.chat.id, "✨ **Лілі Понд:** *«Хм, такого сувою немає на твоєму столі. Спробуй обрати з кнопок!»*", reply_markup=get_scrolls_menu())
+        return
+        
+    player["quests"]["scrolls"] = new_scrolls
+    update_player(user_id, player)
+    
+    bot.send_message(message.chat.id, "🔥 **Сувой безслідно згорів у синьому полум'ї.** Цього завдання більше не існує.", reply_markup=get_scrolls_menu())
 
 # --- ВЕБХУКИ ТА СЕРВЕР ---
 
