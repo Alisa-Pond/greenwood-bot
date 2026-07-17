@@ -503,7 +503,7 @@ def process_create_scroll(message):
     
     bot.send_message(
         message.chat.id, 
-        f"<b>🪷Лілі Понд🪷</b>:«Прекрасно! Новий сувой успішно запечатано у твою книгу квестів. Я нагадуватиму тобі про нього!»\n\n{emoji} {task_desc}\n• Повторень: **{max_count}**\n• Сила кроку: **{xp_per_once} XP**\n• Термін: до **{deadline}**",
+        f"<b>🪷Лілі Понд🪷</b>: Новий сувой успішно запечатано у твою книгу квестів. Я нагадуватиму тобі про нього!\n\n{emoji} {task_desc}\n• Повторень: {max_count}\n• Сила кроку: {xp_per_once} XP\n• Термін: до {deadline}",
         parse_mode="HTML",
         reply_markup=get_scrolls_menu()
     )
