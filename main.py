@@ -40,7 +40,7 @@ def get_player(user_id):
     default_quests = {
         "scrolls": [],    # Одноразові та накопичувальні сувої
         "rituals": [],    # Щоденні ритуали
-        "plants": []      # Магічне насіння в Теплиці
+        "plants": []      # Магічне насіння в Теплиці=цілі
     }
     
     if response.data and len(response.data) > 0:
@@ -131,8 +131,8 @@ def welcome(message):
     get_player(user_id)
     
     msg_1 = (
-        "🪷 **Вітаємо у Greenwood Chronicles!** 🪷\n\n"
-        "Магічний ліс відкриває свої таємниці... А я — 🪷Lilly Pond🪷, твій магічний провідник у цьому затишному світі. "
+        "🪷 <b>Вітаємо у Greenwood Chronicles!<b> 🪷\n\n"
+        "Магічний ліс відкриває свої таємниці... А я — 🪷 **Lilly Pond** 🪷, твій магічний провідник у цьому затишному світі. "
         "Я допомагатиму тобі перетворювати твої реальні досягнення на справжню силу персонажа!"
     )
     bot.send_message(message.chat.id, msg_1, parse_mode="Markdown")
@@ -188,6 +188,7 @@ def handle_menu(message):
         bot.send_message(
             message.chat.id, 
             "🎯 **Магічний Органайзер Грінвуду**\n\nОбери розділ, у якому ти хочеш навести лад:", 
+            parse_mode="Markdown",
             reply_markup=get_quests_menu()
         )
         
