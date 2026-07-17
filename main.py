@@ -147,7 +147,7 @@ def welcome(message):
         "🎨 <b>Творчість</b> — малювання, гра на інструментах, в'язання і тд.\n"
         "💵 <b>Фінанси</b> — робота, планування бюджету і тд.\n"
         "🤝 <b>Зв'язки</b> — спілкування з близькими, допомога, турбота про рослин чи тварин.\n\n"
-        "📥 <b>Як записати справу:</b> натисни кнопку нижче і надішли звіт, який починається з емодзі сфери та оцінки її складності **від 4 до 14 балів**.\n\n"
+        "📥 <b>Як записати справу:</b> натисни кнопку нижче і надішли звіт, який починається з емодзі сфери та оцінки її складності <u>від 4 до 14 балів</u>.\n\n"
     )
     bot.send_message(message.chat.id, msg_2, parse_mode="HTML", reply_markup=get_main_menu())
 
@@ -171,23 +171,23 @@ def handle_menu(message):
     elif message.text == "🎒 Рюкзак":
         current_player = get_player(user_id)
         if not current_player["inventory"]:
-            bot.send_message(message.chat.id, "🎒 <b>Твій рюкзак порожній.</b>")
+            bot.send_message(message.chat.id, "🎒 <b>Твій рюкзак порожній.<b>", parse_mode="HTML")
         else:
             items_counts = {}
             for item in current_player["inventory"]:
                 items_counts[item] = items_counts.get(item, 0) + 1
-            inv_text = "🎒 **Вміст твого рюкзака:**\n\n"
+            inv_text = "🎒 <b>Вміст твого рюкзака:<b>\n\n"
             for item, count in items_counts.items():
                 inv_text += f"• {item} x{count}\n"
             bot.send_message(message.chat.id, inv_text, parse_mode="HTML")
             
     elif message.text == "📜 Основний квест":
-        bot.send_message(message.chat.id, "🔒 <b>Основний квест заблоковано.</b> ")
+        bot.send_message(message.chat.id, "🔒 <b>Основний квест заблоковано.</b> ", parse_mode="HTML")
         
     elif message.text == "🎯 Мої Квести" or message.text == "🔙 Назад до квестів":
         bot.send_message(
             message.chat.id, 
-            "🎯 **Магічний Органайзер Грінвуду**\n\nОбери розділ, у якому ти хочеш навести лад:", 
+            "🎯 <b>Магічний Органайзер Грінвуду</b> \n\n Обери розділ, у якому ти хочеш навести лад:", 
             parse_mode="HTML",
             reply_markup=get_quests_menu()
         )
@@ -314,16 +314,15 @@ def handle_menu(message):
     # --- РЕЖИМ ДОДАВАННЯ СПРАВИ ---
     elif message.text == "➕ Додати Справу":
         guide = (
-            "➕ **Режим магічного звіту активовано!**\n\n"
+            "➕ <b>Режим магічного звіту активовано!</b>\n\n"
             "Запиши свої діяння (можна декілька, кожне з нового рядка) у форматі:\n"
             "`[Емодзі] [Бали від 4 до 14] [Опис справи]`\n\n"
-            "✨ **Доступні сфери сили:**\n"
+            "✨ <b>Доступні сфери сили:</b>\n"
             "• 💪 — Здоров'я\n"
             "• 🧠 — Мудрість\n"
             "• 🎨 — Творчість\n"
             "• 💵 — Фінанси\n"
             "• 🤝 — Зв'язки\n\n"
-            "🧙‍♂️ Коли завершиш, натисни кнопку нижче"
         )
         msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=types.ForceReply(selective=True))
         bot.register_next_step_handler(msg, process_activity)
@@ -338,7 +337,7 @@ def process_activity(message):
     if text == "🧙‍♂️ Завершити ритуал":
         bot.send_message(
             message.chat.id, 
-            "📜 *Ритуал завершено. Твої діяння записані в хроніки Грінвуду.*", 
+            "📜 <b>Ритуал завершено. Твої діяння записані в хроніки Грінвуду.</b>", 
             parse_mode="HTML", 
             reply_markup=get_main_menu()
         )
@@ -352,7 +351,7 @@ def process_activity(message):
         return
 
     lines = text.split('\n')
-    final_report = "📝 **Магічні підрахунки від Лілі Понд 🧚‍♀️:**\n\n"
+    final_report = "📝 <b>Магічні підрахунки від Лілі Понд 🧚‍♀️:</b>\n\n"
     lvl_up_text = ""
     any_success = False
     
@@ -401,9 +400,9 @@ def process_activity(message):
             matched_scroll["done_count"] += 1
             xp_per_sphere = float(matched_scroll["xp_per_once"]) / len(detected_spheres)
             
-            final_report += f"📜 **Сувой: {matched_scroll['task']}** ({matched_scroll['done_count']}/{matched_scroll['max_count']}):\n"
+            final_report += f"📜 <b>Сувой:</b> {matched_scroll['task']} ({matched_scroll['done_count']}/{matched_scroll['max_count']}):\n"
             if matched_scroll["done_count"] == matched_scroll["max_count"]:
-                final_report += "🎉 *Сувой виконано повністю! Отримай свою реальну нагороду!*\n"
+                final_report += "🎉 Сувой виконано повністю! Отримай свою реальну нагороду!\n"
         else:
             xp_per_sphere = base_xp / len(detected_spheres)
             final_report += f"✨ *{clean_task}*:\n"
@@ -417,7 +416,7 @@ def process_activity(message):
                 sphere["xp"] -= float(sphere["max_xp"])
                 sphere["lvl"] += 1
                 sphere["max_xp"] += 5.0
-                lvl_up_text += f"⚡️ **РІВЕНЬ 📈:** Сфера {sphere['name']} піднялася до **{sphere['lvl']} рівня**! 🎉\n"
+                lvl_up_text += f"⚡️ <b>РІВЕНЬ 📈:</b> Сфера {sphere['name']} піднялася до <b>{sphere['lvl']} рівня</b>! 🎉\n"
                 
             final_report += f"  • {sphere['name']}  +{xp_per_sphere:.1f} XP\n"
         final_report += "\n"
@@ -425,7 +424,7 @@ def process_activity(message):
     new_global_lvl = int(float(player["xp_total"]) // 50) + 1
     if new_global_lvl > int(player["level"]):
         player["level"] = new_global_lvl
-        lvl_up_text += f"\n🌟 **НОВИЙ РІВЕНЬ ГЕРОЯ!** Рівень оновлено до **{new_global_lvl}**! 🧙‍♂️\n"
+        lvl_up_text += f"\n🌟 <b>НОВИЙ РІВЕНЬ ГЕРОЯ!</b> {new_global_lvl}! 🧙‍♂️\n"
 
     if lvl_up_text:
         final_report += "────────────────────\n" + lvl_up_text
