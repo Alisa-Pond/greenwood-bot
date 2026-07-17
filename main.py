@@ -135,7 +135,7 @@ def welcome(message):
         "Магічний ліс відкриває свої таємниці... А я — 🪷 <b>Lilly Pond</b> 🪷, твій магічний провідник у цьому затишному світі. "
         "Я допомагатиму тобі перетворювати твої реальні досягнення на справжню силу персонажа!"
     )
-    bot.send_message(message.chat.id, msg_1, parse_mode="Markdown")
+    bot.send_message(message.chat.id, msg_1, parse_mode="HTML")
     
     time.sleep(3)
     
