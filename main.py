@@ -395,7 +395,8 @@ def process_activity(message):
                     detected_spheres.append(key)
                     break
             
-           base_xp = int(float(matched_scroll["xp_per_once"]))
+# 👇 Оці два рядки мають стояти НА ОДНОМУ РІВНІ з detected_spheres = [] (рівно під буквою d)
+            base_xp = int(float(matched_scroll["xp_per_once"]))
             clean_task = matched_scroll["task"]
             
         else:
