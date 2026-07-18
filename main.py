@@ -367,7 +367,12 @@ def process_activity(message):
         # 👑 1. МАГІЧНИЙ РАДАР СУВОЇВ (Перевірка на просте введення назви)
         matched_scroll = None
         for s in scrolls:
-            if s["task"].strip().lower() == line.lower() and s["done_count"] < s["max_count"]:
+            # Очищаємо назву сувою та твій текст від зайвих пробілів по краях
+            scroll_task = s["task"].strip().lower()
+            user_text = line.strip().lower()
+            
+            # Перевіряємо: або повний збіг, або одна назва є частиною іншої
+            if (scroll_task == user_text or scroll_task in user_text or user_text in scroll_task) and s["done_count"] < s["max_count"]:
                 matched_scroll = s
                 break
         
