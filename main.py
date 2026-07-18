@@ -367,6 +367,20 @@ def process_activity(message):
         # 👑 1. МАГІЧНИЙ РАДАР СУВОЇВ (Перевірка на просте введення назви)
         matched_scroll = None
         for s in scrolls:
+           # Функція, яка видаляє модифікатори кольору шкіри
+            def clean_skin_tones(text_to_clean):
+                return re.sub(r'[\U0001f3fb-\U0001f3ff]', '', text_to_clean)
+
+            # Очищаємо назву сувою та текст від відтінків шкіри і пробілів
+            scroll_task = clean_skin_tones(s["task"]).strip().lower()
+            user_text = clean_skin_tones(line).strip().lower()
+            
+            # Також очищаємо самі емодзі сфери про всяк випадок
+            scroll_emoji = clean_skin_tones(s.get("emoji", ""))
+            
+            if (scroll_task == user_text or scroll_task in user_text or user_text in scroll_task) and s["done_count"] < s["max_count"]:
+                matched_scroll = s
+                break
             # Очищаємо назву сувою та твій текст від зайвих пробілів по краях
             scroll_task = s["task"].strip().lower()
             user_text = line.strip().lower()
