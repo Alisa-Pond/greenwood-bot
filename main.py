@@ -220,7 +220,7 @@ def handle_menu(message):
             status_text += "Твій стіл порожній. Час запечатати першу угоду!"
         else:
             for idx, s in enumerate(active_scrolls, 1):
-                status_text += f"{idx}. {s['emoji']} **{s['task']}** — ({s['done_count']}/{s['max_count']}) | {float(s['xp_per_once']):.1f} XP за крок (⏰ Дедлайн: {s['deadline']})\n"
+                status_text += f"{idx}. {s['emoji']} <b>{s['task']}</b>— ({s['done_count']}/{s['max_count']}) | {float(s['xp_per_once']):.1f} XP за крок (⏰ Дедлайн: {s['deadline']})\n"
                 
         status_text += "\n👇 <b>Обери магічну дію:</b>"
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_scrolls_menu())
@@ -248,7 +248,7 @@ def handle_menu(message):
         active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
         
         if not active_scrolls:
-            bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «На твоїх полицях немає активних сувоїв для виконання.»*")
+            bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «На твоїх полицях немає активних сувоїв для виконання.»")
             return
             
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -281,7 +281,7 @@ def handle_menu(message):
         player = get_player(user_id)
         rituals = player["quests"].get("rituals", [])
         
-        status_text = "🔄 **Твої щоденні ритуали на сьогодні:**\n"
+        status_text = "🔄 <b>Твої щоденні ритуали на сьогодні:</b>\n"
         status_text += "────────────────────\n"
         
         if not rituals:
@@ -289,9 +289,9 @@ def handle_menu(message):
         else:
             for r in rituals:
                 status = "✅" if r.get("done_today", False) else " "
-                status_text += f"[{status}] {r['emoji']} **{r['task']}** ({float(r['xp']):.1f} XP)\n"
+                status_text += f"[{status}] {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
                 
-        status_text += "\n👇 **Обери магічну дію для ритуалів:**"
+        status_text += "\n👇 <b>Обери магічну дію для ритуалів:</b>"
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
 
     # --- ТЕПЛИЦЯ ---
@@ -299,18 +299,18 @@ def handle_menu(message):
         player = get_player(user_id)
         plants = player["quests"].get("plants", [])
         
-        status_text = "🌱 **Теплиця Грінвуду**\n"
+        status_text = "🌱 <b>Теплиця Грінвуду<>/b\n"
         status_text += "────────────────────\n"
-        status_text += "🌲Лісовик🌲: *«О, завітав-таки до моєї теплиці, юний магу! Поглянь на ці магічні насінини втрачених квітів Грінвуду... Щоб кожна з них проросла і розквітла, тобі знадобиться 5 елементів сили — твоя чітка ціль (SMART). Пам'ятай: насіння не зійде, якщо твоя мета розмита чи не має дедлайну! Опиши її чітко, доглядай, а коли вона розквітне в реальності — повертайся сюди і збирай плоди своєї магії!»*\n\n"
+        status_text += "<b>🌲Лісовик🌲</b>: «О, завітав-таки до моєї теплиці, юний магу! Поглянь на ці магічні насінини втрачених квітів Грінвуду... Щоб кожна з них проросла і розквітла, тобі знадобиться 5 елементів сили — твоя чітка ціль (SMART). Пам'ятай: насіння не зійде, якщо твоя мета розмита чи не має дедлайну! Опиши її чітко, доглядай, а коли вона розквітне в реальності — повертайся сюди і збирай плоди своєї магії!»\n\n"
         
-        status_text += "🌱 **Твої поточні магічні рослини:**\n"
+        status_text += "🌱 <b>Твої поточні магічні рослини:</b>\n"
         if not plants:
             status_text += "_Поки що теплиця порожня. Час посадити перше насіння!_"
         else:
             for idx, p in enumerate(plants, 1):
-                status_text += f"{idx}. {p['emoji']} **{p['task']}** — [Нагорода: {float(p['xp']):.1f} XP] (Дедлайн: {p['deadline']})\n"
+                status_text += f"{idx}. {p['emoji']} <b>p['task']}</b> — [Нагорода: {float(p['xp']):.1f} XP] (Дедлайн: {p['deadline']})\n"
                 
-        status_text += "\n👇 **Обери магічну дію для саду:**"
+        status_text += "\n👇 <b>Обери магічну дію для саду:</b>"
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_greenhouse_menu())
 
     # --- РЕЖИМ ДОДАВАННЯ СПРАВИ ---
@@ -364,50 +364,75 @@ def process_activity(message):
         if not line:
             continue
             
-        detected_spheres = []
-        for key, sphere in player["spheres"].items():
-            if line.startswith(sphere["emoji"]) or (len(line) > 1 and line[1] == sphere["emoji"]):
-                detected_spheres.append(key)
-                
-        if not detected_spheres:
-            final_report += f"❌ `{line[:20]}...` — До якої сфери варто віднести ці бали?.\n"
-            continue
-
-        match = re.search(r'\d+', line)
-        if not match:
-            final_report += f"❌ `{line[:20]}...` — Наскільки важким було це закляття?\n"
-            continue
-            
-        base_xp = int(match.group())
-        
-        if base_xp < 4 or base_xp > 14:
-            final_report += f"❌ `{line[:20]}...` — Твої бали ({base_xp}) поза магічним лімітом (вкажи від 4 до 14).\n"
-            continue
-
-        clean_task = re.sub(r'^[^\w\s]+', '', line).strip()
-        clean_task = re.sub(r'^\d+', '', clean_task).strip()
-        if not clean_task: 
-            clean_task = "Корисна дія"
-
-        any_success = True
-        
-        # Перевірка на сувой
+        # 👑 1. МАГІЧНИЙ РАДАР СУВОЇВ (Перевірка на просте введення назви)
         matched_scroll = None
         for s in scrolls:
-            if s["task"].strip().lower() == clean_task.lower() and s["done_count"] < s["max_count"]:
+            if s["task"].strip().lower() == line.lower() and s["done_count"] < s["max_count"]:
                 matched_scroll = s
                 break
+        
+        # Якщо знайшли сувой за прямою назвою, штучно підставляємо дані з нього!
+        if matched_scroll:
+            # Знаходимо внутрішній ключ сфери по емодзі сувою (наприклад, "🎨" -> "creativity")
+            detected_spheres = []
+            for key, sphere in player["spheres"].items():
+                if sphere["emoji"] == matched_scroll["emoji"]:
+                    detected_spheres.append(key)
+                    break
+            
+            # Якщо раптом емодзі не знайшли в сферах, кинемо в першу ліпшу, але зазвичай вони збігаються
+            if not detected_spheres:
+                detected_spheres = [list(player["spheres"].keys())[0]]
                 
+            base_xp = int(float(matched_scroll["xp_per_once"]))
+            clean_task = matched_scroll["task"]
+            
+        else:
+            # 📜 2. СТАНДАРТНИЙ ПАРСИНГ (Якщо це звичайний звіт на кшталт "🎨 4 Пси")
+            detected_spheres = []
+            for key, sphere in player["spheres"].items():
+                if line.startswith(sphere["emoji"]) or (len(line) > 1 and line[1] == sphere["emoji"]):
+                    detected_spheres.append(key)
+                    
+            if not detected_spheres:
+                final_report += f"❌ <code>{line[:20]}...</code> — До якої сфери варто віднести ці бали?\n"
+                continue
+
+            match = re.search(r'\d+', line)
+            if not match:
+                final_report += f"❌ <code>{line[:20]}...</code> — Наскільки важким було це закляття?\n"
+                continue
+                
+            base_xp = int(match.group())
+            
+            if base_xp < 4 or base_xp > 14:
+                final_report += f"❌ <code>{line[:20]}...</code> — Твої бали ({base_xp}) поза магічним лімітом (4-14).\n"
+                continue
+
+            clean_task = re.sub(r'^[^\w\s]+', '', line).strip()
+            clean_task = re.sub(r'^\d+', '', clean_task).strip()
+            if not clean_task: 
+                clean_task = "Корисна дія"
+
+            # Перевіряємо, чи цей стандартний звіт підходить під якийсь сувой
+            for s in scrolls:
+                if s["task"].strip().lower() == clean_task.lower() and s["done_count"] < s["max_count"]:
+                    matched_scroll = s
+                    break
+
+        # 🎯 3. НАРАХУВАННЯ ДОСВІДУ ТА ОНОВЛЕННЯ ПРОГРЕСУ (Спільне для обох шляхів)
+        any_success = True
+        
         if matched_scroll:
             matched_scroll["done_count"] += 1
             xp_per_sphere = float(matched_scroll["xp_per_once"]) / len(detected_spheres)
             
             final_report += f"📜 <b>Сувой:</b> {matched_scroll['task']} ({matched_scroll['done_count']}/{matched_scroll['max_count']}):\n"
             if matched_scroll["done_count"] == matched_scroll["max_count"]:
-                final_report += "🎉 Сувой виконано повністю! Отримай свою реальну нагороду!\n"
+                final_report += "🎉 <i>Сувой виконано повністю! Отримай свою реальну нагороду!</i>\n"
         else:
             xp_per_sphere = base_xp / len(detected_spheres)
-            final_report += f"✨ *{clean_task}*:\n"
+            final_report += f"✨ <i>{clean_task}</i>:\n"
         
         for key in detected_spheres:
             sphere = player["spheres"][key]
@@ -420,7 +445,7 @@ def process_activity(message):
                 sphere["max_xp"] += 5.0
                 lvl_up_text += f"⚡️ <b>РІВЕНЬ 📈:</b> Сфера {sphere['name']} піднялася до <b>{sphere['lvl']} рівня</b>! 🎉\n"
                 
-            final_report += f"  • {sphere['name']}  +{xp_per_sphere:.1f} XP\n"
+            final_report += f"  • {sphere['name']} +{xp_per_sphere:.1f} XP\n"
         final_report += "\n"
 
     new_global_lvl = int(float(player["xp_total"]) // 50) + 1
@@ -556,10 +581,10 @@ def process_complete_scroll(message):
             player["level"] = new_global_lvl
             lvl_up_text += f"\n🌟 <b>НОВИЙ РІВЕНЬ ГЕРОЯ!</b>: Твій рівень зріс до {new_global_lvl}! 🧙‍♂️"
             
-    report = f"✨ <b>🪷Лілі Понд🪷</b>: «Чудовий крок! Записую прогрес у твій сувой!»\n\n{found_scroll['emoji']} {found_scroll['task']} ({found_scroll['done_count']}/{found_scroll['max_count']})\n🔋 Отримано: **+{xp_to_add:.1f} XP**!"
+    report = f"✨ <b>🪷Лілі Понд🪷</b>: «Чудовий крок! Записую прогрес у твій сувой!»\n\n{found_scroll['emoji']} {found_scroll['task']} ({found_scroll['done_count']}/{found_scroll['max_count']})\n🔋 Отримано: <b>+{xp_to_add:.1f} XP </b>!"
     
     if found_scroll["done_count"] == found_scroll["max_count"]:
-        report += f"\n\n🎉 <b>СУВОЙ ПОВНІСТЮ ЗАВЕРШЕНО!**\n <b>🪷Лілі Понд🪷</b>: «Чудова робота!"
+        report += f"\n\n🎉 <b>СУВОЙ ПОВНІСТЮ ЗАВЕРШЕНО!<b>\n <b>🪷Лілі Понд🪷</b>: «Чудова робота!"
         
     if lvl_up_text:
         report += "\n\n────────────────────" + lvl_up_text
