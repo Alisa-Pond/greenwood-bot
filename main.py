@@ -153,7 +153,12 @@ def welcome(message):
         "<b>🌱 Теплиці </b>."
     )
     bot.send_message(message.chat.id, msg_2, parse_mode="HTML", reply_markup=get_main_menu())
-
+def clean_skin_tones(text_to_clean):
+    if not text_to_clean:
+        return ""
+    # Видаляє всі Fitzpatrick модифікатори кольору шкіри
+    return re.sub(r'[\U0001f3fb-\U0001f3ff]', '', text_to_clean)
+    
 # --- ГОЛОВНИЙ ОБРОБНИК МЕНЮ ---
 
 @bot.message_handler(content_types=['text'])
@@ -363,27 +368,17 @@ def process_activity(message):
         line = line.strip()
         if not line:
             continue
-            
+        # Очищаємо весь рядок користувача від відтінків шкіри для перевірок
+        cleaned_line = clean_skin_tones(line)    
+        # Очищаємо весь рядок користувача від відтінків шкіри для перевірок
+        cleaned_line = clean_skin_tones(line)
+
         # 👑 1. МАГІЧНИЙ РАДАР СУВОЇВ (Перевірка на просте введення назви)
         matched_scroll = None
         for s in scrolls:
-           # Функція, яка видаляє модифікатори кольору шкіри
-            def clean_skin_tones(text_to_clean):
-                return re.sub(r'[\U0001f3fb-\U0001f3ff]', '', text_to_clean)
-
-            # Очищаємо назву сувою та текст від відтінків шкіри і пробілів
+            # Очищаємо назву сувою та твій текст від зайвих пробілів та відтінків шкіри
             scroll_task = clean_skin_tones(s["task"]).strip().lower()
-            user_text = clean_skin_tones(line).strip().lower()
-            
-            # Також очищаємо самі емодзі сфери про всяк випадок
-            scroll_emoji = clean_skin_tones(s.get("emoji", ""))
-            
-            if (scroll_task == user_text or scroll_task in user_text or user_text in scroll_task) and s["done_count"] < s["max_count"]:
-                matched_scroll = s
-                break
-            # Очищаємо назву сувою та твій текст від зайвих пробілів по краях
-            scroll_task = s["task"].strip().lower()
-            user_text = line.strip().lower()
+            user_text = cleaned_line.strip().lower()
             
             # Перевіряємо: або повний збіг, або одна назва є частиною іншої
             if (scroll_task == user_text or scroll_task in user_text or user_text in scroll_task) and s["done_count"] < s["max_count"]:
@@ -392,25 +387,23 @@ def process_activity(message):
         
         # Якщо знайшли сувой за прямою назвою, штучно підставляємо дані з нього!
         if matched_scroll:
-            # Знаходимо внутрішній ключ сфери по емодзі сувою (наприклад, "🎨" -> "creativity")
             detected_spheres = []
+            # Порівнюємо очищені від кольору шкіри емодзі
+            scroll_emoji = clean_skin_tones(matched_scroll["emoji"])
             for key, sphere in player["spheres"].items():
-                if sphere["emoji"] == matched_scroll["emoji"]:
+                if clean_skin_tones(sphere["emoji"]) == scroll_emoji:
                     detected_spheres.append(key)
                     break
             
-            # Якщо раптом емодзі не знайшли в сферах, кинемо в першу ліпшу, але зазвичай вони збігаються
-            if not detected_spheres:
-                detected_spheres = [list(player["spheres"].keys())[0]]
-                
-            base_xp = int(float(matched_scroll["xp_per_once"]))
+           base_xp = int(float(matched_scroll["xp_per_once"]))
             clean_task = matched_scroll["task"]
             
         else:
             # 📜 2. СТАНДАРТНИЙ ПАРСИНГ (Якщо це звичайний звіт на кшталт "🎨 4 Пси")
             detected_spheres = []
             for key, sphere in player["spheres"].items():
-                if line.startswith(sphere["emoji"]) or (len(line) > 1 and line[1] == sphere["emoji"]):
+                base_emoji = clean_skin_tones(sphere["emoji"])
+                if cleaned_line.startswith(base_emoji) or (len(cleaned_line) > 1 and cleaned_line[1] == base_emoji):
                     detected_spheres.append(key)
                     
             if not detected_spheres:
