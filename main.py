@@ -308,7 +308,7 @@ def handle_menu(message):
             status_text += "_Поки що теплиця порожня. Час посадити перше насіння!_"
         else:
             for idx, p in enumerate(plants, 1):
-                status_text += f"{idx}. {p['emoji']} <b>p['task']}</b> — [Нагорода: {float(p['xp']):.1f} XP] (Дедлайн: {p['deadline']})\n"
+                status_text += f"{idx}. {p['emoji']} <b>{p['task']}</b> — [Нагорода: {float(p['xp']):.1f} XP] (Дедлайн: {p['deadline']})\n"
                 
         status_text += "\n👇 <b>Обери магічну дію для саду:</b>"
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_greenhouse_menu())
