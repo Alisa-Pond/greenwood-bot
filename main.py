@@ -368,8 +368,7 @@ def process_activity(message):
         line = line.strip()
         if not line:
             continue
-        # Очищаємо весь рядок користувача від відтінків шкіри для перевірок
-        cleaned_line = clean_skin_tones(line)    
+   
         # Очищаємо весь рядок користувача від відтінків шкіри для перевірок
         cleaned_line = clean_skin_tones(line)
 
