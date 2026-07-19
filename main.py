@@ -861,7 +861,7 @@ def process_create_ritual(message):
         return
         
     if xp < 4 or xp > 14:
-        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Сила ритуалу має бути в межах від 4 до 14! Спробуй ще раз:»")
+        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: Сила ритуалу має бути в межах від 4 до 14! Спробуй ще раз:", parse_mode="HTML") 
         bot.register_next_step_handler(msg, process_create_ritual)
         return
 
