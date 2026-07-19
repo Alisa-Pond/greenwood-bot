@@ -466,9 +466,32 @@ def handle_menu(message):
                 days_list = ", ".join(r.get("days", []))
                 
                 status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
-                status_text += f"   └── 📅 Дні: {days_list}\n\n"
+                status_text += f"   └──  Дні: {days_list}\n\n"
                 
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
+        status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
+                status_text += f"    └── 📅 Дні: {days_list}\n\n"
+                
+        bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
+
+    # 👇 ОСЬ ЦЕЙ НОВИЙ БЛОК МИ ВСТАВЛЯЄМО СЮДИ (ЗБЕРІГАЙ 4 ПРОБІЛИ ВІДСТУПУ ПОПЕРЕДУ elif):
+    elif message.text == "➕ Створити ритуал":
+        guide = (
+            "✍️ <b>Створення щоденного ритуалу</b>\n\n"
+            "<b>🪷Лілі Понд🪷</b>: Саме час для створення нового ритуалу! Напиши умови одним рядком за цим шаблоном:\n\n"
+            "📖 [💪, 🧠, 🎨, 💵, 🤝] [Бали (1-14] [Дні] [Назва справи]\n"
+            "• <b>Дні</b> перерахуй через кому (<code>пн,вт,ср,чт,пт,сб,нд</code>) або напиши <code>щодня</code>.\n\n"
+            "📌 <b>Приклади:</b>\n"
+            "<code>🧠 5 пн,ср,пт Читати книгу</code>\n"
+            "<code>💪 8 щодня Ранкова руханка</code>»\n\n"
+            "💬 <i>Якщо передумала, просто натисни кнопку назад на клавіатурі.</i>"
+        )
+        
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+        
+        msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=markup)
+        bot.register_next_step_handler(msg, process_create_ritual)
 
     # --- ТЕПЛИЦЯ ---
     elif message.text == "🌱 Теплиця Грінвуду":
@@ -814,7 +837,83 @@ def process_delete_scroll(message):
     update_player(user_id, player)
     
     bot.send_message(message.chat.id, "🔥 Сувой безслідно згорів у синьому полум'ї. Цього завдання більше не існує.", reply_markup=get_scrolls_menu())
+def process_create_ritual(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    # Перевірка, чи не захотіла ти повернутися назад
+    if text == "🔙 Назад до квестів" or text == "🔙 Назад":
+        bot.send_message(message.chat.id, "Повертаємось до свитку ритуалів.", reply_markup=get_rituals_menu())
+        return
+        
+    cleaned_text = clean_skin_tones(text)
+    
+    # Магічний регулярний вираз розбирає рядок на частини: [Емодзі] [Бали] [Дні] [Назва]
+    match = re.match(r"^([^\w\s])\s+(\d+)\s+([а-я,ієґу]+)\s+(.+)$", cleaned_text, re.IGNORECASE)
+    
+    if not match:
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «Ой, заклинання створення не спрацювало. Перевір формат і спробуй ще раз за шаблоном:\n<code>[Емодзі] [Бали] [Дні] [Назва]</code>»",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
+        
+    emoji, xp, days_raw, task_desc = match.groups()
+    xp = int(xp)
+    task_desc = task_desc.strip()
+    days_raw = days_raw.lower().strip()
+    
+    # Перевірка ліміту балів
+    if xp < 4 or xp > 14:
+        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Сила ритуалу (бали) має бути в межах від 4 до 14! Спробуй ще раз з правильними балами:»")
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
+        
+    # Розбираємо дні тижня
+    valid_days = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"]
+    if days_raw == "щодня":
+        final_days = valid_days
+    else:
+        # Ділимо рядок по комі і прибираємо зайві пробіли
+        final_days = [d.strip() for d in days_raw.split(",") if d.strip() in valid_days]
+        if not final_days:
+            msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Я не змогла розпізнати дні тижня. Будь ласка, пиши скорочено через кому: пн, вт, ср, чт, пт, сб, нд. Спробуй знову:»")
+            bot.register_next_step_handler(msg, process_create_ritual)
+            return
 
+    player = get_player(user_id)
+    rituals = player["quests"].get("rituals", [])
+    
+    # Перевіряємо, чи немає вже ритуалу з такою ж назвою
+    if any(clean_skin_tones(r["task"]).lower() == task_desc.lower() for r in rituals):
+        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «У твоїй книзі вже є ритуал з точно такою назвою. Дай йому трохи інше ім'я або опис:»")
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
+        
+    # Формуємо новий магічний ритуал
+    new_ritual = {
+        "emoji": emoji,
+        "xp": float(xp),
+        "days": final_days,
+        "task": task_desc,
+        "done_today": False
+    }
+    
+    # Зберігаємо оновлені дані в базі
+    player["quests"]["rituals"].append(new_ritual)
+    update_player(user_id, player)
+    
+    bot.send_message(
+        message.chat.id,
+        f"✅ <b>Новий щоденний ритуал закарбовано!</b>\n\n"
+        f"{emoji} <b>{task_desc}</b>\n"
+        f"• Нагорода: +{xp} XP\n"
+        f"• Дні виконання: {', '.join(final_days)}",
+        parse_mode="HTML",
+        reply_markup=get_rituals_menu()
+    )
 # --- ВЕБХУКИ ТА СЕРВЕР ---
 
 @app.route('/' + str(BOT_TOKEN), methods=['POST'])
