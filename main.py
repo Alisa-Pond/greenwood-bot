@@ -696,7 +696,8 @@ def process_create_scroll(message):
 
     # Очищаємо вхідний текст від кольорів шкіри емодзі
     cleaned_text = clean_skin_tones(text)
-    match = re.match(r"^([^\w\s])\s+(\d+)\s+(\d+)\s+(\d{2}\.\d{2})\s+(.+)$", cleaned_text)
+    # Тепер магічний вираз дозволяє пробіли всередині переліку днів тижня!
+    match = re.match(r"^([^\w\s]+)\s+(\d+)\s+([а-я,\sієґу]+)\s+(.+)$", cleaned_text, re.IGNORECASE)
     
     if not match:
         msg = bot.send_message(
