@@ -202,7 +202,7 @@ def handle_menu(message):
     elif message.text == "📜 Основний квест":
         bot.send_message(message.chat.id, "🔒 <b>Основний квест заблоковано.</b> ", parse_mode="HTML")
         
-elif message.text == "🎯 Мої Квести" or message.text == "🔙 Назад до квестів":
+    elif message.text == "🎯 Мої Квести" or message.text == "🔙 Назад до квестів":
         player = get_player(user_id)
         
         # 1. Збираємо активні сувої
