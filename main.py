@@ -430,66 +430,55 @@ def handle_menu(message):
         msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>:  Який сувой ти хочеш спалити у синьому вогні без отримання досвіду? ", parse_mode="HTML", reply_markup=markup)
         bot.register_next_step_handler(msg, process_delete_scroll)
 
-    # --- ЩОДЕННІ РИТУАЛИ ---
+   # --- ЩОДЕННІ РИТУАЛИ ---
     elif message.text == "🔄 Щоденні ритуали":
         player = get_player(user_id)
         rituals = player["quests"].get("rituals", [])
         
         # Визначаємо поточний день тижня та дату за Києвом
         kyiv_time = datetime.now(ZoneInfo("Europe/Kyiv"))
-        kyiv_days = {0: "нд", 1: "пн", 2: "вт", 3: "ср", 4: "чт", 5: "пт", 6: "сб"} if kyiv_time.weekday() == 6 else {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
-        # Простіший варіант без зсувів, оскільки weekday() завжди 0-6 (пн-нд):
         kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
         today_day = kyiv_days[kyiv_time.weekday()]
-        today_date = kyiv_time.strftime("%d.%m") # Отримуємо дату у форматі 19.07
+        today_date = kyiv_time.strftime("%d.%m")
         
         status_text = "🔄 <b>Твої магічні ритуали Грінвуду</b>\n"
-        status_text += f"Сьогодні: <b>{today_date}, {today_day}</b> \n" 
+        status_text += f"📅 Сьогодні: <b>{today_date}, {today_day}</b>\n" 
+        status_text += "────────────────────\n\n"
         
         if not rituals:
             status_text += "✨ Ти ще не створила жодного щоденного ритуалу, твоя книга порожня."
         else:
             for r in rituals:
-                # Перевіряємо, чи цей ритуал запланований на сьогодні
                 is_active_today = today_day in r.get("days", [])
                 
-                # Позначка статусу: якщо виконано — ✅, якщо ні — ⏳.
-                # Якщо ритуал сьогодні відпочиває, покажемо сіре коло ⚪ (або залиш ⏳, як тобі більше подобається)
                 if r.get("done_today", False):
                     status = "✅"
                 elif is_active_today:
                     status = "⏳"
                 else:
-                    status = "💤" # Ритуал відпочиває сьогодні
+                    status = "💤"
                 
-                # Перетворюємо список днів у красивий рядок, наприклад: "пн, ср, пт"
                 days_list = ", ".join(r.get("days", []))
                 
                 status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
-                status_text += f"   └──  Дні: {days_list}\n\n"
-                
-                # Усі ці три рядки мають бути з однаковим відступом (16 пробілів або 4 таби)
-                status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
                 status_text += f"    └── 📅 Дні: {days_list}\n\n"
                 
-        # ⚠️ ЗВЕРНИ УВАГУ: цей рядок має стояти на рівні з "if not rituals:" (8 пробілів від краю файлу)!
+        status_text += "────────────────────\n"
+        status_text += "👇 <b>Обери магічну дію для ритуалів:</b>"
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
 
-    elif message.text == "➕ Створити ритуал":
-                
-        bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
-
-    # 👇 ОСЬ ЦЕЙ НОВИЙ БЛОК МИ ВСТАВЛЯЄМО СЮДИ (ЗБЕРІГАЙ 4 ПРОБІЛИ ВІДСТУПУ ПОПЕРЕДУ elif):
     elif message.text == "➕ Створити ритуал":
         guide = (
             "✍️ <b>Створення щоденного ритуалу</b>\n\n"
-            "<b>🪷Лілі Понд🪷</b>: Саме час для створення нового ритуалу! Напиши умови одним рядком за цим шаблоном:\n\n"
-            "📖 [💪, 🧠, 🎨, 💵, 🤝] [Бали (1-14] [Дні] [Назва справи]\n"
-            "• <b>Дні</b> перерахуй через кому (<code>пн,вт,ср,чт,пт,сб,нд</code>) або напиши <code>щодня</code>.\n\n"
+            "<b>🪷Лілі Понд🪷</b>: «Створимо регулярне джерело сили! Напиши умови одним рядком за цим шаблоном:\n\n"
+            "📖 [Емодзі] [Бали] [Дні] [Назва справи]\n"
+            "• <b>Емодзі сфери:</b> 💪, 🧠, 🎨, 💵, 🤝\n"
+            "• <b>Бали:</b> від 4 до 14 за одне виконання.\n"
+            "• <b>Дні:</b> перерахуй через кому (<code>пн,вт,ср,чт,пт,сб,нд</code>) або напиши <code>щодня</code>.\n\n"
             "📌 <b>Приклади:</b>\n"
             "<code>🧠 5 пн,ср,пт Читати книгу</code>\n"
             "<code>💪 8 щодня Ранкова руханка</code>»\n\n"
-            "💬 <i>Якщо передумала, просто натисни кнопку назад на клавіатурі.</i>"
+            "💬 <i>Якщо передумала, просто натисни кнопку назад на клавіатурі або напиши її.</i>"
         )
         
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
