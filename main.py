@@ -483,7 +483,7 @@ def handle_menu(message):
         
         msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=markup)
         bot.register_next_step_handler(msg, process_create_ritual)
-elif message.text == "✅ Виконати ритуал":
+            elif message.text == "✅ Виконати ритуал":
         player = get_player(user_id)
         rituals = player["quests"].get("rituals", [])
         
