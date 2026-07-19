@@ -444,7 +444,7 @@ def handle_menu(message):
         today_date = kyiv_time.strftime("%d.%m") # Отримуємо дату у форматі 19.07
         
         status_text = "🔄 <b>Твої магічні ритуали Грінвуду</b>\n"
-        status_text += f"📅 Сьогодні: <b>{today_date}, {today_day}</b> \n" 
+        status_text += f"Сьогодні: <b>{today_date}, {today_day}</b> \n" 
         
         if not rituals:
             status_text += "✨ Ти ще не створила жодного щоденного ритуалу, твоя книга порожня."
@@ -468,8 +468,6 @@ def handle_menu(message):
                 status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
                 status_text += f"   └── 📅 Дні: {days_list}\n\n"
                 
-        status_text += "────────────────────\n"
-        status_text += "👇 <b>Обери магічну дію для ритуалів:</b>"
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
 
     # --- ТЕПЛИЦЯ ---
