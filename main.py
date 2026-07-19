@@ -305,14 +305,22 @@ def handle_menu(message):
                 
         status_text += "\n"
         
-        # Блок Ритуалів
-        status_text += "🔄 <b>Активні ритуали:</b>\n"
-        if not rituals:
-            status_text += "• <i>Немає активних ритуалів</i>\n"
+        # === Блок Ритуалів у головному меню квестів ===
+        status_text += "🔄 <b>Активні ритуали на сьогодні:</b>\n"
+        
+        # Визначаємо поточний день тижня за Києвом
+        kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
+        today_day = kyiv_days[datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
+        
+        # Беремо тільки ті ритуали, які мають виконуватися саме сьогодні
+        today_rituals = [r for r in rituals if today_day in r.get("days", [])]
+        
+        if not today_rituals:
+            status_text += "• <i>На сьогодні немає активних ритуалів</i>\n"
         else:
-            for r in rituals:
+            for r in today_rituals:
                 status = "✅" if r.get("done_today", False) else "⏳"
-                status_text += f"• [{status}] {r['emoji']} {r['task']}\n"
+                status_text += f"• {status} {r['emoji']} {r['task']}\n"
                 
         status_text += "\n"
         
