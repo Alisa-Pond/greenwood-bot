@@ -12,6 +12,8 @@ from supabase import create_client, Client
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import logging
+from datetime import datetime
+today_str = datetime.now().strftime("%d.%m.%Y")
 
 telebot.logger.setLevel(logging.DEBUG)
 
@@ -225,7 +227,9 @@ def handle_menu(message):
             status_text += "• <i>Немає активних сувоїв</i>\n"
         else:
             for s in active_scrolls:
-                status_text += f"• {s['emoji']} {s['task']} ({s['done_count']}/{s['max_count']}) | до {s['deadline']}\n"
+                # Перевіряємо, чи дедлайн сьогодні
+                fire = " 🔥" if s['deadline'] == today_str else ""
+                status_text += f"• {s['emoji']} {s['task']} ({s['done_count']}/{s['max_count']}) | до {s['deadline']}{fire}\n"
                 
         status_text += "\n"
         
@@ -246,7 +250,9 @@ def handle_menu(message):
             status_text += "• <i>Теплиця порожня</i>\n"
         else:
             for p in plants:
-                status_text += f"• {p['emoji']} {p['task']} | до {p['deadline']}\n"
+                # Перевіряємо дедлайн для рослин
+                fire = " 🔥" if p['deadline'] == today_str else ""
+                status_text += f"• {p['emoji']} {p['task']} | до {p['deadline']}{fire}\n"
                 
         status_text += "\n────────────────────"
         
