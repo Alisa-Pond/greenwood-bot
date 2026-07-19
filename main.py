@@ -13,7 +13,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import logging
 from datetime import datetime
-today_str = datetime.now().strftime("%d.%m.%Y")
+today_str = datetime.now().strftime("%d.%m")
 
 telebot.logger.setLevel(logging.DEBUG)
 
