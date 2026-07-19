@@ -202,10 +202,58 @@ def handle_menu(message):
     elif message.text == "📜 Основний квест":
         bot.send_message(message.chat.id, "🔒 <b>Основний квест заблоковано.</b> ", parse_mode="HTML")
         
-    elif message.text == "🎯 Мої Квести" or message.text == "🔙 Назад до квестів":
+elif message.text == "🎯 Мої Квести" or message.text == "🔙 Назад до квестів":
+        player = get_player(user_id)
+        
+        # 1. Збираємо активні сувої
+        scrolls = player["quests"].get("scrolls", [])
+        active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
+        
+        # 2. Збираємо ритуали
+        rituals = player["quests"].get("rituals", [])
+        
+        # 3. Збираємо рослини
+        plants = player["quests"].get("plants", [])
+        
+        # Формуємо красивий загальний звіт
+        status_text = "🎯 <b>Магічний Органайзер Грінвуду</b>\n"
+        status_text += "────────────────────\n\n"
+        
+        # Блок Сувоїв
+        status_text += "📜 <b>Активні сувої:</b>\n"
+        if not active_scrolls:
+            status_text += "• <i>Немає активних сувоїв</i>\n"
+        else:
+            for s in active_scrolls:
+                status_text += f"• {s['emoji']} {s['task']} ({s['done_count']}/{s['max_count']}) | до {s['deadline']}\n"
+                
+        status_text += "\n"
+        
+        # Блок Ритуалів
+        status_text += "🔄 <b>Активні ритуали:</b>\n"
+        if not rituals:
+            status_text += "• <i>Немає активних ритуалів</i>\n"
+        else:
+            for r in rituals:
+                status = "✅" if r.get("done_today", False) else "⏳"
+                status_text += f"• [{status}] {r['emoji']} {r['task']}\n"
+                
+        status_text += "\n"
+        
+        # Блок Теплиці
+        status_text += "🌱 <b>Рослини в теплиці:</b>\n"
+        if not plants:
+            status_text += "• <i>Теплиця порожня</i>\n"
+        else:
+            for p in plants:
+                status_text += f"• {p['emoji']} {p['task']} | до {p['deadline']}\n"
+                
+        status_text += "\n────────────────────\n"
+        status_text += "👇 <b>Обери розділ для управління квестами:</b>"
+        
         bot.send_message(
             message.chat.id, 
-            "🎯 <b>Магічний Органайзер Грінвуду</b> \n\n Обери розділ, у якому ти хочеш навести лад:", 
+            status_text, 
             parse_mode="HTML",
             reply_markup=get_quests_menu()
         )
