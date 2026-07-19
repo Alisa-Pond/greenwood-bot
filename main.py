@@ -12,8 +12,6 @@ from supabase import create_client, Client
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import logging
-from datetime import datetime
-today_str = datetime.now().strftime("%d.%m")
 
 telebot.logger.setLevel(logging.DEBUG)
 
@@ -207,17 +205,14 @@ def handle_menu(message):
     elif message.text == "🎯 Мої Квести" or message.text == "🔙 Назад до квестів":
         player = get_player(user_id)
         
-        # 1. Збираємо активні сувої
+        # Оновлюємо дату при КВЕНЧЕННІ кнопки (Київський час, формат ДД.ММ)
+        today_str = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%d.%m")
+        
         scrolls = player["quests"].get("scrolls", [])
         active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
-        
-        # 2. Збираємо ритуали
         rituals = player["quests"].get("rituals", [])
-        
-        # 3. Збираємо рослини
         plants = player["quests"].get("plants", [])
         
-        # Формуємо красивий загальний звіт
         status_text = "🎯 <b>Магічний Органайзер Грінвуду</b>\n"
         status_text += "────────────────────\n\n"
         
@@ -227,7 +222,6 @@ def handle_menu(message):
             status_text += "• <i>Немає активних сувоїв</i>\n"
         else:
             for s in active_scrolls:
-                # Перевіряємо, чи дедлайн сьогодні
                 fire = " 🔥" if s['deadline'] == today_str else ""
                 status_text += f"• {s['emoji']} {s['task']} ({s['done_count']}/{s['max_count']}) | до {s['deadline']}{fire}\n"
                 
