@@ -19,6 +19,84 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+def check_failed_deadlines():
+    """Фонова перевірка протермінованих квестів о 00:01 за Києвом"""
+    while True:
+        try:
+            # Перевіряємо час кожні 60 секунд
+            kyiv_time = datetime.now(ZoneInfo("Europe/Kyiv"))
+            
+            # Спрацьовує рівно о 00:01 ночі
+            if kyiv_time.hour == 0 and kyiv_time.minute == 1:
+                # Шукаємо дедлайни, які закінчилися вчора
+                yesterday_str = (kyiv_time - timedelta(days=1)).strftime("%d.%m")
+                
+                # Завантажуємо всіх гравців з Supabase
+                response = supabase.table("players").select("*").execute()
+                players = response.data if response.data else []
+                
+                for p_data in players:
+                    user_id = p_data["user_id"]
+                    hp_lost = 0
+                    failed_tasks = []
+                    
+                    # 1. Перевірка Сувоїв
+                    scrolls = p_data["quests"].get("scrolls", [])
+                    updated_scrolls = []
+                    for s in scrolls:
+                        if s["done_count"] < s["max_count"] and s["deadline"] == yesterday_str:
+                            # Штраф: половина від XP за крок помножена на невиконані повторення
+                            remaining_steps = s["max_count"] - s["done_count"]
+                            penalty = int((float(s["xp_per_once"]) / 2) * remaining_steps)
+                            hp_lost += penalty
+                            failed_tasks.append(f"📜 {s['task']} (не завершено кроків: {remaining_steps})")
+                        else:
+                            updated_scrolls.append(s)
+                    
+                    # 2. Перевірка Теплиці (Рослин)
+                    plants = p_data["quests"].get("plants", [])
+                    updated_plants = []
+                    for pl in plants:
+                        if pl["deadline"] == yesterday_str:
+                            # За зів'ялу рослину штраф — фіксовано половина її вартості
+                            penalty = int(float(pl.get("xp", 20)) / 2)
+                            hp_lost += penalty
+                            failed_tasks.append(f"🌱 {pl['task']} (Зів'яла в теплиці)")
+                        else:
+                            updated_plants.append(pl)
+                    
+                    # Якщо є штрафи — оновлюємо гравця
+                    if hp_lost > 0:
+                        p_data["quests"]["scrolls"] = updated_scrolls
+                        p_data["quests"]["plants"] = updated_plants
+                        
+                        # Знімаємо загальний XP персонажа (або ХП, якщо додаси окрему шкалу здоров'я)
+                        p_data["xp_total"] = max(0.0, float(p_data["xp_total"]) - hp_lost)
+                        
+                        # Зберігаємо зміни в Supabase
+                        update_player(user_id, p_data)
+                        
+                        # Надсилаємо магічне сповіщення в Телеграм
+                        tasks_list = "\n".join(failed_tasks)
+                        notification = (
+                            f"🌌 <b>Нічний туман Грінвуду розсіявся...</b>\n\n"
+                            f"На жаль, час для виконання деяких угод вичерпано:\n{tasks_list}\n\n"
+                            f"💔 Твій персонаж втрачає <b>-{hp_lost:.1f} XP</b> через пропущені дедлайни. Будь обережнішою!"
+                        )
+                        try:
+                            bot.send_message(user_id, notification, parse_mode="HTML")
+                        except Exception:
+                            pass # Якщо користувач заблокував бота
+                            
+            # Спимо хвилину, щоб не спамити базу перевірками в ту саму хвилину
+            time.sleep(60)
+        except Exception as e:
+            print(f"Помилка у фоновому потоці дедлайнів: {e}")
+            time.sleep(60)
+
 app = Flask('')
 
 @app.route('/')
@@ -341,7 +419,7 @@ def handle_menu(message):
             markup.add(types.KeyboardButton(s['task']))
         markup.add(types.KeyboardButton("🔙 Назад до квестів"))
         
-        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>:  Який сувой ти хочеш спалити у синьому вогні без отримання досвіду? ", reply_markup=markup)
+        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>:  Який сувой ти хочеш спалити у синьому вогні без отримання досвіду? ", parse_mode="HTML", reply_markup=markup)
         bot.register_next_step_handler(msg, process_delete_scroll)
 
     # --- ЩОДЕННІ РИТУАЛИ ---
@@ -349,17 +427,39 @@ def handle_menu(message):
         player = get_player(user_id)
         rituals = player["quests"].get("rituals", [])
         
-        status_text = "🔄 <b>Твої щоденні ритуали на сьогодні:</b>\n"
-        status_text += "────────────────────\n"
+        # Визначаємо поточний день тижня за Києвом
+        kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
+        today_idx = datetime.now(ZoneInfo("Europe/Kyiv")).weekday()
+        today_day = kyiv_days[today_idx]
+        
+        status_text = "🔄 <b>Твої магічні ритуали Грінвуду</b>\n"
+        status_text += f"📅 Сьогодні: <b>{today_day.upper()}</b> | Виконуй їх у заплановані дні для підтримки дисципліни!\n"
+        status_text += "────────────────────\n\n"
         
         if not rituals:
-            status_text += "✨ Ти ще не створив жодного щоденного ритуалу."
+            status_text += "✨ Ти ще не створила жодного щоденного ритуалу. Твоя книга порожня."
         else:
             for r in rituals:
-                status = "✅" if r.get("done_today", False) else " "
-                status_text += f"[{status}] {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
+                # Перевіряємо, чи цей ритуал запланований на сьогодні
+                is_active_today = today_day in r.get("days", [])
                 
-        status_text += "\n👇 <b>Обери магічну дію для ритуалів:</b>"
+                # Позначка статусу: якщо виконано — ✅, якщо ні — ⏳.
+                # Якщо ритуал сьогодні відпочиває, покажемо сіре коло ⚪ (або залиш ⏳, як тобі більше подобається)
+                if r.get("done_today", False):
+                    status = "✅"
+                elif is_active_today:
+                    status = "⏳"
+                else:
+                    status = "💤" # Ритуал відпочиває сьогодні
+                
+                # Перетворюємо список днів у красивий рядок, наприклад: "пн, ср, пт"
+                days_list = ", ".join(r.get("days", []))
+                
+                status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
+                status_text += f"   └── 📅 Дні: {days_list}\n\n"
+                
+        status_text += "────────────────────\n"
+        status_text += "👇 <b>Обери магічну дію для ритуалів:</b>"
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
 
     # --- ТЕПЛИЦЯ ---
@@ -724,5 +824,9 @@ def getMessage():
 if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url="https://greenwood-bot-yw5w.onrender.com/" + str(BOT_TOKEN))
+    
+    # 👇 ОСЬ ЦЕЙ РЯДОК ЗАПУСКАЄ НАШ ТАЙМЕР В ОКРЕМУ МАГІЧНУ КІМНАТУ:
+    Thread(target=check_failed_deadlines, daemon=True).start()
+    
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
