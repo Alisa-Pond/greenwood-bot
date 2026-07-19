@@ -831,57 +831,87 @@ def process_create_ritual(message):
     user_id = str(message.from_user.id)
     text = message.text.strip() if message.text else ""
     
-    # Перевірка на повернення назад
     if text == "🔙 Назад до квестів" or text == "🔙 Назад":
         bot.send_message(message.chat.id, "Повертаємось до свитку ритуалів.", reply_markup=get_rituals_menu())
         return
         
     cleaned_text = clean_skin_tones(text)
     
-    # 👇 ОНОВЛЕНИЙ МАГІЧНИЙ ВИРАЗ: тепер ([^\w\s]+) дозволяє ловити декілька емодзі підряд!
-    match = re.match(r"^([^\w\s]+)\s+(\d+)\s+([а-я,ієґу]+)\s+(.+)$", cleaned_text, re.IGNORECASE)
+    # Розбиваємо рядок по пробілах
+    parts = cleaned_text.split()
     
-    if not match:
+    # Нам потрібно мінімум 4 частини: [Емодзі] [Бали] [Дні...] [Назва...]
+    if len(parts) < 4:
         msg = bot.send_message(
             message.chat.id, 
-            "<b>🪷Лілі Понд🪷</b>: «Ой, заклинання створення не спрацювало. Перевір формат і спробуй ще раз за шаблоном:\n<code>[Емодзі] [Бали] [Дні] [Назва]</code>»",
+            "<b>🪷Лілі Понд🪷</b>: «Ой, не вистачає деталей. Перевір формат і спробуй ще раз за шаблоном:\n<code>[Емодзі] [Бали] [Дні] [Назва]</code>»",
             parse_mode="HTML"
         )
         bot.register_next_step_handler(msg, process_create_ritual)
         return
         
-    emoji, xp, days_raw, task_desc = match.groups()
-    xp = int(xp)
-    task_desc = task_desc.strip()
-    days_raw = days_raw.lower().strip()
+    emoji = parts[0]
     
-    # Перевірка ліміту балів
-    if xp < 4 or xp > 14:
-        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Сила ритуалу (бали) має бути в межах від 4 до 14! Спробуй ще раз з правильними балами:»")
+    # Перевіряємо бали
+    try:
+        xp = int(parts[1])
+    except ValueError:
+        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Другим параметром мають бути цифри (бали від 4 до 14). Спробуй ще раз:»")
         bot.register_next_step_handler(msg, process_create_ritual)
         return
         
-    # Розбираємо дні тижня
+    if xp < 4 or xp > 14:
+        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Сила ритуалу має бути в межах від 4 до 14! Спробуй ще раз:»")
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
+
+    # Збираємо все, що йде ПІСЛЯ балів, назад до купи
+    remaining_text = " ".join(parts[2:])
+    
+    # Тепер шукаємо дні тижня. Якщо написано "щодня":
     valid_days = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"]
-    if days_raw == "щодня":
+    
+    if remaining_text.lower().startswith("щодня"):
         final_days = valid_days
+        # Назва справи — це все, що після слова "щодня"
+        task_desc = remaining_text[5:].strip()
     else:
-        final_days = [d.strip() for d in days_raw.split(",") if d.strip() in valid_days]
-        if not final_days:
-            msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Я не змогла розпізнати дні тижня. Використовуй скорочення через кому: пн, вт, ср, чт, пт, сб, нд. Спробуй знову:»")
+        # Шукаємо, де закінчуються дні тижня (допоки слова схожі на пн, вт, ср з комами чи пробілами)
+        # Просто розбираємо по шматочках, поки не зустрінемо назву справи
+        days_accumulated = []
+        words = remaining_text.split()
+        idx = 0
+        
+        for word in words:
+            # Очищаємо слово від ком для перевірки
+            clean_word = word.replace(",", "").lower().strip()
+            if clean_word in valid_days:
+                days_accumulated.append(clean_word)
+                idx += 1
+            else:
+                break # Як тільки слово не є днем тижня — почалася назва справи!
+                
+        if not days_accumulated:
+            msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Я не змогла розпізнати дні тижня (пн, вт...). Спробуй знову:»")
             bot.register_next_step_handler(msg, process_create_ritual)
             return
+            
+        final_days = days_accumulated
+        task_desc = " ".join(words[idx:]).strip()
+
+    if not task_desc:
+        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «А де ж сама назва ритуалу? Напиши умови ще раз, будь ласка:»")
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
 
     player = get_player(user_id)
     rituals = player["quests"].get("rituals", [])
     
-    # Перевіряємо дублікати назв
     if any(clean_skin_tones(r["task"]).lower() == task_desc.lower() for r in rituals):
         msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «У твоїй книзі вже є ритуал з такою назвою. Дай йому трохи інше ім'я:»")
         bot.register_next_step_handler(msg, process_create_ritual)
         return
         
-    # Зберігаємо ритуал (рядок з усіма емодзі запишеться в полі "emoji")
     new_ritual = {
         "emoji": emoji,
         "xp": float(xp),
