@@ -468,9 +468,14 @@ def handle_menu(message):
                 status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
                 status_text += f"   └──  Дні: {days_list}\n\n"
                 
-        bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
-        status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
+                # Усі ці три рядки мають бути з однаковим відступом (16 пробілів або 4 таби)
+                status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
                 status_text += f"    └── 📅 Дні: {days_list}\n\n"
+                
+        # ⚠️ ЗВЕРНИ УВАГУ: цей рядок має стояти на рівні з "if not rituals:" (8 пробілів від краю файлу)!
+        bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
+
+    elif message.text == "➕ Створити ритуал":
                 
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
 
