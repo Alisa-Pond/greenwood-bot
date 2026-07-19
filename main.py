@@ -499,8 +499,6 @@ def handle_menu(message):
         else:
             for idx, p in enumerate(plants, 1):
                 status_text += f"{idx}. {p['emoji']} <b>{p['task']}</b> — [Нагорода: {float(p['xp']):.1f} XP] (Дедлайн: {p['deadline']})\n"
-                
-        status_text += "\n👇 <b>Обери магічну дію для саду:</b>"
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_greenhouse_menu())
 
     # --- РЕЖИМ ДОДАВАННЯ СПРАВИ ---
@@ -832,15 +830,15 @@ def process_create_ritual(message):
     user_id = str(message.from_user.id)
     text = message.text.strip() if message.text else ""
     
-    # Перевірка, чи не захотіла ти повернутися назад
+    # Перевірка на повернення назад
     if text == "🔙 Назад до квестів" or text == "🔙 Назад":
         bot.send_message(message.chat.id, "Повертаємось до свитку ритуалів.", reply_markup=get_rituals_menu())
         return
         
     cleaned_text = clean_skin_tones(text)
     
-    # Магічний регулярний вираз розбирає рядок на частини: [Емодзі] [Бали] [Дні] [Назва]
-    match = re.match(r"^([^\w\s])\s+(\d+)\s+([а-я,ієґу]+)\s+(.+)$", cleaned_text, re.IGNORECASE)
+    # 👇 ОНОВЛЕНИЙ МАГІЧНИЙ ВИРАЗ: тепер ([^\w\s]+) дозволяє ловити декілька емодзі підряд!
+    match = re.match(r"^([^\w\s]+)\s+(\d+)\s+([а-я,ієґу]+)\s+(.+)$", cleaned_text, re.IGNORECASE)
     
     if not match:
         msg = bot.send_message(
@@ -867,23 +865,22 @@ def process_create_ritual(message):
     if days_raw == "щодня":
         final_days = valid_days
     else:
-        # Ділимо рядок по комі і прибираємо зайві пробіли
         final_days = [d.strip() for d in days_raw.split(",") if d.strip() in valid_days]
         if not final_days:
-            msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Я не змогла розпізнати дні тижня. Будь ласка, пиши скорочено через кому: пн, вт, ср, чт, пт, сб, нд. Спробуй знову:»")
+            msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Я не змогла розпізнати дні тижня. Використовуй скорочення через кому: пн, вт, ср, чт, пт, сб, нд. Спробуй знову:»")
             bot.register_next_step_handler(msg, process_create_ritual)
             return
 
     player = get_player(user_id)
     rituals = player["quests"].get("rituals", [])
     
-    # Перевіряємо, чи немає вже ритуалу з такою ж назвою
+    # Перевіряємо дублікати назв
     if any(clean_skin_tones(r["task"]).lower() == task_desc.lower() for r in rituals):
-        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «У твоїй книзі вже є ритуал з точно такою назвою. Дай йому трохи інше ім'я або опис:»")
+        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «У твоїй книзі вже є ритуал з такою назвою. Дай йому трохи інше ім'я:»")
         bot.register_next_step_handler(msg, process_create_ritual)
         return
         
-    # Формуємо новий магічний ритуал
+    # Зберігаємо ритуал (рядок з усіма емодзі запишеться в полі "emoji")
     new_ritual = {
         "emoji": emoji,
         "xp": float(xp),
@@ -892,7 +889,6 @@ def process_create_ritual(message):
         "done_today": False
     }
     
-    # Зберігаємо оновлені дані в базі
     player["quests"]["rituals"].append(new_ritual)
     update_player(user_id, player)
     
