@@ -32,6 +32,21 @@ if not BOT_TOKEN:
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
+def clean_skin_tones(text_to_clean):
+    if not text_to_clean:
+        return ""
+    
+    # Словник рівності: перетворюємо всі кольорові варіації на базові жовті
+    replacements = {
+        "💪🏻": "💪", "💪🏼": "💪", "💪🏽": "💪", "💪🏾": "💪", "💪🏿": "💪",
+        "🤝🏻": "🤝", "🤝🏼": "🤝", "🤝🏽": "🤝", "🤝🏾": "🤝", "🤝🏿": "🤝"
+    }
+    
+    for tone, base in replacements.items():
+        text_to_clean = text_to_clean.replace(tone, base)
+        
+    return text_to_clean
+
 def get_player(user_id):
     """Отримує дані гравця з Supabase. Якщо гравця немає — створює його."""
     user_id = str(user_id)
@@ -132,7 +147,7 @@ def welcome(message):
     
     msg_1 = (
         "🌲 <b>Вітаємо у Greenwood!</b> 🌳\n\n"
-        "Магічний ліс відкриває свої таємниці... А я — 🪷 <b>Lilly Pond</b> 🪷, твій магічний провідник у цьому затишному світі. "
+        "Магічний ліс відкриває свои таємниці... А я — 🪷 <b>Lilly Pond</b> 🪷, твій магічний провідник у цьому затишному світі. "
         "Я допомагатиму тобі перетворювати твої реальні досягнення на справжню силу персонажа!"
     )
     bot.send_message(message.chat.id, msg_1, parse_mode="HTML")
@@ -153,12 +168,7 @@ def welcome(message):
         "<b>🌱 Теплиці </b>."
     )
     bot.send_message(message.chat.id, msg_2, parse_mode="HTML", reply_markup=get_main_menu())
-def clean_skin_tones(text_to_clean):
-    if not text_to_clean:
-        return ""
-    # Видаляє всі Fitzpatrick модифікатори кольору шкіри
-    return re.sub(r'[\U0001f3fb-\U0001f3ff]', '', text_to_clean)
-    
+
 # --- ГОЛОВНИЙ ОБРОБНИК МЕНЮ ---
 
 @bot.message_handler(content_types=['text'])
@@ -233,7 +243,7 @@ def handle_menu(message):
     elif message.text == "➕ Створити сувой":
         guide = (
             "✍️ <b>Запечатування нового сувою</b>\n\n"
-            "<b>🪷Лілі Понд🪷</b>: Давай розправимо чистий пергамент! Будь ласка, напиши мені умови "
+            "<b>🪷Лілі Понд🪷</b>: Давай розправимо чистий пергамент! Будь ласка, напиши мне умови "
             "твого квесту одним рядком за цим магічним шаблоном:\n\n"
             "📖 [Емодзі сфери] [Кратність] [Бали за крок] [Дедлайн ДД.ММ] [Опис справи та твоя Нагорода]\n"
             "• Емодзі сфери: `💪`, `🧠`, `🎨`, `💵`, `🤝`\n"
@@ -247,7 +257,8 @@ def handle_menu(message):
         )
         msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=types.ForceReply(selective=True))
         bot.register_next_step_handler(msg, process_create_scroll)
-    elif message.text == "✅ Позначити виконаним":
+        
+    elif message.text == "✅ Виконати завдання":
         player = get_player(user_id)
         scrolls = player["quests"].get("scrolls", [])
         active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
@@ -304,7 +315,7 @@ def handle_menu(message):
         player = get_player(user_id)
         plants = player["quests"].get("plants", [])
         
-        status_text = "🌱 <b>Теплиця Грінвуду<>/b\n"
+        status_text = "🌱 <b>Теплиця Грінвуду</b>\n"
         status_text += "────────────────────\n"
         status_text += "<b>🌲Лісовик🌲</b>: «О, завітав-таки до моєї теплиці, юний магу! Поглянь на ці магічні насінини втрачених квітів Грінвуду... Щоб кожна з них проросла і розквітла, тобі знадобиться 5 елементів сили — твоя чітка ціль (SMART). Пам'ятай: насіння не зійде, якщо твоя мета розмита чи не має дедлайну! Опиши її чітко, доглядай, а коли вона розквітне в реальності — повертайся сюди і збирай плоди своєї магії!»\n\n"
         
@@ -375,11 +386,9 @@ def process_activity(message):
         # 👑 1. МАГІЧНИЙ РАДАР СУВОЇВ (Перевірка на просте введення назви)
         matched_scroll = None
         for s in scrolls:
-            # Очищаємо назву сувою та твій текст від зайвих пробілів та відтінків шкіри
             scroll_task = clean_skin_tones(s["task"]).strip().lower()
             user_text = cleaned_line.strip().lower()
             
-            # Перевіряємо: або повний збіг, або одна назва є частиною іншої
             if (scroll_task == user_text or scroll_task in user_text or user_text in scroll_task) and s["done_count"] < s["max_count"]:
                 matched_scroll = s
                 break
@@ -387,14 +396,12 @@ def process_activity(message):
         # Якщо знайшли сувой за прямою назвою, штучно підставляємо дані з нього!
         if matched_scroll:
             detected_spheres = []
-            # Порівнюємо очищені від кольору шкіри емодзі
             scroll_emoji = clean_skin_tones(matched_scroll["emoji"])
             for key, sphere in player["spheres"].items():
                 if clean_skin_tones(sphere["emoji"]) == scroll_emoji:
                     detected_spheres.append(key)
                     break
             
-# 👇 Оці два рядки мають стояти НА ОДНОМУ РІВНІ з detected_spheres = [] (рівно під буквою d)
             base_xp = int(float(matched_scroll["xp_per_once"]))
             clean_task = matched_scroll["task"]
             
@@ -428,7 +435,7 @@ def process_activity(message):
 
             # Перевіряємо, чи цей стандартний звіт підходить під якийсь сувой
             for s in scrolls:
-                if s["task"].strip().lower() == clean_task.lower() and s["done_count"] < s["max_count"]:
+                if clean_skin_tones(s["task"]).strip().lower() == clean_task.lower() and s["done_count"] < s["max_count"]:
                     matched_scroll = s
                     break
 
@@ -497,7 +504,9 @@ def process_create_scroll(message):
         bot.send_message(message.chat.id, "Створення скасовано, повертаємось.", reply_markup=get_scrolls_menu())
         return
 
-    match = re.match(r"^([^\w\s])\s+(\d+)\s+(\d+)\s+(\d{2}\.\d{2})\s+(.+)$", text)
+    # Очищаємо вхідний текст від кольорів шкіри емодзі
+    cleaned_text = clean_skin_tones(text)
+    match = re.match(r"^([^\w\s])\s+(\d+)\s+(\d+)\s+(\d{2}\.\d{2})\s+(.+)$", cleaned_text)
     
     if not match:
         msg = bot.send_message(
@@ -521,7 +530,7 @@ def process_create_scroll(message):
     player = get_player(user_id)
     
     scrolls = player["quests"].get("scrolls", [])
-    if any(s["task"].lower() == task_desc.lower() and s["done_count"] < s["max_count"] for s in scrolls):
+    if any(clean_skin_tones(s["task"]).lower() == task_desc.lower() and s["done_count"] < s["max_count"] for s in scrolls):
         msg = bot.send_message(message.chat.id, f"<b>🪷Лілі Понд🪷</b>: «У твоїх хроніках уже є активний сувой з назвою \"{task_desc}\". Придумай іншу назву або заверши попередній квест»")
         bot.register_next_step_handler(msg, process_create_scroll)
         return
@@ -553,13 +562,13 @@ def process_complete_scroll(message):
         bot.send_message(message.chat.id, "Повертаємось.", reply_markup=get_scrolls_menu())
         return
         
-    task_clean = text.strip()
+    task_clean = clean_skin_tones(text.strip())
     player = get_player(user_id)
     scrolls = player["quests"].get("scrolls", [])
     
     found_scroll = None
     for s in scrolls:
-        if s["task"].strip().lower() == task_clean.lower() and s["done_count"] < s["max_count"]:
+        if clean_skin_tones(s["task"]).strip().lower() == task_clean.lower() and s["done_count"] < s["max_count"]:
             found_scroll = s
             break
             
@@ -571,8 +580,9 @@ def process_complete_scroll(message):
     xp_to_add = found_scroll["xp_per_once"]
     
     sphere_key = None
+    scroll_emoji = clean_skin_tones(found_scroll["emoji"])
     for key, sphere in player["spheres"].items():
-        if sphere["emoji"] == found_scroll["emoji"]:
+        if clean_skin_tones(sphere["emoji"]) == scroll_emoji:
             sphere_key = key
             break
             
@@ -596,7 +606,7 @@ def process_complete_scroll(message):
     report = f"✨ <b>🪷Лілі Понд🪷</b>: «Чудовий крок! Записую прогрес у твій сувой!»\n\n{found_scroll['emoji']} {found_scroll['task']} ({found_scroll['done_count']}/{found_scroll['max_count']})\n🔋 Отримано: <b>+{xp_to_add:.1f} XP </b>!"
     
     if found_scroll["done_count"] == found_scroll["max_count"]:
-        report += f"\n\n🎉 <b>СУВОЙ ПОВНІСТЮ ЗАВЕРШЕНО!<b>\n <b>🪷Лілі Понд🪷</b>: «Чудова робота!"
+        report += f"\n\n🎉 <b>СУВОЙ ПОВНІСТЮ ЗАВЕРШЕНО!</b>\n <b>🪷Лілі Понд🪷</b>: «Чудова робота!»"
         
     if lvl_up_text:
         report += "\n\n────────────────────" + lvl_up_text
@@ -612,11 +622,11 @@ def process_delete_scroll(message):
         bot.send_message(message.chat.id, "Повертаємось.", reply_markup=get_scrolls_menu())
         return
         
-    task_clean = text.strip()
+    task_clean = clean_skin_tones(text.strip())
     player = get_player(user_id)
     scrolls = player["quests"].get("scrolls", [])
     
-    new_scrolls = [s for s in scrolls if not (s["task"].strip().lower() == task_clean.lower() and s["done_count"] < s["max_count"])]
+    new_scrolls = [s for s in scrolls if not (clean_skin_tones(s["task"]).strip().lower() == task_clean.lower() and s["done_count"] < s["max_count"])]
     
     if len(scrolls) == len(new_scrolls):
         bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Хм, такого сувою немає на твоєму столі. Спробуй обрати з кнопок!»", reply_markup=get_scrolls_menu())
