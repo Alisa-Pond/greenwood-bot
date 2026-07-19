@@ -964,6 +964,38 @@ def process_create_ritual(message):
         parse_mode="HTML",
         reply_markup=get_rituals_menu()
     )
+    elif message.text == "✅ Виконати ритуал":
+        player = get_player(user_id)
+        rituals = player["quests"].get("rituals", [])
+        
+        # Визначаємо поточний день тижня за Києвом
+        kyiv_day = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"][datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
+        
+        # Шукаємо ритуали, які активні сьогодні і ще не виконані
+        available = [r for r in rituals if kyiv_day in r.get("days", []) and not r.get("done_today", False)]
+        
+        if not available:
+            bot.send_message(
+                message.chat.id, 
+                "<b>🪷Лілі Понд🪷</b>: «На сьогодні немає активних ритуалів, які б чекали твого виконання! Відпочивай або займайся іншими справами.»", 
+                parse_mode="HTML"
+            )
+            return
+            
+        # Якщо є що виконувати, створюємо тимчасові кнопки з назвами цих ритуалів
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        for r in available:
+            markup.add(types.KeyboardButton(r['task']))
+        markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+        
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «Який із сьогоднішніх ритуалів ти завершила? Обери кнопку:»", 
+            reply_markup=markup, 
+            parse_mode="HTML"
+        )
+        # Передаємо керування наступній функції, яка чекатиме на твій клік по назві ритуалу
+        bot.register_next_step_handler(msg, process_complete_ritual)
 # --- ВЕБХУКИ ТА СЕРВЕР ---
 
 @app.route('/' + str(BOT_TOKEN), methods=['POST'])
