@@ -427,17 +427,19 @@ def handle_menu(message):
         player = get_player(user_id)
         rituals = player["quests"].get("rituals", [])
         
-        # Визначаємо поточний день тижня за Києвом
+        # Визначаємо поточний день тижня та дату за Києвом
+        kyiv_time = datetime.now(ZoneInfo("Europe/Kyiv"))
+        kyiv_days = {0: "нд", 1: "пн", 2: "вт", 3: "ср", 4: "чт", 5: "пт", 6: "сб"} if kyiv_time.weekday() == 6 else {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
+        # Простіший варіант без зсувів, оскільки weekday() завжди 0-6 (пн-нд):
         kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
-        today_idx = datetime.now(ZoneInfo("Europe/Kyiv")).weekday()
-        today_day = kyiv_days[today_idx]
+        today_day = kyiv_days[kyiv_time.weekday()]
+        today_date = kyiv_time.strftime("%d.%m") # Отримуємо дату у форматі 19.07
         
         status_text = "🔄 <b>Твої магічні ритуали Грінвуду</b>\n"
-        status_text += f"📅 Сьогодні: <b>{today_day.upper()}</b> | Виконуй їх у заплановані дні для підтримки дисципліни!\n"
-        status_text += "────────────────────\n\n"
+        status_text += f"📅 Сьогодні: <b>{today_date}, {today_day}</b> \n" 
         
         if not rituals:
-            status_text += "✨ Ти ще не створила жодного щоденного ритуалу. Твоя книга порожня."
+            status_text += "✨ Ти ще не створила жодного щоденного ритуалу, твоя книга порожня."
         else:
             for r in rituals:
                 # Перевіряємо, чи цей ритуал запланований на сьогодні
