@@ -613,7 +613,11 @@ def process_plant_creation(message):
     
     # Перевірка на відміну дії
     if text in ["🔙 Назад до квестів", "/start", "🌱 Посадити насіння"]:
-        bot.send_message(message.chat.id, "🌲Лісовик🌲: Ну й добре, заховаєш насіння на потім.", reply_markup=get_greenhouse_menu())
+        bot.send_message(
+            message.chat.id, 
+            "🌲Лісовик🌲: Ну й добре, заховаєш насіння на потім.", 
+            reply_markup=get_greenhouse_menu()
+        )
         return
 
     # Розбиваємо текст за рискою /
@@ -689,8 +693,6 @@ def process_plant_creation(message):
         parse_mode="Markdown",
         reply_markup=get_greenhouse_menu()
     )
-        # 🎯 3. НАРАХУВАННЯ ДОСВІДУ ТА ОНОВЛЕННЯ ПРОГРЕСУ (Спільне для обох шляхів)
-        any_success = True
         
         if matched_scroll:
             matched_scroll["done_count"] += 1
