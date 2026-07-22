@@ -136,7 +136,7 @@ def get_rituals_menu():
 def get_greenhouse_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("🌱 Посадити насіння"), types.KeyboardButton("🌸 Квітка розквітла"))
-    markup.row(types.KeyboardButton("🪾 Вирвати бур'ян"), types.KeyboardButton("🔙 Назад до квестів"))
+    markup.row(types.KeyboardButton("🪾 Вирвати баобаб"), types.KeyboardButton("🔙 Назад до квестів"))
     return markup
 
 # --- ВІТАЛЬНЕ ПОВІДОМЛЕННЯ ---
@@ -247,32 +247,62 @@ def handle_menu(message):
                 
         status_text += "\n"
         
-        # Блок Теплиці
-        status_text += "🌱 <b>Рослини в теплиці:</b>\n"
+# === БЛОК ТЕПЛИЦІ ===
+    elif message.text == "🌱 Теплиця":
+        player = get_player(message.from_user.id)
+        plants = player["quests"].get("plants", [])
+        today_str = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%d.%m")
+
+        status_text = "🌲 **Ласкаво просимо до Магічної Теплиці!** 🌲\n\n"
+        status_text += "🌱 **Рослини в теплиці:**\n"
+        
         if not plants:
-            status_text += "• <i>Теплиця порожня</i>\n"
+            status_text += "• *Теплиця порожня. Час посадити щось величне!*\n"
         else:
             for p in plants:
-                # Перевіряємо дедлайн для рослин
-                fire = " 🔥" if p['deadline'] == today_str else ""
+                fire = " 🔥" if p.get('deadline') == today_str else ""
                 status_text += f"• {p['emoji']} {p['task']} | до {p['deadline']}{fire}\n"
                 
-        status_text += "\n────────────────────"
-        
+        status_text += "\n────────────────────\n"
+        status_text += "Обери дію нижче:"
+
         bot.send_message(
             message.chat.id, 
             status_text, 
-            parse_mode="HTML",
-            reply_markup=get_quests_menu()
-        )
-        
-    elif message.text == "🔙 Назад":
-        bot.send_message(
-            message.chat.id, 
-            "🚪 Закляття телепортації виконано", 
-            reply_markup=get_main_menu()
+            parse_mode="Markdown",
+            reply_markup=get_greenhouse_menu()
         )
 
+    elif message.text == "🌱 Посадити насіння":
+        intro_text = (
+            "🌲Лісовик🌲: Грррм... Хто це тут тупає по моєму священному моху? А, це ти... Знову прийшов щось саджати?\n\n"
+            "Слухай сюди уважно! **Моя теплиця — це не смітник для дрібниць!**\n\n"
+            "❌ Не смій саджати сюди всілякий дріб'язок на п'ять хвилин нашталт *\"помити посуд\"* чи *\"винести сміття\"*. Для цієї щоденної метушні у тебе є ритуали та сувої!\n"
+            "❌ І навіть не думай заривати сюди дурні фантазії типу *\"стати володарем Всесвіту до завтра\"*! Твоє насіння просто вибухне від напруги і спалить мені весь ґрунт!\n\n"
+            "Сюди ми саджаємо тільки **Справжні Магічні Рослини (SMART-цілі)** — щось вагоме, вимірюване і реальне!\n\n"
+            "Перш ніж кинути зерня в землю, дай собі чесну відповідь:\n"
+            "🌱 **Чіткість (S):** Що САМЕ це за рослина?\n"
+            "📏 **Вимірність (M):** Який у неї буде плід? (Скільки сторінок, гривень, занять?)\n"
+            "🪨 **Реальність (A):** Чи вистачить у тебе сил і ґрунту це витягнути?\n\n"
+            "────────────────────\n"
+            "✍️ **Кидай насіння в один рядок через похилу риску (`/`):**\n"
+            "**`Смайлик Сфери / Назва та плід / Дата (ДД.ММ)`**\n\n"
+            "Використовуй один зі смайликів сфери:\n"
+            "💪 — Здоров'я | 🧠 — Мудрість | 🎨 — Творчість | 💵 — Фінанси | 🤝 — Зв'язки\n\n"
+            "💬 *Приклади від мудрого Лісника:*\n"
+            "• `🧠 / Прочитати 3 книги з магії (300 стор) / 15.11`\n"
+            "• `💵 / Заощадити 5000 золотих / 01.12`\n"
+            "• `💪 / Пройти 20 тренувань у залі / 30.10`"
+        )
+        msg = bot.send_message(message.chat.id, intro_text, parse_mode="Markdown")
+        bot.register_next_step_handler(msg, process_plant_creation)
+
+    elif message.text == "🔙 Назад до квестів":
+        bot.send_message(
+            message.chat.id, 
+            "🚪 Повертаємося до сувоїв та ритуалів...", 
+            reply_markup=get_quests_menu()
+        )
    # --- СУВОЇ ЗАВДАНЬ ---
     elif message.text == "📜 Сувої завдань":
         player = get_player(user_id)
@@ -577,7 +607,88 @@ def process_activity(message):
                 if clean_skin_tones(s["task"]).strip().lower() == clean_task.lower() and s["done_count"] < s["max_count"]:
                     matched_scroll = s
                     break
+def process_plant_creation(message):
+    user_id = message.from_user.id
+    text = clean_skin_tones(message.text.strip())
+    
+    # Перевірка на відміну дії
+    if text in ["🔙 Назад до квестів", "/start", "🌱 Посадити насіння"]:
+        bot.send_message(message.chat.id, "🌲Лісовик🌲: Ну й добре, заховаєш насіння на потім.", reply_markup=get_greenhouse_menu())
+        return
 
+    # Розбиваємо текст за рискою /
+    parts = [p.strip() for p in text.split("/")]
+    
+    if len(parts) != 3:
+        msg = bot.send_message(
+            message.chat.id, 
+            "🌲Лісовик🌲: Грррм! Ти що, не бачиш рисок `/`? Вчися формулювати думки правильно, інакше насіння не зійде!\n\n"
+            "Спробуй ще раз у форматі: **`Смайлик / Назва та плід / ДД.ММ`**\n"
+            "Наприклад: `🧠 / Прочитати 200 сторінок / 25.10`",
+            parse_mode="Markdown"
+        )
+        bot.register_next_step_handler(msg, process_plant_creation)
+        return
+
+    emoji_input, task_name, deadline_input = parts[0], parts[1], parts[2]
+
+    # Словник допустимих смайликів та відповідних сфер
+    valid_spheres = {
+        "💪": "health",
+        "🧠": "wisdom",
+        "🎨": "art",
+        "💵": "finance",
+        "🤝": "relations"
+    }
+
+    if emoji_input not in valid_spheres:
+        msg = bot.send_message(
+            message.chat.id,
+            "🌲Лісовик🌲: Що це за чудернацька стихія? Я знаю тільки 5 магічних знаків:\n"
+            "💪 (Здоров'я), 🧠 (Мудрість), 🎨 (Творчість), 💵 (Фінанси), 🤝 (Зв'язки).\n\n"
+            "Вкажи один із цих смайликів на початку!",
+            parse_mode="Markdown"
+        )
+        bot.register_next_step_handler(msg, process_plant_creation)
+        return
+
+    # Перевірка дати
+    if not re.match(r"^\d{2}\.\d{2}$", deadline_input):
+        msg = bot.send_message(
+            message.chat.id,
+            "🌲Лісовик🌲: Це що за календар такий? Дедлайн має бути у форматі **ДД.ММ** (наприклад, `15.11`).\n\nСпробуй ще раз!",
+            parse_mode="Markdown"
+        )
+        bot.register_next_step_handler(msg, process_plant_creation)
+        return
+
+    # Збереження нової рослини в Supabase
+    player = get_player(user_id)
+    
+    new_plant = {
+        "id": int(time.time()),
+        "emoji": emoji_input,
+        "sphere_key": valid_spheres[emoji_input],
+        "task": task_name,
+        "deadline": deadline_input,
+        "created_at": datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%d.%m.%Y")
+    }
+    
+    if "plants" not in player["quests"]:
+        player["quests"]["plants"] = []
+        
+    player["quests"]["plants"].append(new_plant)
+    update_player(user_id, player)
+
+    bot.send_message(
+        message.chat.id,
+        f"🌲Лісовик🌲: Охо-хо! Бережно зариваю зернятко {emoji_input} в магічний ґрунт...\n\n"
+        f"🌱 **Паросток:** {task_name}\n"
+        f"⏳ **Розквітне до:** {deadline_input}\n\n"
+        f"Порядкуй за ним і не забудь повернутися, коли воно розквітне!",
+        parse_mode="Markdown",
+        reply_markup=get_greenhouse_menu()
+    )
         # 🎯 3. НАРАХУВАННЯ ДОСВІДУ ТА ОНОВЛЕННЯ ПРОГРЕСУ (Спільне для обох шляхів)
         any_success = True
         
