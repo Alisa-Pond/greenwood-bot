@@ -699,21 +699,14 @@ def process_activity(message):
                 player["inventory"].append(loot_item)
         if found_loot:
             final_report += f"\n🎒 <b>НЕЙМОВІРНА УДАЧА!</b> {', '.join(found_loot)} додано в рюкзак!"
-
     final_report += "\n🔮 Я готова записувати твої наступні звершення або завершимо ритуал."
     
     update_player(user_id, player)
     
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("🧙‍♂️ Завершити ритуал"))
-    
-    msg = bot.send_message(message.chat.id, final_report, parse_mode="HTML", reply_markup=markup)
-    bot.register_next_step_handler(msg, process_activity)
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("🧙‍♂️ Завершити звіт"), types.KeyboardButton("🔙 Назад"))
     
-    msg = bot.send_message(message.chat.id, "Записано! Щось ще?", reply_markup=markup)
+    msg = bot.send_message(message.chat.id, final_report, parse_mode="HTML", reply_markup=markup)
     bot.register_next_step_handler(msg, process_activity)
 
 # --- ЛОГІКА РОБОТИ ІЗ СУВОЯМИ ---
@@ -863,7 +856,7 @@ def process_create_ritual(message):
     user_id = str(message.from_user.id)
     text = message.text.strip() if message.text else ""
     
-    if text == "🔙 Назад до квестів" or text == "🔙 Назад":
+    if text in ["🔙 Назад до квестів", "🔙 Назад"]:
         bot.send_message(message.chat.id, "Повертаємось до свитку ритуалів.", reply_markup=get_rituals_menu())
         return
         
@@ -888,43 +881,55 @@ def process_create_ritual(message):
     try:
         xp = int(parts[1])
     except ValueError:
-        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Другим параметром мають бути цифри (бали від 4 до 14). Спробуй ще раз:»")
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «Другим параметром мають бути цифри (бали від 4 до 14). Спробуй ще раз:»",
+            parse_mode="HTML"
+        )
         bot.register_next_step_handler(msg, process_create_ritual)
         return
         
     if xp < 4 or xp > 14:
-        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: Сила ритуалу має бути в межах від 4 до 14! Спробуй ще раз:", parse_mode="HTML") 
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: Сила ритуалу має бути в межах від 4 до 14! Спробуй ще раз:", 
+            parse_mode="HTML"
+        ) 
         bot.register_next_step_handler(msg, process_create_ritual)
         return
 
-    # Збираємо все, що йде ПІСЛЯ балів, назад до купи
+    # Збираємо все, що йде ПІСЛЯ балів
     remaining_text = " ".join(parts[2:])
-    
-    # Тепер шукаємо дні тижня. Якщо написано "щодня":
     valid_days = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"]
     
     if remaining_text.lower().startswith("щодня"):
         final_days = valid_days
-        # Назва справи — це все, що після слова "щодня"
         task_desc = remaining_text[5:].strip()
     else:
-        # Шукаємо, де закінчуються дні тижня (допоки слова схожі на пн, вт, ср з комами чи пробілами)
-        # Просто розбираємо по шматочках, поки не зустрінемо назву справи
+        # Надійна розбірка днів (підтримує "пн,ср,пт", "пн, ср, пт", "пн ср пт")
         days_accumulated = []
         words = remaining_text.split()
         idx = 0
         
         for word in words:
-            # Очищаємо слово від ком для перевірки
-            clean_word = word.replace(",", "").lower().strip()
-            if clean_word in valid_days:
-                days_accumulated.append(clean_word)
+            # Розбиваємо кожне слово по комах, якщо вони зклеєні (наприклад "пн,ср,пт")
+            sub_tokens = [t.strip().lower() for t in word.split(",") if t.strip()]
+            
+            # Перевіряємо, чи всі елементи у слові є валідними днями
+            if sub_tokens and all(t in valid_days for t in sub_tokens):
+                for t in sub_tokens:
+                    if t not in days_accumulated:
+                        days_accumulated.append(t)
                 idx += 1
             else:
-                break # Як тільки слово не є днем тижня — почалася назва справи!
-                
+                break # Зустріли назву справи!
+
         if not days_accumulated:
-            msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «Я не змогла розпізнати дні тижня (пн, вт...). Спробуй знову:»")
+            msg = bot.send_message(
+                message.chat.id, 
+                "<b>🪷Лілі Понд🪷</b>: «Я не змогла розпізнати дні тижня (пн, вт...). Спробуй знову:»",
+                parse_mode="HTML"
+            )
             bot.register_next_step_handler(msg, process_create_ritual)
             return
             
@@ -932,7 +937,11 @@ def process_create_ritual(message):
         task_desc = " ".join(words[idx:]).strip()
 
     if not task_desc:
-        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «А де ж сама назва ритуалу? Напиши умови ще раз, будь ласка:»")
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «А де ж сама назва ритуалу? Напиши умови ще раз, будь ласка:»",
+            parse_mode="HTML"
+        )
         bot.register_next_step_handler(msg, process_create_ritual)
         return
 
@@ -940,7 +949,11 @@ def process_create_ritual(message):
     rituals = player["quests"].get("rituals", [])
     
     if any(clean_skin_tones(r["task"]).lower() == task_desc.lower() for r in rituals):
-        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: «У твоїй книзі вже є ритуал з такою назвою. Дай йому трохи інше ім'я:»")
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «У твоїй книзі вже є ритуал з такою назвою. Дай йому трохи інше ім'я:»",
+            parse_mode="HTML"
+        )
         bot.register_next_step_handler(msg, process_create_ritual)
         return
         
@@ -964,38 +977,7 @@ def process_create_ritual(message):
         parse_mode="HTML",
         reply_markup=get_rituals_menu()
     )
-    elif message.text == "✅ Виконати ритуал":
-        player = get_player(user_id)
-        rituals = player["quests"].get("rituals", [])
-        
-        # Визначаємо поточний день тижня за Києвом
-        kyiv_day = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"][datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
-        
-        # Шукаємо ритуали, які активні сьогодні і ще не виконані
-        available = [r for r in rituals if kyiv_day in r.get("days", []) and not r.get("done_today", False)]
-        
-        if not available:
-            bot.send_message(
-                message.chat.id, 
-                "<b>🪷Лілі Понд🪷</b>: «На сьогодні немає активних ритуалів, які б чекали твого виконання! Відпочивай або займайся іншими справами.»", 
-                parse_mode="HTML"
-            )
-            return
-            
-        # Якщо є що виконувати, створюємо тимчасові кнопки з назвами цих ритуалів
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        for r in available:
-            markup.add(types.KeyboardButton(r['task']))
-        markup.add(types.KeyboardButton("🔙 Назад до квестів"))
-        
-        msg = bot.send_message(
-            message.chat.id, 
-            "<b>🪷Лілі Понд🪷</b>: «Який із сьогоднішніх ритуалів ти завершила? Обери кнопку:»", 
-            reply_markup=markup, 
-            parse_mode="HTML"
-        )
-        # Передаємо керування наступній функції, яка чекатиме на твій клік по назві ритуалу
-        bot.register_next_step_handler(msg, process_complete_ritual)
+   
 # --- ВЕБХУКИ ТА СЕРВЕР ---
 
 @app.route('/' + str(BOT_TOKEN), methods=['POST'])
