@@ -264,7 +264,49 @@ def handle_menu(message):
             parse_mode="HTML", 
             reply_markup=get_quests_menu()
         )
+# --- КВІТКА РОЗКВІТЛА (ЗАВЕРШЕННЯ ЦІЛІ) ---
+    elif message.text == "🌸 Квітка розквітла":
+        player = get_player(user_id)
+        plants = player["quests"].get("plants", [])
 
+        if not plants:
+            bot.send_message(message.chat.id, "🌲Лісовик🌲: У тебе в теплиці порожньо, нічому цвісти!", parse_mode="HTML")
+            return
+
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        for p in plants:
+            markup.add(types.KeyboardButton(p['task']))
+        markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+
+        msg = bot.send_message(
+            message.chat.id, 
+            "🌲Лісовик🌲: Охохо! Невже якась із рослин дала плоди? Обери, що саме розквітло:", 
+            reply_markup=markup, 
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_harvest_plant)
+
+    # --- ВИРВАТИ БАОБАБ (СКАСУВАННЯ ЦІЛІ) ---
+    elif message.text in ["🪓 Вирвати баобаб", "🌱 Вирвати баобаб"]:
+        player = get_player(user_id)
+        plants = player["quests"].get("plants", [])
+
+        if not plants:
+            bot.send_message(message.chat.id, "🌲Лісовик🌲: Тут немає ніяких баобабів, теплиця порожня!", parse_mode="HTML")
+            return
+
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        for p in plants:
+            markup.add(types.KeyboardButton(p['task']))
+        markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+
+        msg = bot.send_message(
+            message.chat.id, 
+            "🌲Лісовик🌲: Ех, закинув рослину і вона перетворилася на загарбницький баобаб? Обери, що треба вирвати з корінням:", 
+            reply_markup=markup, 
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_remove_plant)
     # --- СУВОЇ ЗАВДАНЬ ---
     elif message.text == "📜 Сувої завдань":
         player = get_player(user_id)
@@ -452,16 +494,33 @@ def handle_menu(message):
                 
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_greenhouse_menu())
 
-    elif message.text == "🌱 Посадити насіння":
+elif message.text == "🌱 Посадити насіння":
         intro_text = (
-            "🌲 <b>Лісовик</b>: Сюди ми саджаємо тільки <b>Справжні Магічні Рослини (SMART-цілі)</b> — щось вагоме та вимірюване!\n\n"
-            "✍️ <b>Кидай насіння в один рядок через похилу риску (/):</b>\n"
-            "<code>Емодзі сфери / Назва та плід / Дата (ДД.ММ)</code>\n\n"
-            "Доступні сфери: 💪, 🧠, 🎨, 💵, 🤝\n\n"
-            "💬 <i>Приклад:</i>\n"
-            "<code>🧠 / Прочитати 3 книги з магії (300 стор) / 15.11</code>"
+            "🌲Лісовик🌲: Грррм... Хто це тут тупає по моєму священному моху? А, це ти... Знову прийшов щось саджати?\n\n"
+            "Слухай сюди уважно! <b>Моя теплиця — це не смітник для дрібниць!</b>\n\n"
+            "❌ Не смій саджати сюди всілякий дріб'язок на п'ять хвилин накшталт <i>\"помити посуд\"</i> чи <i>\"винести сміття\"</i>. Для цієї щоденної метушні у тебе є ритуали та сувої!\n"
+            "❌ І навіть не думай заривати сюди дурні фантазії типу <i>\"стати володарем Всесвіту до завтра\"</i>! Твоє насіння просто вибухне від напруги і спалить мені весь ґрунт!\n\n"
+            "Сюди ми саджаємо тільки <b>Справжні Магічні Рослини (SMART-цілі)</b> — щось вагоме, вимірюване і реальне!\n\n"
+            "Перш ніж кинути зерня в землю, дай собі чесну відповідь:\n"
+            "🌱 <b>Чіткість (S):</b> Що САМЕ це за рослина?\n"
+            "📏 <b>Вимірність (M):</b> Який у неї буде плід? (Скільки сторінок, гривень, занять?)\n"
+            "🪨 <b>Реальність (A):</b> Чи вистачить у тебе сил і ґрунту це витягнути?\n\n"
+            "────────────────────\n"
+            "✍️ <b>Кидай насіння в один рядок через похилу риску (<code>/</code>):</b>\n"
+            "<b><code>Смайлик Сфери / Назва та плід / Дата (ДД.ММ)</code></b>\n\n"
+            "Використовуй один зі смайликів сфери:\n"
+            "💪 — Здоров'я | 🧠 — Мудрість | 🎨 — Творчість | 💵 — Фінанси | 🤝 — Зв'язки\n\n"
+            "💬 <i>Приклади від мудрого Лісника:</i>\n"
+            "• <code>🧠 / Прочитати 3 книги з магії (300 стор) / 15.11</code>\n"
+            "• <code>💵 / Заощадити 5000 золотих / 01.12</code>\n"
+            "• <code>💪 / Пройти 20 тренувань у залі / 30.10</code>"
         )
-        msg = bot.send_message(message.chat.id, intro_text, parse_mode="HTML")
+        
+        # Створюємо кнопку скасування
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+        
+        msg = bot.send_message(message.chat.id, intro_text, parse_mode="HTML", reply_markup=markup)
         bot.register_next_step_handler(msg, process_plant_creation)
 
     # --- РЕЖИМ ДОДАВАННЯ СПРАВИ ---
@@ -819,6 +878,132 @@ def process_complete_ritual(message):
         reply_markup=get_rituals_menu(),
         parse_mode="HTML"
     )
+    def process_plant_creation(message):
+    user_id = message.from_user.id
+    text = message.text.strip()
+
+    # Якщо натиснули кнопку скасування
+    if text in ["🔙 Назад", "🔙 Назад до квестів", "/cancel"]:
+        bot.send_message(message.chat.id, "🌲Лісовик🌲: Хм, ну й добре. Менше бур'янів у теплиці!", reply_markup=get_greenhouse_menu())
+        return
+
+    # Розділяємо рядок за допомогою риски /
+    parts = [p.strip() for p in text.split("/")]
+
+    if len(parts) != 3:
+        msg = bot.send_message(
+            message.chat.id,
+            "🌲Лісовик🌲: Грррм! Ти взагалі мене слухав? <b>Треба рівно дві риски / !</b>\n\n"
+            "Напиши у форматі: <code>Емодзі / Назва цілі / ДД.ММ</code>\n"
+            "Спробуй ще раз або натисни кнопку повернення:",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_plant_creation)
+        return
+
+    raw_emoji, task, deadline = parts[0], parts[1], parts[2]
+
+    # Чистимо тони шкіри
+    emoji = raw_emoji
+    for skin_tone, clean_emoji in replacements.items():
+        emoji = emoji.replace(skin_tone, clean_emoji)
+
+    valid_emojis = ["💪", "🧠", "🎨", "💵", "🤝"]
+    if emoji not in valid_emojis:
+        msg = bot.send_message(
+            message.chat.id,
+            "🌲Лісовик🌲: Що це за дивна магія? Використовуй тільки правильні смайлики: 💪, 🧠, 🎨, 💵, 🤝\nСпробуй ще раз:",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_plant_creation)
+        return
+
+    # Зберігаємо рослину
+    player = get_player(user_id)
+    if "plants" not in player["quests"]:
+        player["quests"]["plants"] = []
+
+    player["quests"]["plants"].append({
+        "emoji": emoji,
+        "task": task,
+        "deadline": deadline
+    })
+    save_player(user_id, player)
+
+    bot.send_message(
+        message.chat.id, 
+        f"🌲Лісовик🌲: Ну добре, закопали твоє зерно <b>{emoji} {task}</b>! Тепер поливай його своєю працею до {deadline}!", 
+        parse_mode="HTML", 
+        reply_markup=get_greenhouse_menu()
+    )
+# Функція для "Квітка розквітла"
+def process_harvest_plant(message):
+    user_id = message.from_user.id
+    task_name = message.text.strip()
+
+    if task_name in ["🔙 Назад", "🔙 Назад до квестів"]:
+        bot.send_message(message.chat.id, "Повертаємось до теплиці.", reply_markup=get_greenhouse_menu())
+        return
+
+    player = get_player(user_id)
+    plants = player["quests"].get("plants", [])
+
+    # Шукаємо рослину за назвою
+    plant_to_remove = None
+    for p in plants:
+        if p["task"] == task_name:
+            plant_to_remove = p
+            break
+
+    if plant_to_remove:
+        plants.remove(plant_to_remove)
+        save_player(user_id, player)
+
+        bot.send_message(
+            message.chat.id,
+            f"🌺 <b>ВРОЖАЙ ЗІБРАНО!</b> 🌺\n\n"
+            f"🌲Лісовик🌲: Оце так диво! Твоя рослина <b>{plant_to_remove['emoji']} {plant_to_remove['task']}</b> розквітла прекрасним цвітом!\n"
+            f"Ти отримуєш заслужену гордість та магічну енергію!",
+            parse_mode="HTML",
+            reply_markup=get_greenhouse_menu()
+        )
+    else:
+        bot.send_message(message.chat.id, "🌲Лісовик🌲: Я не знайшов такої рослини. Спробуй ще раз з меню.", reply_markup=get_greenhouse_menu())
+
+
+# Функція для "Вирвати баобаб"
+def process_remove_plant(message):
+    user_id = message.from_user.id
+    task_name = message.text.strip()
+
+    if task_name in ["🔙 Назад", "🔙 Назад до квестів"]:
+        bot.send_message(message.chat.id, "Повертаємось до теплиці.", reply_markup=get_greenhouse_menu())
+        return
+
+    player = get_player(user_id)
+    plants = player["quests"].get("plants", [])
+
+    plant_to_remove = None
+    for p in plants:
+        if p["task"] == task_name:
+            plant_to_remove = p
+            break
+
+    if plant_to_remove:
+        plants.remove(plant_to_remove)
+        save_player(user_id, player)
+
+        bot.send_message(
+            message.chat.id,
+            f"🪓 <b>БАОБАБ ВИРВАНО!</b>\n\n"
+            f"🌲Лісовик🌲: Хрусь! Вирвали <b>{plant_to_remove['task']}</b> з корінням. "
+            f"Тепер цей ґрунт знову чистий для нових SMART-цілей!",
+            parse_mode="HTML",
+            reply_markup=get_greenhouse_menu()
+        )
+    else:
+        bot.send_message(message.chat.id, "🌲Лісовик🌲: Я не знайшов такого баобаба.", reply_markup=get_greenhouse_menu())
+        
 # --- ВЕБХУКИ ТА СЕРВЕР ---
 
 @app.route('/' + str(BOT_TOKEN), methods=['POST'])
