@@ -1132,8 +1132,5 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url="https://greenwood-bot-yw5w.onrender.com/" + str(BOT_TOKEN))
     
-    # 👇 ОСЬ ЦЕЙ РЯДОК ЗАПУСКАЄ НАШ ТАЙМЕР В ОКРЕМУ МАГІЧНУ КІМНАТУ:
-    Thread(target=check_failed_deadlines, daemon=True).start()
-    
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
