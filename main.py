@@ -203,10 +203,11 @@ def handle_menu(message):
     elif message.text == "📜 Основний квест":
         bot.send_message(message.chat.id, "🔒 <b>Основний квест заблоковано.</b> ", parse_mode="HTML")
         
+    # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
     elif message.text == "🎯 Мої Квести" or message.text == "🔙 Назад до квестів":
         player = get_player(user_id)
         
-        # Оновлюємо дату при КВЕНЧЕННІ кнопки (Київський час, формат ДД.ММ)
+        # Поточна дата за Києвом (формат ДД.ММ)
         today_str = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%d.%m")
         
         scrolls = player["quests"].get("scrolls", [])
@@ -217,25 +218,23 @@ def handle_menu(message):
         status_text = "🎯 <b>Магічний Органайзер Грінвуду</b>\n"
         status_text += "────────────────────\n\n"
         
-        # Блок Сувоїв
+        # === Блок Сувоїв ===
         status_text += "📜 <b>Активні сувої:</b>\n"
         if not active_scrolls:
             status_text += "• <i>Немає активних сувоїв</i>\n"
         else:
             for s in active_scrolls:
-                fire = " 🔥" if s['deadline'] == today_str else ""
+                fire = " 🔥" if s.get('deadline') == today_str else ""
                 status_text += f"• {s['emoji']} {s['task']} ({s['done_count']}/{s['max_count']}) | до {s['deadline']}{fire}\n"
                 
         status_text += "\n"
         
-        # === Блок Ритуалів у головному меню квестів ===
+        # === Блок Ритуалів ===
         status_text += "🔄 <b>Активні ритуали на сьогодні:</b>\n"
         
-        # Визначаємо поточний день тижня за Києвом
         kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
         today_day = kyiv_days[datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
         
-        # Беремо тільки ті ритуали, які мають виконуватися саме сьогодні
         today_rituals = [r for r in rituals if today_day in r.get("days", [])]
         
         if not today_rituals:
@@ -246,82 +245,44 @@ def handle_menu(message):
                 status_text += f"• {status} {r['emoji']} {r['task']}\n"
                 
         status_text += "\n"
-        
-# === БЛОК ТЕПЛИЦІ ===
-    elif message.text == "🌱 Теплиця":
-        player = get_player(message.from_user.id)
-        plants = player["quests"].get("plants", [])
-        today_str = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%d.%m")
 
-        status_text = "🌲 **Ласкаво просимо до Магічної Теплиці!** 🌲\n\n"
-        status_text += "🌱 **Рослини в теплиці:**\n"
-        
+        # === Блок Рослин (Теплиці) ===
+        status_text += "🌱 <b>Рослини в теплиці:</b>\n"
         if not plants:
-            status_text += "• *Теплиця порожня. Час посадити щось величне!*\n"
+            status_text += "• <i>Теплиця порожня</i>\n"
         else:
             for p in plants:
                 fire = " 🔥" if p.get('deadline') == today_str else ""
                 status_text += f"• {p['emoji']} {p['task']} | до {p['deadline']}{fire}\n"
-                
+
         status_text += "\n────────────────────\n"
-        status_text += "Обери дію нижче:"
+        status_text += "Обери розділ для керування:"
 
         bot.send_message(
             message.chat.id, 
             status_text, 
-            parse_mode="Markdown",
-            reply_markup=get_greenhouse_menu()
-        )
-
-    elif message.text == "🌱 Посадити насіння":
-        intro_text = (
-            "🌲Лісовик🌲: Грррм... Хто це тут тупає по моєму священному моху? А, це ти... Знову прийшов щось саджати?\n\n"
-            "Слухай сюди уважно! **Моя теплиця — це не смітник для дрібниць!**\n\n"
-            "❌ Не смій саджати сюди всілякий дріб'язок на п'ять хвилин нашталт *\"помити посуд\"* чи *\"винести сміття\"*. Для цієї щоденної метушні у тебе є ритуали та сувої!\n"
-            "❌ І навіть не думай заривати сюди дурні фантазії типу *\"стати володарем Всесвіту до завтра\"*! Твоє насіння просто вибухне від напруги і спалить мені весь ґрунт!\n\n"
-            "Сюди ми саджаємо тільки **Справжні Магічні Рослини (SMART-цілі)** — щось вагоме, вимірюване і реальне!\n\n"
-            "Перш ніж кинути зерня в землю, дай собі чесну відповідь:\n"
-            "🌱 **Чіткість (S):** Що САМЕ це за рослина?\n"
-            "📏 **Вимірність (M):** Який у неї буде плід? (Скільки сторінок, гривень, занять?)\n"
-            "🪨 **Реальність (A):** Чи вистачить у тебе сил і ґрунту це витягнути?\n\n"
-            "────────────────────\n"
-            "✍️ **Кидай насіння в один рядок через похилу риску (`/`):**\n"
-            "**`Смайлик Сфери / Назва та плід / Дата (ДД.ММ)`**\n\n"
-            "Використовуй один зі смайликів сфери:\n"
-            "💪 — Здоров'я | 🧠 — Мудрість | 🎨 — Творчість | 💵 — Фінанси | 🤝 — Зв'язки\n\n"
-            "💬 *Приклади від мудрого Лісника:*\n"
-            "• `🧠 / Прочитати 3 книги з магії (300 стор) / 15.11`\n"
-            "• `💵 / Заощадити 5000 золотих / 01.12`\n"
-            "• `💪 / Пройти 20 тренувань у залі / 30.10`"
-        )
-        msg = bot.send_message(message.chat.id, intro_text, parse_mode="Markdown")
-        bot.register_next_step_handler(msg, process_plant_creation)
-
-    elif message.text == "🔙 Назад до квестів":
-        bot.send_message(
-            message.chat.id, 
-            "🚪 Повертаємося до сувоїв та ритуалів...", 
+            parse_mode="HTML", 
             reply_markup=get_quests_menu()
         )
-   # --- СУВОЇ ЗАВДАНЬ ---
+
+    # --- СУВОЇ ЗАВДАНЬ ---
     elif message.text == "📜 Сувої завдань":
         player = get_player(user_id)
         scrolls = player["quests"].get("scrolls", [])
         active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
         
         status_text = (
-            "📜 <b> Книга Сувоїв Грінвуду </b> \n\n"
-            "<b>🪷Лілі Понд🪷</b>: Використовуй сувої, аби запечати обіцянку собі про виконання завдання.  "
-            "Вони ідеально підходять для планування справ, які мають чіткий дедлайн та/або потребують "
-            "кількох повторень.\n\n"
-            "📌<b>Твої активні сувої: </b> \n"
+            "📜 <b>Книга Сувоїв Грінвуду</b>\n\n"
+            "<b>🪷Лілі Понд🪷</b>: Використовуй сувої, аби запечатати обіцянку собі про виконання завдання. "
+            "Вони ідеально підходять для справ із чітким дедлайном або кількома повтореннями.\n\n"
+            "📌 <b>Твої активні сувої:</b>\n"
         )
         
         if not active_scrolls:
             status_text += "Твій стіл порожній. Час запечатати першу угоду!"
         else:
             for idx, s in enumerate(active_scrolls, 1):
-                status_text += f"{idx}. {s['emoji']} <b>{s['task']}</b>— ({s['done_count']}/{s['max_count']}) | {float(s['xp_per_once']):.1f} XP за крок (⏰ Дедлайн: {s['deadline']})\n"
+                status_text += f"{idx}. {s['emoji']} <b>{s['task']}</b> — ({s['done_count']}/{s['max_count']}) | {float(s['xp_per_once']):.1f} XP за крок (⏰ Дедлайн: {s['deadline']})\n"
                 
         status_text += "\n👇 <b>Обери магічну дію:</b>"
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_scrolls_menu())
@@ -329,17 +290,17 @@ def handle_menu(message):
     elif message.text == "➕ Створити сувой":
         guide = (
             "✍️ <b>Запечатування нового сувою</b>\n\n"
-            "<b>🪷Лілі Понд🪷</b>: Давай розправимо чистий пергамент! Будь ласка, напиши мне умови "
+            "<b>🪷Лілі Понд🪷</b>: Давай розправимо чистий пергамент! Будь ласка, напиши умови "
             "твого квесту одним рядком за цим магічним шаблоном:\n\n"
-            "📖 [Емодзі сфери] [Кратність] [Бали за крок] [Дедлайн ДД.ММ] [Опис справи та твоя Нагорода]\n"
-            "• Емодзі сфери: `💪`, `🧠`, `🎨`, `💵`, `🤝`\n"
-            "• Кратність (к-сть разів необхідно виконати до дедлайну).\n"
-            "• Бали за крок від <u> 4 до 14 </u>.\n"
+            "📖 [Емодзі сфери] [Кратність] [Бали за крок] [Дедлайн ДД.ММ] [Опис справи та Нагорода]\n"
+            "• Емодзі сфери: 💪, 🧠, 🎨, 💵, 🤝\n"
+            "• Кратність (кількість разів для виконання).\n"
+            "• Бали за крок від 4 до 14.\n"
             "• Дедлайн у форматі ДД.ММ.\n"
-            "• Опис або назва, можеш написати нагороду за виконання яку собі обіцяєш \n\n"
-            "📌Приклад:\n"
-            "`🧠 3 10 22.07 Прочитати 50 сторінок книги (Нагорода: замовити нову сукню)`\n\n"
-            "Напиши `🔙 Назад до квестів` для повернення)"
+            "• Опис або назва справи\n\n"
+            "📌 Приклад:\n"
+            "<code>🧠 3 10 22.07 Прочитати 50 сторінок книги (Нагорода: замовити нову сукню)</code>\n\n"
+            "Напиши <code>🔙 Назад до квестів</code> для повернення."
         )
         msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=types.ForceReply(selective=True))
         bot.register_next_step_handler(msg, process_create_scroll)
@@ -350,7 +311,7 @@ def handle_menu(message):
         active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
         
         if not active_scrolls:
-            bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: На твоїх полицях немає активних сувоїв для виконання.")
+            bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: На твоїх полицях немає активних сувоїв для виконання.", parse_mode="HTML")
             return
             
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -360,7 +321,7 @@ def handle_menu(message):
         
         msg = bot.send_message(
             message.chat.id, 
-            "<b>🪷Лілі Понд🪷</b>: Обери сувой, у якому ти сьогодні зробила крок вперед, ти також може позначити його виконати через ➕ Додати Справу основного меню, написавши тільки назву:", 
+            "<b>🪷Лілі Понд🪷</b>: Обери сувой, у якому ти сьогодні зробила крок вперед:", 
             reply_markup=markup, 
             parse_mode="HTML" 
         )
@@ -372,7 +333,7 @@ def handle_menu(message):
         active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
         
         if not active_scrolls:
-            bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>:  Тобі нема чого спалювати, твій стіл порожній! ")
+            bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: Тобі нема чого спалювати, твій стіл порожній!", parse_mode="HTML")
             return
             
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -380,15 +341,19 @@ def handle_menu(message):
             markup.add(types.KeyboardButton(s['task']))
         markup.add(types.KeyboardButton("🔙 Назад до квестів"))
         
-        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>:  Який сувой ти хочеш спалити у синьому вогні без отримання досвіду? ", parse_mode="HTML", reply_markup=markup)
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: Який сувой ти хочеш спалити у синьому вогні без отримання досвіду?", 
+            parse_mode="HTML", 
+            reply_markup=markup
+        )
         bot.register_next_step_handler(msg, process_delete_scroll)
 
-   # --- ЩОДЕННІ РИТУАЛИ ---
+    # --- ЩОДЕННІ РИТУАЛИ ---
     elif message.text == "🔄 Щоденні ритуали":
         player = get_player(user_id)
         rituals = player["quests"].get("rituals", [])
         
-        # Визначаємо поточний день тижня та дату за Києвом
         kyiv_time = datetime.now(ZoneInfo("Europe/Kyiv"))
         kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
         today_day = kyiv_days[kyiv_time.weekday()]
@@ -414,7 +379,7 @@ def handle_menu(message):
                 days_list = ", ".join(r.get("days", []))
                 
                 status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
-                status_text += f"    └──  Дні: {days_list}\n\n"
+                status_text += f"    └── Дні: {days_list}\n\n"
                 
         status_text += "────────────────────\n"
         status_text += "👇 <b>Обери магічну дію для ритуалів:</b>"
@@ -424,11 +389,11 @@ def handle_menu(message):
         guide = (
             "✍️ <b>Створення щоденного ритуалу</b>\n\n"
             "<b>🪷Лілі Понд🪷</b>: Напиши умови одним рядком за цим шаблоном:\n\n"
-            "📖 [💪, 🧠, 🎨, 💵, 🤝] [Бали(1-14)] [Дні] [Назва справи]\n"
+            "📖 [💪, 🧠, 🎨, 💵, 🤝] [Бали (1-14)] [Дні] [Назва справи]\n"
             "• <b>Дні</b> перерахуй через кому (<code>пн,вт,ср,чт,пт,сб,нд</code>) або напиши <code>щодня</code>.\n\n"
             "📌 <b>Приклади:</b>\n"
             "<code>🧠 5 пн,ср,пт Читати книгу</code>\n"
-            "<code>💪 8 щодня Ранкова руханка</code>\n\n"
+            "<code>💪 8 щодня Ранкова руханка</code>\n"
         )
         
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -436,25 +401,22 @@ def handle_menu(message):
         
         msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=markup)
         bot.register_next_step_handler(msg, process_create_ritual)
+
     elif message.text == "✅ Виконати ритуал":
         player = get_player(user_id)
         rituals = player["quests"].get("rituals", [])
         
-        # Визначаємо поточний день тижня за Києвом
         kyiv_day = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"][datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
-        
-        # Шукаємо ритуали, які активні сьогодні і ще не виконані
         available = [r for r in rituals if kyiv_day in r.get("days", []) and not r.get("done_today", False)]
         
         if not available:
             bot.send_message(
                 message.chat.id, 
-                "<b>🪷Лілі Понд🪷</b>: «На сьогодні немає активних ритуалів, які б чекали твого виконання! Відпочивай або займайся іншими справами.»", 
+                "<b>🪷Лілі Понд🪷</b>: На сьогодні немає активних ритуалів, які б чекали виконання! Відпочивай або займайся іншими справами.", 
                 parse_mode="HTML"
             )
             return
             
-        # Якщо є що виконувати, створюємо тимчасові кнопки з назвами цих ритуалів
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         for r in available:
             markup.add(types.KeyboardButton(r['task']))
@@ -462,21 +424,24 @@ def handle_menu(message):
         
         msg = bot.send_message(
             message.chat.id, 
-            "<b>🪷Лілі Понд🪷</b>: «Який із сьогоднішніх ритуалів ти завершила? Обери кнопку:»", 
+            "<b>🪷Лілі Понд🪷</b>: Який із сьогоднішніх ритуалів ти завершила? Обери кнопку:", 
             reply_markup=markup, 
             parse_mode="HTML"
         )
-        # Передаємо керування наступній функції, яка чекатиме на твій клік по назві ритуалу
         bot.register_next_step_handler(msg, process_complete_ritual)
 
-# --- ТЕПЛИЦЯ ---
-    elif message.text == "🌱 Теплиця Грінвуду" or message.text == "🌿 Теплиця":
+    # --- ТЕПЛИЦЯ ---
+    elif message.text in ["🌱 Теплиця Грінвуду", "🌱 Теплиця"]:
         player = get_player(user_id)
         plants = player["quests"].get("plants", [])
         
         status_text = "🌱 <b>Теплиця Грінвуду</b>\n"
         status_text += "────────────────────\n"
-        status_text += "<b>🌲Лісовик🌲</b>: О, завітав-таки до моєї теплиці, юний магу! Поглянь на ці магічні насінини втрачених квітів Грінвуду... Щоб кожна з них проросла і розквітла, тобі знадобиться 5 елементів сили — твоя чітка ціль (SMART). Пам'ятай: насіння не зійде, якщо твоя мета розмита чи не має дедлайну! Опиши її чітко, доглядай, а коли вона розквітне в реальності — повертайся сюди і збирай плоди своєї магії!\n\n"
+        status_text += (
+            "<b>🌲Лісовик🌲</b>: Завітав до моєї теплиці? Поглянь на ці магічні насінини... "
+            "Щоб кожна з них розквітла, потрібна чітка ціль (SMART) і дедлайн. "
+            "Опиши її чітко, доглядай, а коли вона розквітне — збирай плоди!\n\n"
+        )
         
         status_text += "🌱 <b>Твої поточні магічні рослини:</b>\n"
         if not plants:
@@ -484,30 +449,19 @@ def handle_menu(message):
         else:
             for idx, p in enumerate(plants, 1):
                 status_text += f"{idx}. {p['emoji']} <b>{p['task']}</b> — (Дедлайн: {p['deadline']})\n"
+                
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_greenhouse_menu())
 
     elif message.text == "🌱 Посадити насіння":
         intro_text = (
-            "🌲Лісовик🌲: Грррм... Хто це тут тупає по моєму священному моху? А, це ти... Знову прийшов щось саджати?\n\n"
-            "Слухай сюди уважно! **Моя теплиця — це не смітник для дрібниць!**\n\n"
-            "❌ Не смій саджати сюди всілякий дріб'язок на п'ять хвилин накшталт *\"помити посуд\"* чи *\"винести сміття\"*. Для цієї щоденної метушні у тебе є ритуали та сувої!\n"
-            "❌ І навіть не думай заривати сюди дурні фантазії типу *\"стати володарем Всесвіту до завтра\"*! Твоє насіння просто вибухне від напруги і спалить мені весь ґрунт!\n\n"
-            "Сюди ми саджаємо тільки **Справжні Магічні Рослини (SMART-цілі)** — щось вагоме, вимірюване і реальне!\n\n"
-            "Перш ніж кинути зерня в землю, дай собі чесну відповідь:\n"
-            "🌱 **Чіткість (S):** Що САМЕ це за рослина?\n"
-            "📏 **Вимірність (M):** Який у неї буде плід? (Скільки сторінок, гривень, занять?)\n"
-            "🪨 **Реальність (A):** Чи вистачить у тебе сил і ґрунту це витягнути?\n\n"
-            "────────────────────\n"
-            "✍️ **Кидай насіння в один рядок через похилу риску (`/`):**\n"
-            "**`Смайлик Сфери / Назва та плід / Дата (ДД.ММ)`**\n\n"
-            "Використовуй один зі смайликів сфери:\n"
-            "💪 — Здоров'я | 🧠 — Мудрість | 🎨 — Творчість | 💵 — Фінанси | 🤝 — Зв'язки\n\n"
-            "💬 *Приклади від мудрого Лісника:*\n"
-            "• `🧠 / Прочитати 3 книги з магії (300 стор) / 15.11`\n"
-            "• `💵 / Заощадити 5000 золотих / 01.12`\n"
-            "• `💪 / Пройти 20 тренувань у залі / 30.10`"
+            "🌲 <b>Лісовик</b>: Сюди ми саджаємо тільки <b>Справжні Магічні Рослини (SMART-цілі)</b> — щось вагоме та вимірюване!\n\n"
+            "✍️ <b>Кидай насіння в один рядок через похилу риску (/):</b>\n"
+            "<code>Емодзі сфери / Назва та плід / Дата (ДД.ММ)</code>\n\n"
+            "Доступні сфери: 💪, 🧠, 🎨, 💵, 🤝\n\n"
+            "💬 <i>Приклад:</i>\n"
+            "<code>🧠 / Прочитати 3 книги з магії (300 стор) / 15.11</code>"
         )
-        msg = bot.send_message(message.chat.id, intro_text, parse_mode="Markdown")
+        msg = bot.send_message(message.chat.id, intro_text, parse_mode="HTML")
         bot.register_next_step_handler(msg, process_plant_creation)
 
     # --- РЕЖИМ ДОДАВАННЯ СПРАВИ ---
@@ -517,266 +471,17 @@ def handle_menu(message):
         
         guide = (
             "➕ <b>Режим магічного звіту активовано!</b>\n\n"
-            "Запиши свої діяння (можна декілька, кожне з нового рядка) у форматі:\n"
-            "`[Емодзі] [Бали від 4 до 14] [Опис справи]`\n\n"
+            "Запиши свої діяння (по одному в рядку) у форматі:\n"
+            "<code>[Емодзі] [Бали від 4 до 14] [Опис справи]</code>\n\n"
             "✨ <b>Доступні сфери сили:</b>\n"
             "• 💪 — Здоров'я\n"
             "• 🧠 — Мудрість\n"
             "• 🎨 — Творчість\n"
             "• 💵 — Фінанси\n"
-            "• 🤝 — Зв'язки\n\n"
+            "• 🤝 — Зв'язки\n"
         )
         msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=markup)
         bot.register_next_step_handler(msg, process_activity)
-
-
-# ==================================================
-# ФУНКЦІЇ ОБРОБКИ КРОКІВ (ВИНЕСЕНІ ОКРЕМО)
-# ==================================================
-
-def process_plant_creation(message):
-    user_id = message.from_user.id
-    text = clean_skin_tones(message.text.strip())
-    
-    # Перевірка на відміну дії
-    if text in ["🔙 Назад до квестів", "/start", "🌱 Посадити насіння", "🔙 Назад"]:
-        bot.send_message(
-            message.chat.id, 
-            "🌲Лісовик🌲: Ну й добре, заховаєш насіння на потім.", 
-            reply_markup=get_greenhouse_menu()
-        )
-        return
-
-    # Розбиваємо текст за рискою /
-    parts = [p.strip() for p in text.split("/")]
-    
-    if len(parts) != 3:
-        msg = bot.send_message(
-            message.chat.id, 
-            "🌲Лісовик🌲: Грррм! Ти що, не бачиш рисок `/`? Вчися формулювати думки правильно, інакше насіння не зійде!\n\n"
-            "Спробуй ще раз у форматі: **`Смайлик / Назва та плід / ДД.ММ`**\n"
-            "Наприклад: `🧠 / Прочитати 200 сторінок / 25.10`",
-            parse_mode="Markdown"
-        )
-        bot.register_next_step_handler(msg, process_plant_creation)
-        return
-
-    emoji_input, task_name, deadline_input = parts[0], parts[1], parts[2]
-
-    # Словник допустимих смайликів та відповідних сфер
-    valid_spheres = {
-        "💪": "health",
-        "🧠": "wisdom",
-        "🎨": "art",
-        "💵": "finance",
-        "🤝": "relations"
-    }
-
-    if emoji_input not in valid_spheres:
-        msg = bot.send_message(
-            message.chat.id,
-            "🌲Лісовик🌲: Що це за чудернацька стихія? Я знаю тільки 5 магічних знаків:\n"
-            "💪 (Здоров'я), 🧠 (Мудрість), 🎨 (Творчість), 💵 (Фінанси), 🤝 (Зв'язки).\n\n"
-            "Вкажи один із цих смайликів на початку!",
-            parse_mode="Markdown"
-        )
-        bot.register_next_step_handler(msg, process_plant_creation)
-        return
-
-    # Перевірка дати
-    if not re.match(r"^\d{2}\.\d{2}$", deadline_input):
-        msg = bot.send_message(
-            message.chat.id,
-            "🌲Лісовик🌲: Це що за календар такий? Дедлайн має бути у форматі **ДД.ММ** (наприклад, `15.11`).\n\nСпробуй ще раз!",
-            parse_mode="Markdown"
-        )
-        bot.register_next_step_handler(msg, process_plant_creation)
-        return
-
-    # Збереження нової рослини в Supabase
-    player = get_player(user_id)
-    
-    new_plant = {
-        "id": int(time.time()),
-        "emoji": emoji_input,
-        "sphere_key": valid_spheres[emoji_input],
-        "task": task_name,
-        "deadline": deadline_input,
-        "created_at": datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%d.%m.%Y")
-    }
-    
-    if "plants" not in player["quests"]:
-        player["quests"]["plants"] = []
-        
-    player["quests"]["plants"].append(new_plant)
-    update_player(user_id, player)
-
-    bot.send_message(
-        message.chat.id,
-        f"🌲Лісовик🌲: Охо-хо! Бережно зариваю зернятко {emoji_input} в магічний ґрунт...\n\n"
-        f"🌱 **Паросток:** {task_name}\n"
-        f"⏳ **Розквітне до:** {deadline_input}\n\n"
-        f"Порядкуй за ним і не забудь повернутися, коли воно розквітне!",
-        parse_mode="Markdown",
-        reply_markup=get_greenhouse_menu()
-    )
-
-
-def process_activity(message):
-    user_id = str(message.from_user.id) 
-    player = get_player(user_id)          
-    text = message.text.strip() if message.text else ""
-
-    # Обробка кнопки Назад
-    if text == "🔙 Назад":
-        bot.send_message(
-            message.chat.id, 
-            "✨ Звіт скасовано. Повертаємось до лісу.", 
-            reply_markup=get_main_menu()
-        )
-        return
-        
-    if text == "🧙‍♂️ Завершити ритуал" or text == "🧙‍♂️ Завершити звіт":
-        bot.send_message(
-            message.chat.id, 
-            "📜 <b>Ритуал завершено. Твої діяння записані в хроніки Грінвуду.</b>", 
-            parse_mode="HTML", 
-            reply_markup=get_main_menu()
-        )
-        return
-
-    if not text:
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.row(types.KeyboardButton("🧙‍♂️ Завершити ритуал"))
-        msg = bot.send_message(message.chat.id, "Ой-йой, ти написала невидимими чорнилами, спробуй ще раз", reply_markup=markup)
-        bot.register_next_step_handler(msg, process_activity)
-        return
-
-    lines = text.split('\n')
-    final_report = "📝 <b>Магічні підрахунки від Лілі Понд 🧚‍♀️:</b>\n\n"
-    lvl_up_text = ""
-    any_success = False
-    
-    scrolls = player["quests"].get("scrolls", [])
-    
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-   
-        # Очищаємо весь рядок користувача від відтінків шкіри для перевірок
-        cleaned_line = clean_skin_tones(line)
-
-        # 👑 1. МАГІЧНИЙ РАДАР СУВОЇВ (Перевірка на просте введення назви)
-        matched_scroll = None
-        for s in scrolls:
-            scroll_task = clean_skin_tones(s["task"]).strip().lower()
-            user_text = cleaned_line.strip().lower()
-            
-            if (scroll_task == user_text or scroll_task in user_text or user_text in scroll_task) and s["done_count"] < s["max_count"]:
-                matched_scroll = s
-                break
-        
-        # Якщо знайшли сувой за прямою назвою, штучно підставляємо дані з нього!
-        if matched_scroll:
-            detected_spheres = []
-            scroll_emoji = clean_skin_tones(matched_scroll["emoji"])
-            for key, sphere in player["spheres"].items():
-                if clean_skin_tones(sphere["emoji"]) == scroll_emoji:
-                    detected_spheres.append(key)
-                    break
-            
-            base_xp = int(float(matched_scroll["xp_per_once"]))
-            clean_task = matched_scroll["task"]
-            
-        else:
-            # 📜 2. СТАНДАРТНИЙ ПАРСИНГ (Якщо це звичайний звіт на кшталт "🎨 4 Пси")
-            detected_spheres = []
-            for key, sphere in player["spheres"].items():
-                base_emoji = clean_skin_tones(sphere["emoji"])
-                if cleaned_line.startswith(base_emoji) or (len(cleaned_line) > 1 and cleaned_line[1] == base_emoji):
-                    detected_spheres.append(key)
-                    
-            if not detected_spheres:
-                final_report += f"❌ <code>{line[:20]}...</code> — До якої сфери варто віднести ці бали?\n"
-                continue
-
-            match = re.search(r'\d+', line)
-            if not match:
-                final_report += f"❌ <code>{line[:20]}...</code> — Наскільки важким було це закляття?\n"
-                continue
-                
-            base_xp = int(match.group())
-            
-            if base_xp < 4 or base_xp > 14:
-                final_report += f"❌ <code>{line[:20]}...</code> — Твої бали ({base_xp}) поза магічним лімітом (4-14).\n"
-                continue
-
-            clean_task = re.sub(r'^[^\w\s]+', '', line).strip()
-            clean_task = re.sub(r'^\d+', '', clean_task).strip()
-            if not clean_task: 
-                clean_task = "Корисна дія"
-
-            # Перевіряємо, чи цей стандартний звіт підходить під якийсь сувой
-            for s in scrolls:
-                if clean_skin_tones(s["task"]).strip().lower() == clean_task.lower() and s["done_count"] < s["max_count"]:
-                    matched_scroll = s
-                    break
-
-        # 🎯 3. НАРАХУВАННЯ ДОСВІДУ ТА ОНОВЛЕННЯ ПРОГРЕСУ
-        any_success = True
-        
-        if matched_scroll:
-            matched_scroll["done_count"] += 1
-            xp_per_sphere = float(matched_scroll["xp_per_once"]) / len(detected_spheres)
-            
-            final_report += f"📜 <b>Сувой:</b> {matched_scroll['task']} ({matched_scroll['done_count']}/{matched_scroll['max_count']}):\n"
-            if matched_scroll["done_count"] == matched_scroll["max_count"]:
-                final_report += "🎉 <i>Сувой виконано повністю! Отримай свою реальну нагороду!</i>\n"
-        else:
-            xp_per_sphere = base_xp / len(detected_spheres)
-            final_report += f"✨ <i>{clean_task}</i>:\n"
-        
-        for key in detected_spheres:
-            sphere = player["spheres"][key]
-            sphere["xp"] = float(sphere["xp"]) + xp_per_sphere
-            player["xp_total"] = float(player["xp_total"]) + xp_per_sphere
-            
-            while sphere["xp"] >= float(sphere["max_xp"]):
-                sphere["xp"] -= float(sphere["max_xp"])
-                sphere["lvl"] += 1
-                sphere["max_xp"] += 5.0
-                lvl_up_text += f"⚡️ <b>РІВЕНЬ 📈:</b> Сфера {sphere['name']} піднялася до <b>{sphere['lvl']} рівня</b>! 🎉\n"
-                
-            final_report += f"  • {sphere['name']} +{xp_per_sphere:.1f} XP\n"
-        final_report += "\n"
-
-    new_global_lvl = int(float(player["xp_total"]) // 50) + 1
-    if new_global_lvl > int(player["level"]):
-        player["level"] = new_global_lvl
-        lvl_up_text += f"\n🌟 <b>НОВИЙ РІВЕНЬ ГЕРОЯ!</b> {new_global_lvl}! 🧙‍♂️\n"
-
-    if lvl_up_text:
-        final_report += "────────────────────\n" + lvl_up_text
-
-    if any_success:
-        found_loot = []
-        for loot_item in POSSIBLE_LOOT:
-            if random.random() < LOOT_CHANCE:
-                found_loot.append(loot_item)
-                player["inventory"].append(loot_item)
-        if found_loot:
-            final_report += f"\n🎒 <b>НЕЙМОВІРНА УДАЧА!</b> {', '.join(found_loot)} додано в рюкзак!"
-    final_report += "\n🔮 Я готова записувати твої наступні звершення або завершимо ритуал."
-    
-    update_player(user_id, player)
-    
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("🧙‍♂️ Завершити звіт"), types.KeyboardButton("🔙 Назад"))
-    
-    msg = bot.send_message(message.chat.id, final_report, parse_mode="HTML", reply_markup=markup)
-    bot.register_next_step_handler(msg, process_activity)
-
 # --- ЛОГІКА РОБОТИ ІЗ СУВОЯМИ ---
 
 def process_create_scroll(message):
