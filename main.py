@@ -493,8 +493,9 @@ def handle_menu(message):
                 status_text += f"{idx}. {p['emoji']} <b>{p['task']}</b> — (Дедлайн: {p['deadline']})\n"
                 
         bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_greenhouse_menu())
-
-elif message.text == "🌱 Посадити насіння":
+        return  # 👈 ОСЬ ЦЕЙ RETURN ВИПРАВЛЯЄ СИНТАКСИЧНУ ПОМИЛКУ!
+        
+    elif message.text == "🌱 Посадити насіння":
         intro_text = (
             "🌲Лісовик🌲: Грррм... Хто це тут тупає по моєму священному моху? А, це ти... Знову прийшов щось саджати?\n\n"
             "Слухай сюди уважно! <b>Моя теплиця — це не смітник для дрібниць!</b>\n\n"
@@ -522,7 +523,7 @@ elif message.text == "🌱 Посадити насіння":
         
         msg = bot.send_message(message.chat.id, intro_text, parse_mode="HTML", reply_markup=markup)
         bot.register_next_step_handler(msg, process_plant_creation)
-
+        return
     # --- РЕЖИМ ДОДАВАННЯ СПРАВИ ---
     elif message.text == "➕ Додати Справу":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
