@@ -977,7 +977,75 @@ def process_create_ritual(message):
         parse_mode="HTML",
         reply_markup=get_rituals_menu()
     )
-   
+def process_complete_ritual(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    # 1. Якщо гравець натиснув кнопку скасування
+    if text in ["🔙 Назад до квестів", "🔙 Назад", "/start"]:
+        bot.send_message(message.chat.id, "Повертаємось до свитку ритуалів.", reply_markup=get_rituals_menu())
+        return
+
+    player = get_player(user_id)
+    rituals = player["quests"].get("rituals", [])
+    
+    clean_input = clean_skin_tones(text).lower()
+    
+    # 2. Пошук ритуалу за назвою
+    found = None
+    for r in rituals:
+        task_name = clean_skin_tones(r.get("task", "")).lower()
+        if task_name == clean_input:
+            found = r
+            break
+    
+    # Якщо назва трохи відрізняється — шукаємо за входженням
+    if not found:
+        for r in rituals:
+            task_name = clean_skin_tones(r.get("task", "")).lower()
+            if task_name in clean_input or clean_input in task_name:
+                found = r
+                break
+        
+    if not found:
+        bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «Хм, я не знайшла ритуалу з такою назвою у твоєму списку. Обирай із запропонованих кнопок нижче!»", 
+            reply_markup=get_rituals_menu(),
+            parse_mode="HTML"
+        )
+        return
+        
+    if found.get("done_today", False):
+        bot.send_message(
+            message.chat.id, 
+            f"<b>🪷Лілі Понд🪷</b>: «Ритуал <b>{found['task']}</b> вже закарбований як виконаний на сьогодні!»", 
+            reply_markup=get_rituals_menu(),
+            parse_mode="HTML"
+        )
+        return
+        
+    # 3. Зараховуємо виконання
+    found["done_today"] = True
+    earned_xp = float(found.get("xp", 5.0))
+    player["xp_total"] += earned_xp
+    
+    # Нараховуємо XP у відповідні сфери
+    ritual_emoji = found.get("emoji", "")
+    for char in ritual_emoji:
+        if char in player.get("spheres", {}):
+            player["spheres"][char] += earned_xp
+            
+    update_player(user_id, player)
+    
+    bot.send_message(
+        message.chat.id, 
+        f"✅ <b>Ритуал виконано!</b>\n\n"
+        f"{ritual_emoji} <b>{found['task']}</b> успішно завершено!\n"
+        f"✨ Тобі зараховано <b>+{earned_xp} XP</b> у загальний досвід!", 
+        reply_markup=get_rituals_menu(),
+        parse_mode="HTML"
+    )
 # --- ВЕБХУКИ ТА СЕРВЕР ---
 
 @app.route('/' + str(BOT_TOKEN), methods=['POST'])
