@@ -871,7 +871,8 @@ def process_complete_ritual(message):
             
     update_player(user_id, player)
     
-bot.send_message(
+    # 👇 ОЦІ РЯДКИ ТЕПЕР МЕДИЧНО ТОЧНО ВСЕРЕДИНІ ФУНКЦІЇ (МАЮТЬ ВІДСТУП)
+    bot.send_message(
         message.chat.id, 
         f"✅ <b>Ритуал виконано!</b>\n\n"
         f"{ritual_emoji} <b>{found['task']}</b> успішно завершено!\n"
