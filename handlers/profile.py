@@ -31,3 +31,35 @@ def welcome(message):
         "<b>🌱 Теплиці </b>."
     )
     bot.send_message(message.chat.id, msg_2, parse_mode="HTML", reply_markup=get_main_menu())
+
+# --- ОБРОБНИКИ КНОПОК ПЕРСОНАЖА ТА РЮКЗАКА ---
+
+@bot.message_handler(func=lambda message: message.text == "🧙‍♂️ Персонаж")
+def show_profile(message):
+    user_id = str(message.from_user.id)
+    current_player = get_player(user_id)
+    
+    status = f"🧙‍♂️ <b>Лист Персонажа (Рівень {current_player['level']})</b>\n"
+    status += f"✨ Загальний досвід: {float(current_player['xp_total']):.1f} XP\n"
+    status += "────────────────────\n"
+    
+    for key, sphere in current_player["spheres"].items():
+        status += f"{sphere['name']}: Лвл {sphere['lvl']} ({float(sphere['xp']):.1f}/{float(sphere['max_xp']):.1f} XP)\n"
+        
+    bot.send_message(message.chat.id, status, parse_mode="HTML")
+
+@bot.message_handler(func=lambda message: message.text == "🎒 Рюкзак")
+def show_inventory(message):
+    user_id = str(message.from_user.id)
+    current_player = get_player(user_id)
+    
+    if not current_player["inventory"]:
+        bot.send_message(message.chat.id, "🎒 <b>Твій рюкзак порожній.</b>", parse_mode="HTML")
+    else:
+        items_counts = {}
+        for item in current_player["inventory"]:
+            items_counts[item] = items_counts.get(item, 0) + 1
+        inv_text = "🎒 <b>Вміст твого рюкзака:</b>\n\n"
+        for item, count in items_counts.items():
+            inv_text += f"• {item} x{count}\n"
+        bot.send_message(message.chat.id, inv_text, parse_mode="HTML")
