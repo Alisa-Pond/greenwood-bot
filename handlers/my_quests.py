@@ -772,3 +772,75 @@ def process_plant_creation(message):
         parse_mode="HTML", 
         reply_markup=get_greenhouse_menu()
     )
+# ----------------------------------------------------
+# 📌 Обробка "Квітка розквітла" (Збір врожаю)
+# ----------------------------------------------------
+def process_harvest_plant(message):
+    user_id = str(message.from_user.id)
+    task_name = message.text.strip() if message.text else ""
+
+    if task_name in ["🔙 Назад", "🔙 Назад до квестів"]:
+        bot.send_message(message.chat.id, "Повертаємось до теплиці.", reply_markup=get_greenhouse_menu())
+        return
+
+    player = get_player(user_id)
+    plants = player["quests"].get("plants", [])
+
+    # Шукаємо рослину за назвою
+    plant_to_remove = None
+    for p in plants:
+        if p["task"] == task_name:
+            plant_to_remove = p
+            break
+
+    if plant_to_remove:
+        plants.remove(plant_to_remove)
+        update_player(user_id, player)
+
+        bot.send_message(
+            message.chat.id,
+            f"🌺 <b>ВРОЖАЙ ЗІБРАНО!</b> 🌺\n\n"
+            f"🌲Лісовик🌲: Оце так диво! Твоя рослина <b>{plant_to_remove['emoji']} {plant_to_remove['task']}</b> розквітла прекрасним цвітом!\n"
+            f"Ти отримуєш заслужену гордість та магічну енергію!",
+            parse_mode="HTML",
+            reply_markup=get_greenhouse_menu()
+        )
+    else:
+        bot.send_message(message.chat.id, "🌲Лісовик🌲: Я не знайшов такої рослини. Спробуй ще раз з меню.", reply_markup=get_greenhouse_menu())
+
+
+# ----------------------------------------------------
+# 📌 Обробка "Вирвати баобаб" (Видалення цілі)
+# ----------------------------------------------------
+def process_remove_plant(message):
+    user_id = str(message.from_user.id)
+    task_name = message.text.strip() if message.text else ""
+
+    if task_name in ["🔙 Назад", "🔙 Назад до квестів"]:
+        bot.send_message(message.chat.id, "Повертаємось до теплиці.", reply_markup=get_greenhouse_menu())
+        return
+
+    player = get_player(user_id)
+    plants = player["quests"].get("plants", [])
+
+    plant_to_remove = None
+    for p in plants:
+        if p["task"] == task_name:
+            plant_to_remove = p
+            break
+
+    if plant_to_remove:
+        plants.remove(plant_to_remove)
+        update_player(user_id, player)
+
+        bot.send_message(
+            message.chat.id,
+            f"🪓 <b>БАОБАБ ВИРВАНО!</b>\n\n"
+            f"🌲Лісовик🌲: Хрусь! Вирвали <b>{plant_to_remove['task']}</b> з корінням. "
+            f"Тепер цей ґрунт знову чистий для нових SMART-цілей!",
+            parse_mode="HTML",
+            reply_markup=get_greenhouse_menu()
+        )
+    else:
+        bot.send_message(message.chat.id, "🌲Лісовик🌲: Я не знайшов такого баобаба.", reply_markup=get_greenhouse_menu())
+        
