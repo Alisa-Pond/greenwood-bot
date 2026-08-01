@@ -708,3 +708,67 @@ def process_complete_ritual(message):
         reply_markup=get_rituals_menu(),
         parse_mode="HTML"
     )
+
+# ----------------------------------------------------
+# 📌 Обробка створення рослини (Теплиця)
+# ----------------------------------------------------
+def process_plant_creation(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+
+    # Якщо натиснули кнопку скасування
+    if text in ["🔙 Назад", "🔙 Назад до квестів", "/cancel"]:
+        bot.send_message(
+            message.chat.id, 
+            "🌲Лісовик🌲: Хм, ну й добре. Менше бур'янів у теплиці!", 
+            reply_markup=get_greenhouse_menu()
+        )
+        return
+
+    # Розділяємо рядок за допомогою риски /
+    parts = [p.strip() for p in text.split("/")]
+
+    if len(parts) != 3:
+        msg = bot.send_message(
+            message.chat.id,
+            "🌲Лісовик🌲: Грррм! Ти взагалі мене слухав? <b>Треба рівно дві риски / !</b>\n\n"
+            "Напиши у форматі: <code>Емодзі / Назва цілі / ДД.ММ</code>\n"
+            "Спробуй ще раз або натисни кнопку повернення:",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_plant_creation)
+        return
+
+    raw_emoji, task, deadline = parts[0], parts[1], parts[2]
+
+    # Чистимо тони шкіри
+    emoji = clean_skin_tones(raw_emoji)
+
+    valid_emojis = ["💪", "🧠", "🎨", "💵", "🤝"]
+    if emoji not in valid_emojis:
+        msg = bot.send_message(
+            message.chat.id,
+            "🌲Лісовик🌲: Що це за дивна магія? Використовуй тільки правильні смайлики: 💪, 🧠, 🎨, 💵, 🤝\nСпробуй ще раз:",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_plant_creation)
+        return
+
+    # Зберігаємо рослину
+    player = get_player(user_id)
+    if "plants" not in player["quests"]:
+        player["quests"]["plants"] = []
+
+    player["quests"]["plants"].append({
+        "emoji": emoji,
+        "task": task,
+        "deadline": deadline
+    })
+    update_player(user_id, player)
+
+    bot.send_message(
+        message.chat.id, 
+        f"🌲Лісовик🌲: Ну добре, закопали твоє зерно <b>{emoji} {task}</b>! Тепер поливай його своєю працею до {deadline}!", 
+        parse_mode="HTML", 
+        reply_markup=get_greenhouse_menu()
+    )
