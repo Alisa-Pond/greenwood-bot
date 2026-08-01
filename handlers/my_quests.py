@@ -9,6 +9,7 @@ from keyboards import get_quests_menu, get_scrolls_menu, get_rituals_menu, get_g
 import re
 
 # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
+print("⚙️ Модуль handlers/my_quests успішно імпортовано і завантажено!")
 
 @bot.message_handler(func=lambda message: message.text in ["🎯 Мої Квести", "🔙 Назад до квестів"])
 def show_quests_menu(message):
