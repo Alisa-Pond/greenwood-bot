@@ -9,6 +9,7 @@ from config import BOT_TOKEN, bot
 
 # Обов'язково імпортуємо обробники команд!
 import handlers.my_quests
+import handlers.profile
 
 telebot.logger.setLevel(logging.DEBUG)
 
