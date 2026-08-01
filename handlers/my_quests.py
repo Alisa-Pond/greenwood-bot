@@ -4,7 +4,7 @@ from telebot import types
 
 from config import bot
 from database import get_player
-from keyboards import get_quests_menu, get_scrolls_menu, get_rituals_menu  
+from keyboards import get_quests_menu, get_scrolls_menu, get_rituals_menu, get_greenhouse_menu  
 
 # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
 
@@ -311,3 +311,69 @@ def complete_ritual_start(message):
         parse_mode="HTML"
     )
     bot.register_next_step_handler(msg, process_complete_ritual)
+
+# --- ТЕПЛИЦЯ ---
+
+@bot.message_handler(func=lambda message: message.text in ["🌱 Теплиця Грінвуду", "🌱 Теплиця"])
+def show_greenhouse_menu(message):
+    user_id = str(message.from_user.id)
+    player = get_player(user_id)
+    plants = player["quests"].get("plants", [])
+    
+    status_text = "🌱 <b>Теплиця Грінвуду</b>\n"
+    status_text += "────────────────────\n"
+    status_text += (
+        "<b>🌲Лісовик🌲</b>: Завітав до моєї теплиці? Поглянь на ці магічні насінини... "
+        "Щоб кожна з них розквітла, потрібна чітка ціль (SMART) і дедлайн. "
+        "Опиши її чітко, доглядай, а коли вона розквітне — збирай плоди!\n\n"
+    )
+    
+    status_text += "🌱 <b>Твої поточні магічні рослини:</b>\n"
+    if not plants:
+        status_text += "<i>Поки що теплиця порожня. Час посадити перше насіння!</i>"
+    else:
+        for idx, p in enumerate(plants, 1):
+            status_text += f"{idx}. {p['emoji']} <b>{p['task']}</b> — (Дедлайн: {p['deadline']})\n"
+            
+    bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_greenhouse_menu())
+
+
+@bot.message_handler(func=lambda message: message.text == "🌱 Посадити насіння")
+def plant_seed_start(message):
+    intro_text = (
+        "🌲Лісовик🌲: Грррм... Хто це тут тупає по моєму священному моху? А, це ти... Знову прийшов щось саджати?\n\n"
+        "Слухай сюди уважно! <b>Моя теплиця — це не смітник для дрібниць!</b>\n\n"
+        "❌ Не смій саджати сюди всілякий дріб'язок на п'ять хвилин накшталт <i>\"помити посуд\"</i> чи <i>\"винести сміття\"</i>. Для цієї щоденної метушні у тебе є ритуали та сувої!\n"
+        "❌ І навіть не думай заривати сюди дурні фантазії типу <i>\"стати володарем Всесвіту до завтра\"</i>! Твоє насіння просто вибухне від напруги і спалить мені весь ґрунт!\n\n"
+        "Сюди ми саджаємо тільки <b>Справжні Магічні Рослини (SMART-цілі)</b> — щось вагоме, вимірюване і реальне!\n\n"
+        "Перш ніж кинути зерня в землю, дай собі чесну відповідь:\n"
+        "🌱 <b>Чіткість (S):</b> Що САМЕ це за рослина?\n"
+        "📏 <b>Вимірність (M):</b> Який у неї буде плід? (Скільки сторінок, гривень, занять?)\n"
+        "🪨 <b>Реальність (A):</b> Чи вистачить у тебе сил і ґрунту це витягнути?\n\n"
+        "────────────────────\n"
+        "✍️ <b>Кидай насіння в один рядок через похилу риску (<code>/</code>):</b>\n"
+        "<b><code>Смайлик Сфери / Назва та плід / Дата (ДД.ММ)</code></b>\n\n"
+        "Використовуй один зі смайликів сфери:\n"
+        "💪 — Здоров'я | 🧠 — Мудрість | 🎨 — Творчість | 💵 — Фінанси | 🤝 — Зв'язки\n\n"
+        "💬 <i>Приклади від мудрого Лісника:</i>\n"
+        "• <code>🧠 / Прочитати 3 книги з магії (300 стор) / 15.11</code>\n"
+        "• <code>💵 / Заощадити 5000 золотих / 01.12</code>\n"
+        "• <code>💪 / Пройти 20 тренувань у залі / 30.10</code>"
+    )
+    
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+    
+    msg = bot.send_message(message.chat.id, intro_text, parse_mode="HTML", reply_markup=markup)
+    bot.register_next_step_handler(msg, process_plant_creation)
+
+
+# --- ЛОГІКА РОБОТИ ІЗ СУВОЯМИ ---
+
+def process_create_scroll(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    if text == "🔙 Назад до квестів":
+        bot.send_message(message.chat.id, "Створення скасовано, повертаємось.", reply_markup=get_scrolls_menu())
+        return
