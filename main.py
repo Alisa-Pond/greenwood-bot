@@ -6,6 +6,7 @@ from flask import Flask, request
 
 from config import BOT_TOKEN, bot
 import handlers.my_quests
+import handlers.my_quests  # 👈 Цей імпорт ОБОФ'ЯЗКОВО має бути! 
 
 telebot.logger.setLevel(logging.DEBUG)
 
