@@ -8,95 +8,18 @@ import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from threading import Thread
-
 import telebot
 from telebot import types
 from flask import Flask, request
-from supabase import create_client, Client
 
 telebot.logger.setLevel(logging.DEBUG)
-
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = Flask('')
 
 @app.route('/')
 def home():
     return "Greenwood Chronicles is alive!"
-
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    raise ValueError("❌ ПОМИЛКА: Render не передав BOT_TOKEN! Перевір налаштування Environment Variables!")
-
-bot = telebot.TeleBot(BOT_TOKEN)
-
-def clean_skin_tones(text_to_clean):
-    if not text_to_clean:
-        return ""
     
-    # Словник рівності: перетворюємо всі кольорові варіації на базові жовті
-    replacements = {
-        "💪🏻": "💪", "💪🏼": "💪", "💪🏽": "💪", "💪🏾": "💪", "💪🏿": "💪",
-        "🤝🏻": "🤝", "🤝🏼": "🤝", "🤝🏽": "🤝", "🤝🏾": "🤝", "🤝🏿": "🤝"
-    }
-    
-    for tone, base in replacements.items():
-        text_to_clean = text_to_clean.replace(tone, base)
-        
-    return text_to_clean
-
-def get_player(user_id):
-    """Отримує дані гравця з Supabase. Якщо гравця немає — створює його."""
-    user_id = str(user_id)
-    response = supabase.table("players").select("*").eq("user_id", user_id).execute()
-    
-    default_quests = {
-        "scrolls": [],    # Одноразові та накопичувальні сувої
-        "rituals": [],    # Щоденні ритуали
-        "plants": []      # Магічне насіння в Теплиці = цілі
-    }
-    
-    if response.data and len(response.data) > 0:
-        player = response.data[0]
-        updated = False
-        if "quests" not in player:
-            player["quests"] = default_quests
-            updated = True
-        else:
-            for key in ["scrolls", "rituals", "plants"]:
-                if key not in player["quests"]:
-                    player["quests"][key] = []
-                    updated = True
-        if updated:
-            update_player(user_id, player)
-        return player
-    
-    new_player = {
-        "user_id": user_id,
-        "level": 1,
-        "xp_total": 0.0,
-        "inventory": [],
-        "spheres": {
-            "health": {"name": "💪 Здоров'я", "emoji": "💪", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-            "wisdom": {"name": "🧠 Мудрість", "emoji": "🧠", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-            "art": {"name": "🎨 Творчість", "emoji": "🎨", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-            "finance": {"name": "💵 Фінанси", "emoji": "💵", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-            "relations": {"name": "🤝 Зв'язки", "emoji": "🤝", "lvl": 1, "xp": 0.0, "max_xp": 10.0}
-        },
-        "quests": default_quests
-    }
-    
-    supabase.table("players").insert(new_player).execute()
-    return new_player
-
-def update_player(user_id, player_data):
-    """Оновлює дані гравця в базі Supabase."""
-    user_id = str(user_id)
-    supabase.table("players").update(player_data).eq("user_id", user_id).execute()
-
 LOOT_CHANCE = 0.003
 POSSIBLE_LOOT = [
     "🧪 Настій Бадьорості",
