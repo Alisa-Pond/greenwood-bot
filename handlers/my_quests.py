@@ -1,3 +1,4 @@
+import telebot
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from telebot import types
