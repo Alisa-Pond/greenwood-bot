@@ -1,7 +1,9 @@
 import time
+from telebot import types  # 👈 ДОДАНО: необхідний імпорт для клавіатур
 from config import bot
 from database import get_player
 from keyboards import get_main_menu
+
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
@@ -10,12 +12,12 @@ def welcome(message):
     
     msg_1 = (
         "🌲 <b>Вітаємо у Greenwood!</b> 🌳\n\n"
-        "Магічний ліс відкриває свои таємниці... А я — 🪷 <b>Lilly Pond</b> 🪷, твій магічний провідник у цьому затишному світі. "
+        "Магічний ліс відкриває свої таємниці... А я — 🪷 <b>Lilly Pond</b> 🪷, твій магічний провідник у цьому затишному світі. "
         "Я допомагатиму тобі перетворювати твої реальні досягнення на справжню силу персонажа!"
     )
     bot.send_message(message.chat.id, msg_1, parse_mode="HTML")
     
-    time.sleep(3)
+    time.sleep(1)  # Зменшили затримку для кращої чутливості бота
     
     msg_2 = (
         "🔮 <b>Як влаштований наш світ:</b>\n"
@@ -24,13 +26,14 @@ def welcome(message):
         "🧠 <b>Мудрість</b> — читання, навчання, вивчення мов, кодинг і тд.\n"
         "🎨 <b>Творчість</b> — малювання, гра на інструментах, в'язання і тд.\n"
         "💵 <b>Фінанси</b> — робота, планування бюджету і тд.\n"
-        "🤝 <b>Зв'язки</b> — спілкування з близькими, допомога, турбота про рослин чи тварин.\n\n"
-        "🎯 <b> Розділ  Мої Квести :</b>\n"
+        "🤝 <b>Зв'язки</b> — спілкування з близькими, допомога, турбота про рослини чи тварин.\n\n"
+        "🎯 <b>Розділ Мої Квести:</b>\n"
         "Це твоє магічне джерело мотивації! Тут ти можеш структурувати свої цілі: створювати <b>📜 Сувої</b> для "
         "справ із дедлайнами, налаштовувати щоденні <b>🔄 Ритуали</b> для корисних звичок на кожен день або саджати великі цілі в "
-        "<b>🌱 Теплиці </b>."
+        "<b>🌱 Теплиці</b>."
     )
     bot.send_message(message.chat.id, msg_2, parse_mode="HTML", reply_markup=get_main_menu())
+
 
 # --- ОБРОБНИКИ КНОПОК ПЕРСОНАЖА ТА РЮКЗАКА ---
 
@@ -48,12 +51,13 @@ def show_profile(message):
         
     bot.send_message(message.chat.id, status, parse_mode="HTML")
 
+
 @bot.message_handler(func=lambda message: message.text == "🎒 Рюкзак")
 def show_inventory(message):
     user_id = str(message.from_user.id)
     current_player = get_player(user_id)
     
-    if not current_player["inventory"]:
+    if not current_player.get("inventory"):
         bot.send_message(message.chat.id, "🎒 <b>Твій рюкзак порожній.</b>", parse_mode="HTML")
     else:
         items_counts = {}
@@ -64,7 +68,16 @@ def show_inventory(message):
             inv_text += f"• {item} x{count}\n"
         bot.send_message(message.chat.id, inv_text, parse_mode="HTML")
 
+
 # --- РЕЖИМ ДОДАВАННЯ СПРАВИ (ШВИДКИЙ ЗВІТ) ---
+
+def process_activity(message):
+    # Тимчасова функція-заглушка (якщо справжня функція нижче або в іншому файлі)
+    if message.text == "🔙 Назад":
+        bot.send_message(message.chat.id, "Повертаємось у головне меню.", reply_markup=get_main_menu())
+    else:
+        bot.send_message(message.chat.id, "Звіт прийнято!", reply_markup=get_main_menu())
+
 
 @bot.message_handler(func=lambda message: message.text == "➕ Додати Справу")
 def add_activity_start(message):
