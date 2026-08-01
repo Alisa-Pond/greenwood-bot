@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from threading import Thread
+
 import telebot
 from telebot import types
 from flask import Flask, request
@@ -19,112 +20,6 @@ app = Flask('')
 @app.route('/')
 def home():
     return "Greenwood Chronicles is alive!"
-    
-LOOT_CHANCE = 0.003
-POSSIBLE_LOOT = [
-    "🧪 Настій Бадьорості",
-    "📜 Стародавній Сувій",
-    "💎 Кристал Натхнення",
-    "🔑 Мідний Ключ"
-]
-
-# --- КЛАВІАТУРИ МЕНЮ ---
-
-def get_main_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("🧙‍♂️ Персонаж"), types.KeyboardButton("🎒 Рюкзак"))
-    markup.row(types.KeyboardButton("📜 Основний квест"), types.KeyboardButton("🎯 Мої Квести"))
-    markup.row(types.KeyboardButton("➕ Додати Справу"))
-    return markup
-
-def get_quests_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("📜 Сувої завдань"), types.KeyboardButton("🔄 Щоденні ритуали"))
-    markup.row(types.KeyboardButton("🌱 Теплиця Грінвуду"))
-    markup.row(types.KeyboardButton("🔙 Назад"))
-    return markup
-
-def get_scrolls_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("➕ Створити сувой"), types.KeyboardButton("✅ Виконати завдання"))
-    markup.row(types.KeyboardButton("🔥 Спалити сувой"), types.KeyboardButton("🔙 Назад до квестів"))
-    return markup
-
-def get_rituals_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("➕ Створити ритуал"), types.KeyboardButton("✅ Виконати ритуал"))
-    markup.row(types.KeyboardButton("🔥 Спалити ритуал"), types.KeyboardButton("🔙 Назад до квестів"))
-    return markup
-
-def get_greenhouse_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("🌱 Посадити насіння"), types.KeyboardButton("🌸 Квітка розквітла"))
-    markup.row(types.KeyboardButton("🪾 Вирвати баобаб"), types.KeyboardButton("🔙 Назад до квестів"))
-    return markup
-
-# --- ВІТАЛЬНЕ ПОВІДОМЛЕННЯ ---
-
-@bot.message_handler(commands=['start'])
-def welcome(message):
-    user_id = str(message.from_user.id)
-    get_player(user_id)
-    
-    msg_1 = (
-        "🌲 <b>Вітаємо у Greenwood!</b> 🌳\n\n"
-        "Магічний ліс відкриває свои таємниці... А я — 🪷 <b>Lilly Pond</b> 🪷, твій магічний провідник у цьому затишному світі. "
-        "Я допомагатиму тобі перетворювати твої реальні досягнення на справжню силу персонажа!"
-    )
-    bot.send_message(message.chat.id, msg_1, parse_mode="HTML")
-    
-    time.sleep(3)
-    
-    msg_2 = (
-        "🔮 <b>Як влаштований наш світ:</b>\n"
-        "Твій персонаж розвиває 5 основних сфер життя. Кожна з них стартує з 1 рівня і потребує <b>10 XP</b> для першого підвищення левелу.\n\n"
-        "💪 <b>Здоров'я</b> — yoga, тренування, корисна їжа і тд.\n"
-        "🧠 <b>Мудрість</b> — читання, навчання, вивчення мов, кодинг і тд.\n"
-        "🎨 <b>Творчість</b> — малювання, гра на інструментах, в'язання і тд.\n"
-        "💵 <b>Фінанси</b> — робота, планування бюджету і тд.\n"
-        "🤝 <b>Зв'язки</b> — спілкування з близькими, допомога, турбота про рослин чи тварин.\n\n"
-        "🎯 <b> Розділ  Мої Квести :</b>\n"
-        "Це твоє магічне джерело мотивації! Тут ти можеш структурувати свої цілі: створювати <b>📜 Сувої</b> для"
-        "справ із дедлайнами, налаштовувати щоденні <b>🔄 Ритуали</b> для корисних звичок на кожен день або саджати великі цілі в "
-        "<b>🌱 Теплиці </b>."
-    )
-    bot.send_message(message.chat.id, msg_2, parse_mode="HTML", reply_markup=get_main_menu())
-
-# --- ГОЛОВНИЙ ОБРОБНИК МЕНЮ ---
-
-@bot.message_handler(content_types=['text'])
-def handle_menu(message):
-    user_id = str(message.from_user.id)
-    
-    if message.text == "🧙‍♂️ Персонаж":
-        current_player = get_player(user_id)
-        status = f" <b>Лист Персонажа (Рівень {current_player['level']})</b>\n"
-        status += f" Загальний досвід: {float(current_player['xp_total']):.1f} XP\n"
-        status += "────────────────────\n"
-        
-        for key, sphere in current_player["spheres"].items():
-            status += f"{sphere['name']}: Лвл {sphere['lvl']} ({float(sphere['xp']):.1f}/{float(sphere['max_xp']):.1f} XP)\n"
-            
-        bot.send_message(message.chat.id, status, parse_mode="HTML")
-        
-    elif message.text == "🎒 Рюкзак":
-        current_player = get_player(user_id)
-        if not current_player["inventory"]:
-            bot.send_message(message.chat.id, "🎒 <b>Твій рюкзак порожній.</b>", parse_mode="HTML")
-        else:
-            items_counts = {}
-            for item in current_player["inventory"]:
-                items_counts[item] = items_counts.get(item, 0) + 1
-            inv_text = "🎒 <b>Вміст твого рюкзака:</b>\n\n"
-            for item, count in items_counts.items():
-                inv_text += f"• {item} x{count}\n"
-            bot.send_message(message.chat.id, inv_text, parse_mode="HTML")
-            
-    elif message.text == "📜 Основний квест":
-        bot.send_message(message.chat.id, "🔒 <b>Основний квест заблоковано.</b> ", parse_mode="HTML")
         
     # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
     elif message.text == "🎯 Мої Квести" or message.text == "🔙 Назад до квестів":
