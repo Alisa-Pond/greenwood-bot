@@ -4,16 +4,21 @@ import logging
 import telebot
 from flask import Flask, request
 
-# 1. Імпортуємо налаштування та об'єкт бота
 from config import BOT_TOKEN, bot
-
-# 2. Імпортуємо обробники команд, щоб бот знав, як реагувати на повідомлення
 import handlers.my_quests
 
-# Увімкнення логування для відлагодження
 telebot.logger.setLevel(logging.DEBUG)
 
 app = Flask(__name__)
+
+# Встановлюємо вебхук одразу під час ініціалізації додатка (для Render / Gunicorn)
+WEBHOOK_URL = "https://greenwood-bot-yw5w.onrender.com/" + str(BOT_TOKEN)
+try:
+    bot.remove_webhook()
+    bot.set_webhook(url=WEBHOOK_URL)
+    print("✅ Вебхук успішно встановлено на:", WEBHOOK_URL)
+except Exception as e:
+    print("❌ Помилка встановлення вебхука:", e)
 
 
 # ----------------------------------------------------
@@ -38,11 +43,7 @@ def getMessage():
         return "!", 200
 
 
+# Цей блок спрацює тільки при локальному запуску `python main.py`
 if __name__ == "__main__":
-    # Видаляємо старий вебхук та ставимо новий
-    bot.remove_webhook()
-    bot.set_webhook(url="https://greenwood-bot-yw5w.onrender.com/" + str(BOT_TOKEN))
-    
-    # Отримуємо порт від Render
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
