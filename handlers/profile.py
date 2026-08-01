@@ -63,3 +63,24 @@ def show_inventory(message):
         for item, count in items_counts.items():
             inv_text += f"• {item} x{count}\n"
         bot.send_message(message.chat.id, inv_text, parse_mode="HTML")
+
+# --- РЕЖИМ ДОДАВАННЯ СПРАВИ (ШВИДКИЙ ЗВІТ) ---
+
+@bot.message_handler(func=lambda message: message.text == "➕ Додати Справу")
+def add_activity_start(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row(types.KeyboardButton("🧙‍♂️ Завершити звіт"), types.KeyboardButton("🔙 Назад"))
+    
+    guide = (
+        "➕ <b>Режим магічного звіту активовано!</b>\n\n"
+        "Запиши свої діяння (по одному в рядку) у форматі:\n"
+        "<code>[Емодзі] [Бали від 4 до 14] [Опис справи]</code>\n\n"
+        "✨ <b>Доступні сфери сили:</b>\n"
+        "• 💪 — Здоров'я\n"
+        "• 🧠 — Мудрість\n"
+        "• 🎨 — Творчість\n"
+        "• 💵 — Фінанси\n"
+        "• 🤝 — Зв'язки\n"
+    )
+    msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=markup)
+    bot.register_next_step_handler(msg, process_activity)
