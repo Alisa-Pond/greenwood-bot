@@ -5,6 +5,7 @@ from telebot import types
 from config import bot
 from database import get_player
 from keyboards import get_quests_menu, get_scrolls_menu, get_rituals_menu, get_greenhouse_menu  
+import re
 
 # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
 
@@ -377,3 +378,333 @@ def process_create_scroll(message):
     if text == "🔙 Назад до квестів":
         bot.send_message(message.chat.id, "Створення скасовано, повертаємось.", reply_markup=get_scrolls_menu())
         return
+# --- ОБРОБНИКИ ДЛЯ СУВОЇВ ---
+
+def process_create_scroll(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    if text in ["🔙 Назад до квестів", "🔙 Назад"]:
+        bot.send_message(message.chat.id, "Створення скасовано, повертаємось.", reply_markup=get_scrolls_menu())
+        return
+
+    cleaned_text = clean_skin_tones(text)
+    # Магічний вираз дозволяє пробіли всередині переліку днів тижня
+    match = re.match(r"^([^\w\s]+)\s+(\d+)\s+([а-я,\sієґу]+)\s+(.+)$", cleaned_text, re.IGNORECASE)
+    
+    if not match:
+        msg = bot.send_message(
+            message.chat.id, 
+            "✨ <b>🪷Лілі Понд🪷</b>: Ой, щось пішло не так із чорнилом. Спробуй ще раз за моїм шаблоном або напиши `🔙 Назад до квестів`, щоб скасувати: \n`[Емодзі] [Кратність] [Бали] [Дедлайн ДД.ММ] [Опис]`",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_create_scroll)
+        return
+        
+    emoji, max_count, xp_per_once, deadline, task_desc = match.groups()
+    max_count = int(max_count)
+    xp_per_once = int(xp_per_once)
+    task_desc = task_desc.strip()
+    
+    if xp_per_once < 4 or xp_per_once > 14:
+        msg = bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: Пам'ятай, що магічний ліміт балів за одне виконання має бути від 4 до 14! Спробуй ще раз ввести умови:")
+        bot.register_next_step_handler(msg, process_create_scroll)
+        return
+
+    player = get_player(user_id)
+    scrolls = player["quests"].get("scrolls", [])
+    
+    if any(clean_skin_tones(s["task"]).lower() == task_desc.lower() and s["done_count"] < s["max_count"] for s in scrolls):
+        msg = bot.send_message(message.chat.id, f"<b>🪷Лілі Понд🪷</b>:  У твоїх хроніках уже є активний сувой з назвою \"{task_desc}\". Придумай іншу назву або заверши попередній квест")
+        bot.register_next_step_handler(msg, process_create_scroll)
+        return
+
+    new_scroll = {
+        "emoji": emoji,
+        "max_count": max_count,
+        "done_count": 0,
+        "xp_per_once": float(xp_per_once),
+        "deadline": deadline,
+        "task": task_desc
+    }
+    
+    player["quests"]["scrolls"].append(new_scroll)
+    update_player(user_id, player)
+    
+    bot.send_message(
+        message.chat.id, 
+        f"<b>🪷Лілі Понд🪷</b>: Новий сувой успішно запечатано у твою книгу квестів. Я нагадуватиму тобі про нього!\n\n{emoji} {task_desc}\n• Повторень: {max_count}\n• Сила кроку: {xp_per_once} XP\n• Термін: до {deadline}",
+        parse_mode="HTML",
+        reply_markup=get_scrolls_menu()
+    )
+
+
+def process_complete_scroll(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    if text in ["🔙 Назад до квестів", "🔙 Назад"]:
+        bot.send_message(message.chat.id, "Повертаємось.", reply_markup=get_scrolls_menu())
+        return
+        
+    task_clean = clean_skin_tones(text.strip())
+    player = get_player(user_id)
+    scrolls = player["quests"].get("scrolls", [])
+    
+    found_scroll = None
+    for s in scrolls:
+        if clean_skin_tones(s["task"]).strip().lower() == task_clean.lower() and s["done_count"] < s["max_count"]:
+            found_scroll = s
+            break
+            
+    if not found_scroll:
+        bot.send_message(message.chat.id, "✨ <b>🪷Лілі Понд🪷</b>: Я не знайшла такого активного сувою у твоїх записах. Спробуй обрати з кнопок на клавіатурі!", reply_markup=get_scrolls_menu())
+        return
+        
+    found_scroll["done_count"] += 1
+    xp_to_add = found_scroll["xp_per_once"]
+    
+    sphere_key = None
+    scroll_emoji = clean_skin_tones(found_scroll["emoji"])
+    for key, sphere in player["spheres"].items():
+        if clean_skin_tones(sphere["emoji"]) == scroll_emoji:
+            sphere_key = key
+            break
+            
+    lvl_up_text = ""
+    if sphere_key:
+        sphere = player["spheres"][sphere_key]
+        sphere["xp"] = float(sphere["xp"]) + xp_to_add
+        player["xp_total"] = float(player["xp_total"]) + xp_to_add
+        
+        while sphere["xp"] >= float(sphere["max_xp"]):
+            sphere["xp"] -= float(sphere["max_xp"])
+            sphere["lvl"] += 1
+            sphere["max_xp"] += 5.0
+            lvl_up_text += f"\n⚡️ <b>РІВЕНЬ📈</b>: Сфера {sphere['name']} піднялася до {sphere['lvl']} рівня! 🎉"
+            
+        new_global_lvl = int(float(player["xp_total"]) // 50) + 1
+        if new_global_lvl > int(player["level"]):
+            player["level"] = new_global_lvl
+            lvl_up_text += f"\n🌟 <b>НОВИЙ РІВЕНЬ ГЕРОЯ!</b>: Твій рівень зріс до {new_global_lvl}! 🧙‍♂️"
+            
+    report = f"✨ <b>🪷Лілі Понд🪷</b>: Чудовий крок! Записую прогрес у твій сувой! \n\n{found_scroll['emoji']} {found_scroll['task']} ({found_scroll['done_count']}/{found_scroll['max_count']})\n🔋 Отримано: <b>+{xp_to_add:.1f} XP </b>!"
+    
+    if found_scroll["done_count"] == found_scroll["max_count"]:
+        report += f"\n\n🎉 <b>СУВОЙ ПОВНІСТЮ ЗАВЕРШЕНО!</b>\n <b>🪷Лілі Понд🪷</b>:  Чудова робота! "
+        
+    if lvl_up_text:
+        report += "\n\n────────────────────" + lvl_up_text
+        
+    update_player(user_id, player)
+    bot.send_message(message.chat.id, report, parse_mode="HTML", reply_markup=get_scrolls_menu())
+
+
+def process_delete_scroll(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    if text in ["🔙 Назад до квестів", "🔙 Назад"]:
+        bot.send_message(message.chat.id, "Повертаємось.", reply_markup=get_scrolls_menu())
+        return
+        
+    task_clean = clean_skin_tones(text.strip())
+    player = get_player(user_id)
+    scrolls = player["quests"].get("scrolls", [])
+    
+    new_scrolls = [s for s in scrolls if not (clean_skin_tones(s["task"]).strip().lower() == task_clean.lower() and s["done_count"] < s["max_count"])]
+    
+    if len(scrolls) == len(new_scrolls):
+        bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>:  Хм, такого сувою немає на твоєму столі. Спробуй обрати з кнопок! ", reply_markup=get_scrolls_menu())
+        return
+        
+    player["quests"]["scrolls"] = new_scrolls
+    update_player(user_id, player)
+    
+    bot.send_message(message.chat.id, "🔥 Сувой безслідно згорів у синьому полум'ї. Цього завдання більше не існує.", reply_markup=get_scrolls_menu())
+
+
+# --- ОБРОБНИКИ ДЛЯ РИТУАЛІВ ---
+
+def process_create_ritual(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    if text in ["🔙 Назад до квестів", "🔙 Назад"]:
+        bot.send_message(message.chat.id, "Повертаємось до свитку ритуалів.", reply_markup=get_rituals_menu())
+        return
+        
+    cleaned_text = clean_skin_tones(text)
+    parts = cleaned_text.split()
+    
+    if len(parts) < 4:
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «Ой, не вистачає деталей. Перевір формат і спробуй ще раз за шаблоном:\n<code>[Емодзі] [Бали] [Дні] [Назва]</code>»",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
+        
+    emoji = parts[0]
+    
+    try:
+        xp = int(parts[1])
+    except ValueError:
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «Другим параметром мають бути цифри (бали від 4 до 14). Спробуй ще раз:»",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
+        
+    if xp < 4 or xp > 14:
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: Сила ритуалу має бути в межах від 4 до 14! Спробуй ще раз:", 
+            parse_mode="HTML"
+        ) 
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
+
+    remaining_text = " ".join(parts[2:])
+    valid_days = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"]
+    
+    if remaining_text.lower().startswith("щодня"):
+        final_days = valid_days
+        task_desc = remaining_text[5:].strip()
+    else:
+        days_accumulated = []
+        words = remaining_text.split()
+        idx = 0
+        
+        for word in words:
+            sub_tokens = [t.strip().lower() for t in word.split(",") if t.strip()]
+            
+            if sub_tokens and all(t in valid_days for t in sub_tokens):
+                for t in sub_tokens:
+                    if t not in days_accumulated:
+                        days_accumulated.append(t)
+                idx += 1
+            else:
+                break
+
+        if not days_accumulated:
+            msg = bot.send_message(
+                message.chat.id, 
+                "<b>🪷Лілі Понд🪷</b>: «Я не змогла розпізнати дні тижня (пн, вт...). Спробуй знову:»",
+                parse_mode="HTML"
+            )
+            bot.register_next_step_handler(msg, process_create_ritual)
+            return
+            
+        final_days = days_accumulated
+        task_desc = " ".join(words[idx:]).strip()
+
+    if not task_desc:
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «А де ж сама назва ритуалу? Напиши умови ще раз, будь ласка:»",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
+
+    player = get_player(user_id)
+    rituals = player["quests"].get("rituals", [])
+    
+    if any(clean_skin_tones(r["task"]).lower() == task_desc.lower() for r in rituals):
+        msg = bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «У твоїй книзі вже є ритуал з такою назвою. Дай йому трохи інше ім'я:»",
+            parse_mode="HTML"
+        )
+        bot.register_next_step_handler(msg, process_create_ritual)
+        return
+        
+    new_ritual = {
+        "emoji": emoji,
+        "xp": float(xp),
+        "days": final_days,
+        "task": task_desc,
+        "done_today": False
+    }
+    
+    player["quests"]["rituals"].append(new_ritual)
+    update_player(user_id, player)
+    
+    bot.send_message(
+        message.chat.id,
+        f"✅ <b>Новий щоденний ритуал закарбовано!</b>\n\n"
+        f"{emoji} <b>{task_desc}</b>\n"
+        f"• Нагорода: +{xp} XP\n"
+        f"• Дні виконання: {', '.join(final_days)}",
+        parse_mode="HTML",
+        reply_markup=get_rituals_menu()
+    )
+
+
+def process_complete_ritual(message):
+    user_id = str(message.from_user.id)
+    text = message.text.strip() if message.text else ""
+    
+    if text in ["🔙 Назад до квестів", "🔙 Назад", "/start"]:
+        bot.send_message(message.chat.id, "Повертаємось до свитку ритуалів.", reply_markup=get_rituals_menu())
+        return
+
+    player = get_player(user_id)
+    rituals = player["quests"].get("rituals", [])
+    clean_input = clean_skin_tones(text).lower()
+    
+    found = None
+    for r in rituals:
+        task_name = clean_skin_tones(r.get("task", "")).lower()
+        if task_name == clean_input:
+            found = r
+            break
+    
+    if not found:
+        for r in rituals:
+            task_name = clean_skin_tones(r.get("task", "")).lower()
+            if task_name in clean_input or clean_input in task_name:
+                found = r
+                break
+        
+    if not found:
+        bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: «Хм, я не знайшла ритуалу з такою назвою у твоєму списку. Обирай із запропонованих кнопок нижче!»", 
+            reply_markup=get_rituals_menu(),
+            parse_mode="HTML"
+        )
+        return
+        
+    if found.get("done_today", False):
+        bot.send_message(
+            message.chat.id, 
+            f"<b>🪷Лілі Понд🪷</b>: «Ритуал <b>{found['task']}</b> вже закарбований як виконаний на сьогодні!»", 
+            reply_markup=get_rituals_menu(),
+            parse_mode="HTML"
+        )
+        return
+        
+    found["done_today"] = True
+    earned_xp = float(found.get("xp", 5.0))
+    player["xp_total"] += earned_xp
+    
+    ritual_emoji = found.get("emoji", "")
+    for char in ritual_emoji:
+        if char in player.get("spheres", {}):
+            player["spheres"][char] += earned_xp
+            
+    update_player(user_id, player)
+    
+    bot.send_message(
+        message.chat.id, 
+        f"✅ <b>Ритуал виконано!</b>\n\n"
+        f"{ritual_emoji} <b>{found['task']}</b> успішно завершено!\n"
+        f"✨ Тобі зараховано <b>+{earned_xp} XP</b> у загальний досвід!", 
+        reply_markup=get_rituals_menu(),
+        parse_mode="HTML"
+    )
