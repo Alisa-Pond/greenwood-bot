@@ -4,7 +4,7 @@ from telebot import types
 
 from config import bot
 from database import get_player
-from keyboards import get_quests_menu, get_scrolls_menu
+from keyboards import get_quests_menu, get_scrolls_menu, get_rituals_menu  
 
 # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
 
@@ -221,3 +221,93 @@ def delete_scroll_start(message):
         reply_markup=markup
     )
     bot.register_next_step_handler(msg, process_delete_scroll)
+
+
+# --- ЩОДЕННІ РИТУАЛИ ---
+
+@bot.message_handler(func=lambda message: message.text == "🔄 Щоденні ритуали")
+def show_rituals_menu(message):
+    user_id = str(message.from_user.id)
+    player = get_player(user_id)
+    rituals = player["quests"].get("rituals", [])
+    
+    kyiv_time = datetime.now(ZoneInfo("Europe/Kyiv"))
+    kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
+    today_day = kyiv_days[kyiv_time.weekday()]
+    today_date = kyiv_time.strftime("%d.%m")
+    
+    status_text = "🔄 <b>Твої магічні ритуали Грінвуду</b>\n"
+    status_text += f"📅 Сьогодні: <b>{today_date}, {today_day}</b>\n" 
+    status_text += "────────────────────\n\n"
+    
+    if not rituals:
+        status_text += "✨ Ти ще не створила жодного щоденного ритуалу, твоя книга порожня."
+    else:
+        for r in rituals:
+            is_active_today = today_day in r.get("days", [])
+            
+            if r.get("done_today", False):
+                status = "✅"
+            elif is_active_today:
+                status = "⏳"
+            else:
+                status = "💤"
+            
+            days_list = ", ".join(r.get("days", []))
+            
+            status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
+            status_text += f"    └── Дні: {days_list}\n\n"
+            
+    status_text += "────────────────────\n"
+    status_text += "👇 <b>Обери магічну дію для ритуалів:</b>"
+    bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
+
+
+@bot.message_handler(func=lambda message: message.text == "➕ Створити ритуал")
+def create_ritual_start(message):
+    guide = (
+        "✍️ <b>Створення щоденного ритуалу</b>\n\n"
+        "<b>🪷Лілі Понд🪷</b>: Напиши умови одним рядком за цим шаблоном:\n\n"
+        "📖 [💪, 🧠, 🎨, 💵, 🤝] [Бали (1-14)] [Дні] [Назва справи]\n"
+        "• <b>Дні</b> перерахуй через кому (<code>пн,вт,ср,чт,пт,сб,нд</code>) або напиши <code>щодня</code>.\n\n"
+        "📌 <b>Приклади:</b>\n"
+        "<code>🧠 5 пн,ср,пт Читати книгу</code>\n"
+        "<code>💪 8 щодня Ранкова руханка</code>\n"
+    )
+    
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+    
+    msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=markup)
+    bot.register_next_step_handler(msg, process_create_ritual)
+
+
+@bot.message_handler(func=lambda message: message.text == "✅ Виконати ритуал")
+def complete_ritual_start(message):
+    user_id = str(message.from_user.id)
+    player = get_player(user_id)
+    rituals = player["quests"].get("rituals", [])
+    
+    kyiv_day = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"][datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
+    available = [r for r in rituals if kyiv_day in r.get("days", []) and not r.get("done_today", False)]
+    
+    if not available:
+        bot.send_message(
+            message.chat.id, 
+            "<b>🪷Лілі Понд🪷</b>: На сьогодні немає активних ритуалів, які б чекали виконання! Відпочивай або займайся іншими справами.", 
+            parse_mode="HTML"
+        )
+        return
+        
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for r in available:
+        markup.add(types.KeyboardButton(r['task']))
+    markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+    
+    msg = bot.send_message(
+        message.chat.id, 
+        "<b>🪷Лілі Понд🪷</b>: Який із сьогоднішніх ритуалів ти завершила? Обери кнопку:", 
+        reply_markup=markup, 
+        parse_mode="HTML"
+    )
+    bot.register_next_step_handler(msg, process_complete_ritual)
