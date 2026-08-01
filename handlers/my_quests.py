@@ -4,7 +4,7 @@ from telebot import types
 
 from config import bot
 from database import get_player
-from keyboards import get_quests_menu
+from keyboards import get_quests_menu, get_scrolls_menu
 
 # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
 
@@ -124,3 +124,100 @@ def remove_plant_start(message):
     )
     # Зверни увагу: функція process_remove_plant буде описана нижче у цьому ж файлі!
     bot.register_next_step_handler(msg, process_remove_plant)
+
+
+
+# --- СУВОЇ ЗАВДАНЬ ---
+
+@bot.message_handler(func=lambda message: message.text == "📜 Сувої завдань")
+def show_scrolls_menu(message):
+    user_id = str(message.from_user.id)
+    player = get_player(user_id)
+    scrolls = player["quests"].get("scrolls", [])
+    active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
+    
+    status_text = (
+        "📜 <b>Книга Сувоїв Грінвуду</b>\n\n"
+        "<b>🪷Лілі Понд🪷</b>: Використовуй сувої, аби запечатати обіцянку собі про виконання завдання. "
+        "Вони ідеально підходять для справ із чітким дедлайном або кількома повтореннями.\n\n"
+        "📌 <b>Твої активні сувої:</b>\n"
+    )
+    
+    if not active_scrolls:
+        status_text += "Твій стіл порожній. Час запечатати першу угоду!"
+    else:
+        for idx, s in enumerate(active_scrolls, 1):
+            status_text += f"{idx}. {s['emoji']} <b>{s['task']}</b> — ({s['done_count']}/{s['max_count']}) | {float(s['xp_per_once']):.1f} XP за крок (⏰ Дедлайн: {s['deadline']})\n"
+            
+    status_text += "\n👇 <b>Обери магічну дію:</b>"
+    bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_scrolls_menu())
+
+
+@bot.message_handler(func=lambda message: message.text == "➕ Створити сувой")
+def create_scroll_start(message):
+    guide = (
+        "✍️ <b>Запечатування нового сувою</b>\n\n"
+        "<b>🪷Лілі Понд🪷</b>: Давай розправимо чистий пергамент! Будь ласка, напиши умови "
+        "твого квесту одним рядком за цим магічним шаблоном:\n\n"
+        "📖 [Емодзі сфери] [Кратність] [Бали за крок] [Дедлайн ДД.ММ] [Опис справи та Нагорода]\n"
+        "• Емодзі сфери: 💪, 🧠, 🎨, 💵, 🤝\n"
+        "• Кратність (кількість разів для виконання).\n"
+        "• Бали за крок від 4 до 14.\n"
+        "• Дедлайн у форматі ДД.ММ.\n"
+        "• Опис або назва справи\n\n"
+        "📌 Приклад:\n"
+        "<code>🧠 3 10 22.07 Прочитати 50 сторінок книги (Нагорода: замовити нову сукню)</code>\n\n"
+        "Напиши <code>🔙 Назад до квестів</code> для повернення."
+    )
+    msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=types.ForceReply(selective=True))
+    bot.register_next_step_handler(msg, process_create_scroll)
+
+
+@bot.message_handler(func=lambda message: message.text == "✅ Виконати завдання")
+def complete_scroll_start(message):
+    user_id = str(message.from_user.id)
+    player = get_player(user_id)
+    scrolls = player["quests"].get("scrolls", [])
+    active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
+    
+    if not active_scrolls:
+        bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: На твоїх полицях немає активних сувоїв для виконання.", parse_mode="HTML")
+        return
+        
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for s in active_scrolls:
+        markup.add(types.KeyboardButton(s['task']))
+    markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+    
+    msg = bot.send_message(
+        message.chat.id, 
+        "<b>🪷Лілі Понд🪷</b>: Обери сувой, у якому ти сьогодні зробила крок вперед:", 
+        reply_markup=markup, 
+        parse_mode="HTML" 
+    )
+    bot.register_next_step_handler(msg, process_complete_scroll)
+
+
+@bot.message_handler(func=lambda message: message.text == "🔥 Спалити сувой")
+def delete_scroll_start(message):
+    user_id = str(message.from_user.id)
+    player = get_player(user_id)
+    scrolls = player["quests"].get("scrolls", [])
+    active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
+    
+    if not active_scrolls:
+        bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: Тобі нема чого спалювати, твій стіл порожній!", parse_mode="HTML")
+        return
+        
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for s in active_scrolls:
+        markup.add(types.KeyboardButton(s['task']))
+    markup.add(types.KeyboardButton("🔙 Назад до квестів"))
+    
+    msg = bot.send_message(
+        message.chat.id, 
+        "<b>🪷Лілі Понд🪷</b>: Який сувой ти хочеш спалити у синьому вогні без отримання досвіду?", 
+        parse_mode="HTML", 
+        reply_markup=markup
+    )
+    bot.register_next_step_handler(msg, process_delete_scroll)
