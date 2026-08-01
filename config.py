@@ -17,3 +17,12 @@ if not BOT_TOKEN:
     raise ValueError("❌ ПОМИЛКА: Render не передав BOT_TOKEN! Перевір налаштування Environment Variables!")
 
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# Шанс випадіння луту та можливі предмети
+LOOT_CHANCE = 0.003
+POSSIBLE_LOOT = [
+    "🧪 Настій Бадьорості",
+    "📜 Стародавній Сувій",
+    "💎 Кристал Натхнення",
+    "🔑 Мідний Ключ"
+]
