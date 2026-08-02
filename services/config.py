@@ -25,7 +25,7 @@ if BOT_TOKEN:
     print(f"🤖 BOT_TOKEN: {BOT_TOKEN[:10]}... (довжина: {len(BOT_TOKEN)})")
 else:
     print("❌ BOT_TOKEN відсутній!")
-print----------------------------
+print("----------------------------")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("Відсутні налаштування Supabase у змінних оточення.")
