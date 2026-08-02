@@ -12,7 +12,6 @@ print("⏳ Завантажуємо обробники команд...")
 import handlers.profile
 import handlers.main_quest
 import handlers.my_quests
-
 print("✅ Усі обробники успішно підключені до бота!")
 
 # Вмикаємо дебаг логер TeleBot
