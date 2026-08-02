@@ -1,45 +1,52 @@
 import traceback
 from services.config import supabase
 
-def clean_skin_tones(text_to_clean):
-    """Очищає емодзі від відтінків шкіри, зводячи до стандартного жовтого."""
-    if not text_to_clean:
-        return ""
-    
-    replacements = {
-        "💪🏻": "💪", "💪🏼": "💪", "💪🏽": "💪", "💪🏾": "💪", "💪🏿": "💪",
-        "🤝🏻": "🤝", "🤝🏼": "🤝", "🤝🏽": "🤝", "🤝🏾": "🤝", "🤝🏿": "🤝"
-    }
-    
-    for tone, base in replacements.items():
-        text_to_clean = text_to_clean.replace(tone, base)
-        
-    return text_to_clean
+# Шаблон за замовчуванням для створення нового гравця
+DEFAULT_QUESTS = {
+    "scrolls": [],    # Одноразові та накопичувальні сувої
+    "rituals": [],    # Щоденні ритуали
+    "plants": []      # Магічне насіння в Теплиці
+}
+
+DEFAULT_SPHERES = {
+    "health": {"name": "💪 Здоров'я", "emoji": "💪", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+    "wisdom": {"name": "🧠 Мудрість", "emoji": "🧠", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+    "art": {"name": "🎨 Творчість", "emoji": "🎨", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+    "finance": {"name": "💵 Фінанси", "emoji": "💵", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
+    "relations": {"name": "🤝 Зв'язки", "emoji": "🤝", "lvl": 1, "xp": 0.0, "max_xp": 10.0}
+}
+
 
 def update_player(user_id, player_data):
     """Оновлює дані гравця в базі Supabase."""
     try:
         user_id = str(user_id)
-        # Видаляємо id з оновлення, якщо воно там є, щоб Supabase не лаявся
+        # Видаляємо id з оновлення, якщо воно там є, щоб Supabase не повертав помилку
         data_to_update = {k: v for k, v in player_data.items() if k != 'id'}
         supabase.table("players").update(data_to_update).eq("user_id", user_id).execute()
         print(f"✅ Дані гравця {user_id} оновлено в Supabase.")
-    except Exception as e:
+    except Exception:
         print(f"❌ ПОМИЛКА під час update_player:")
         print(traceback.format_exc())
 
+
 def get_player(user_id):
     """Отримує дані гравця з Supabase. Якщо гравця немає — створює його."""
+    user_id = str(user_id)
+    
+    # Створюємо резервну копію даних на випадок аварії Supabase
+    fallback_player = {
+        "user_id": user_id,
+        "level": 1,
+        "xp_total": 0.0,
+        "inventory": [],
+        "spheres": DEFAULT_SPHERES,
+        "quests": DEFAULT_QUESTS
+    }
+
     try:
-        user_id = str(user_id)
         print(f"🔍 Запит до Supabase для user_id: {user_id}")
         response = supabase.table("players").select("*").eq("user_id", user_id).execute()
-        
-        default_quests = {
-            "scrolls": [],    # Одноразові та накопичувальні сувої
-            "rituals": [],    # Щоденні ритуали
-            "plants": []      # Магічне насіння в Теплиці = цілі
-        }
         
         # 🟢 1. ІСНУЮЧИЙ ГРАВЕЦЬ
         if response.data and len(response.data) > 0:
@@ -48,7 +55,7 @@ def get_player(user_id):
             
             updated = False
             if "quests" not in player or player["quests"] is None:
-                player["quests"] = default_quests
+                player["quests"] = DEFAULT_QUESTS
                 updated = True
             elif isinstance(player["quests"], dict):
                 for key in ["scrolls", "rituals", "plants"]:
@@ -67,22 +74,16 @@ def get_player(user_id):
             "level": 1,
             "xp_total": 0.0,
             "inventory": [],
-            "spheres": {
-                "health": {"name": "💪 Здоров'я", "emoji": "💪", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-                "wisdom": {"name": "🧠 Мудрість", "emoji": "🧠", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-                "art": {"name": "🎨 Творчість", "emoji": "🎨", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-                "finance": {"name": "💵 Фінанси", "emoji": "💵", "lvl": 1, "xp": 0.0, "max_xp": 10.0},
-                "relations": {"name": "🤝 Зв'язки", "emoji": "🤝", "lvl": 1, "xp": 0.0, "max_xp": 10.0}
-            },
-            "quests": default_quests
+            "spheres": DEFAULT_SPHERES,
+            "quests": DEFAULT_QUESTS
         }
         
-        insert_res = supabase.table("players").insert(new_player).execute()
-        print(f"✨ Запис нового гравця створено в Supabase: {insert_res}")
+        supabase.table("players").insert(new_player).execute()
+        print(f"✨ Нового гравця успішно створено в Supabase!")
         return new_player
 
-    except Exception as e:
+    except Exception:
         print("❌ ПОМИЛКА ВСЕРЕДИНІ GET_PLAYER:")
         print(traceback.format_exc())
-        # Повертаємо хоча б дефолтного гравця в пам'яті, щоб бот не падав
-        return new_player
+        # Повертаємо безпечний дефолтний об'єкт, щоб бот не впав
+        return fallback_player
