@@ -4,3 +4,4 @@ gotrue
 postgrest
 realtime
 storage
+flask
