@@ -1,6 +1,6 @@
+from services.config import bot
 import traceback
 from telebot import types
-from services.config import bot
 from database import get_player, clean_skin_tones
 from keyboards import get_main_menu
 print("⚙️ Реєструємо хендлер /start у profile.py...")
