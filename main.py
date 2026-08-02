@@ -14,11 +14,6 @@ import handlers.main_quest
 import handlers.my_quests
 print("✅ Усі обробники успішно підключені до бота!")
 
-
-@bot.middleware_handler(update_types=['message'])
-def log_incoming_message(bot_instance, message):
-    print(f"📩 Отримано макро-повідомлення! Текст: '{message.text}', Від: {message.from_user.id}")
-
 @bot.message_handler(func=lambda message: True)
 def catch_all(message):
     print(f"🔍 CATCH-ALL перехопив: {message.text}")
