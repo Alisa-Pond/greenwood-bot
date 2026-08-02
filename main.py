@@ -16,7 +16,7 @@ import handlers.main_quest
 import handlers.my_quests
 print("✅ Усі обробники успішно підключені до бота!")
 
-# 3. ДІАГНОСТИКА: Перевіряємо завантажені хендлери ДО запуску сервера
+# 3. ДІАГНОСТИКА: Перевіряємо завантажені хендлери
 print(f"🔍 ПЕРЕВІРКА: Усього зареєстровано хендлерів: {len(bot.message_handlers)}")
 for h in bot.message_handlers:
     func_name = getattr(h.get('function'), '__name__', 'Unknown')
@@ -25,6 +25,17 @@ for h in bot.message_handlers:
 # 4. Налаштування Flask-сервера для Webhook
 app = Flask(__name__)
 WEBHOOK_URL = f"https://greenwood-bot-yw5w.onrender.com/{BOT_TOKEN}"
+
+# Автоматично встановлюємо вебхук під час створення додатка
+try:
+    bot.remove_webhook()
+    webhook_status = bot.set_webhook(url=WEBHOOK_URL)
+    if webhook_status:
+        print(f"✅ Вебхук успішно встановлено на: {WEBHOOK_URL}")
+    else:
+        print("❌ Не вдалося встановити вебхук!")
+except Exception as e:
+    print(f"⚠️ Помилка при встановленні вебхука: {e}")
 
 @app.route('/')
 def home():
