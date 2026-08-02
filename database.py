@@ -1,4 +1,4 @@
-from config import supabase
+from services.config import supabase
 
 def clean_skin_tones(text_to_clean):
     """Очищає емодзі від відтінків шкіри, зводячи до стандартного жовтого."""
