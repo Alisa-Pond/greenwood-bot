@@ -19,13 +19,8 @@ print("✅ Усі обробники успішно підключені до б
 print(f"🔍 ПЕРЕВІРКА: Усього зареєстровано хендлерів: {len(bot.message_handlers)}")
 
 if __name__ == "__main__":
-    # Очищаємо вебхуки, щоб вони не блокували polling
     print("🧹 Видаляємо старий Webhook...")
     bot.remove_webhook()
-    
-   import inspect
 
-print(inspect.signature(bot.infinity_polling))
-print("🚀 Запускаємо бота через Long Polling...")
-    # infinity_polling автоматично перезапускає опитування при мережевих збоях
+    print("🚀 Запускаємо бота через Long Polling...")
     bot.infinity_polling()
