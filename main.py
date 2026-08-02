@@ -1,67 +1,28 @@
 import os
 import logging
 import telebot
-from flask import Flask, request
 
 # 1. Імпортуємо конфіг і бот
 from services.config import BOT_TOKEN, bot
 
-# Вмикаємо дебаг-логгер для telebot
-telebot.logger.setLevel(logging.DEBUG)
+# Вмикаємо логування Telebot
+telebot.logger.setLevel(logging.INFO)
 
-# 2. Імпортуємо обробники команд
+# 2. Підключаємо обробники команд
 print("⏳ Завантажуємо обробники команд...")
 import handlers.profile
 import handlers.main_quest
 import handlers.my_quests
 print("✅ Усі обробники успішно підключені до бота!")
 
-# 3. ДІАГНОСТИКА: Перевіряємо завантажені хендлери
+# 3. Перевіряємо завантажені хендлери
 print(f"🔍 ПЕРЕВІРКА: Усього зареєстровано хендлерів: {len(bot.message_handlers)}")
-for h in bot.message_handlers:
-    func_name = getattr(h.get('function'), '__name__', 'Unknown')
-    print(f"   - Хендлер: {func_name} | Фільтри: {h.get('filters')}")
-
-# 4. Налаштування Flask-сервера для Webhook
-app = Flask(__name__)
-WEBHOOK_URL = f"https://greenwood-bot-yw5w.onrender.com/{BOT_TOKEN}"
-
-# Автоматично встановлюємо вебхук під час створення додатка
-try:
-    bot.remove_webhook()
-    webhook_status = bot.set_webhook(url=WEBHOOK_URL)
-    if webhook_status:
-        print(f"✅ Вебхук успішно встановлено на: {WEBHOOK_URL}")
-    else:
-        print("❌ Не вдалося встановити вебхук!")
-except Exception as e:
-    print(f"⚠️ Помилка при встановленні вебхука: {e}")
-
-@app.route('/')
-def home():
-    return "🌲 Greenwood Chronicles працює!", 200
-
-@app.route('/set_webhook', methods=['GET', 'POST'])
-def set_webhook():
-    bot.remove_webhook()
-    status = bot.set_webhook(url=WEBHOOK_URL)
-    if status:
-        return f"✅ Вебхук встановлено на: {WEBHOOK_URL}", 200
-    else:
-        return "❌ Не вдалося встановити вебхук", 500
-
-@app.route('/' + str(BOT_TOKEN), methods=['POST'])
-def getMessage():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        
-        # Передаємо повідомлення в telebot
-        bot.process_new_updates([update])
-        return "OK", 200
-    else:
-        return "Forbidden", 403
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    # Очищаємо вебхуки, щоб вони не блокували polling
+    print("🧹 Видаляємо старий Webhook...")
+    bot.remove_webhook()
+    
+    print("🚀 Запускаємо бота через Long Polling...")
+    # infinity_polling автоматично перезапускає опитування при мережевих збоях
+    bot.infinity_polling(skip_pending_updates=True)
