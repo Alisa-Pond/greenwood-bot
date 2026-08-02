@@ -2,6 +2,8 @@ import os
 import telebot
 from supabase import create_client, Client
 
+telebot.apihelper.ENABLE_MIDDLEWARE = True
+
 # Зчитуємо змінні з Render
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
