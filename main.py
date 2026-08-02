@@ -25,4 +25,4 @@ if __name__ == "__main__":
     
     print("🚀 Запускаємо бота через Long Polling...")
     # infinity_polling автоматично перезапускає опитування при мережевих збоях
-    bot.infinity_polling(skip_pending_updates=True)
+    bot.infinity_polling()
