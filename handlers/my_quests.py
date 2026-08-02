@@ -380,15 +380,6 @@ def process_create_scroll(message):
     if text == "🔙 Назад до квестів":
         bot.send_message(message.chat.id, "Створення скасовано, повертаємось.", reply_markup=get_scrolls_menu())
         return
-# --- ОБРОБНИКИ ДЛЯ СУВОЇВ ---
-
-def process_create_scroll(message):
-    user_id = str(message.from_user.id)
-    text = message.text.strip() if message.text else ""
-    
-    if text in ["🔙 Назад до квестів", "🔙 Назад"]:
-        bot.send_message(message.chat.id, "Створення скасовано, повертаємось.", reply_markup=get_scrolls_menu())
-        return
 
     cleaned_text = clean_skin_tones(text)
     # Магічний вираз дозволяє пробіли всередині переліку днів тижня
