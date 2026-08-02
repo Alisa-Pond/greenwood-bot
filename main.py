@@ -9,9 +9,9 @@ from services.config import BOT_TOKEN, bot
 
 # 2. РЕЄСТРУЄМО ХЕНДЛЕРИ (Імпортуємо їх, щоб декоратори @bot.message_handler спрацювали)
 print("⏳ Завантажуємо обробники команд...")
+import handlers.profile
 import handlers.main_quest
 import handlers.my_quests
-import handlers.profile
 
 print("✅ Усі обробники успішно підключені до бота!")
 
