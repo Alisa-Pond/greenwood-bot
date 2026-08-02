@@ -3,7 +3,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from telebot import types
 
-from services.config import bot
 from database import get_player
 from keyboards import get_quests_menu, get_scrolls_menu, get_rituals_menu, get_greenhouse_menu  
 import re
