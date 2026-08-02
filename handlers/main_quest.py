@@ -1,4 +1,4 @@
-from config import bot
+from services.config import bot
 
 @bot.message_handler(func=lambda message: message.text == "📜 Основний квест")
 def main_quest_handler(message):
