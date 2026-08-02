@@ -12,6 +12,8 @@ import handlers.main_quest
 import handlers.my_quests
 import handlers.profile
 
+print("✅ Усі хендлери (включаючи profile.py) успішно підключено!")
+
 telebot.logger.setLevel(logging.DEBUG)
 
 app = Flask(__name__)
