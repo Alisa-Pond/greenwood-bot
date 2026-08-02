@@ -4,21 +4,20 @@ import logging
 import telebot
 from flask import Flask, request
 
-# 1. Завантажуємо конфігурацію та бота
+# 1. Імпортуємо єдиний екземпляр бота
 from services.config import BOT_TOKEN, bot
 
-# 2. РЕЄСТРУЄМО ХЕНДЛЕРИ (Імпортуємо їх, щоб декоратори @bot.message_handler спрацювали)
+# 2. Імпортуємо хендлери (вони вішають декоратори на наш bot)
 print("⏳ Завантажуємо обробники команд...")
 import handlers.profile
 import handlers.main_quest
 import handlers.my_quests
 print("✅ Усі обробники успішно підключені до бота!")
 
-# Вмикаємо дебаг логер TeleBot
+# Вмикаємо дебаг
 telebot.logger.setLevel(logging.DEBUG)
 
 app = Flask(__name__)
-
 WEBHOOK_URL = f"https://greenwood-bot-yw5w.onrender.com/{BOT_TOKEN}"
 
 @app.route('/')
@@ -36,20 +35,15 @@ def set_webhook():
 
 @app.route('/' + str(BOT_TOKEN), methods=['POST'])
 def getMessage():
-    try:
-        if request.headers.get('content-type', '').startswith('application/json'):
-            json_string = request.get_data().decode('utf-8')
-            update = telebot.types.Update.de_json(json_string)
-            
-            # Обробляємо нове оновлення від Telegram
-            bot.process_new_updates([update])
-            return "!", 200
-        else:
-            return "Forbidden", 403
-    except Exception as e:
-        print("❌ КРИТИЧНА ПОМИЛКА ОБРОБКИ ВЕБХУКА:")
-        print(traceback.format_exc())
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        
+        # 🟢 ГОЛОВНА ЗМІНА: викликаємо обробку апдейтів через єдиний бот
+        bot.process_new_updates([update])
         return "!", 200
+    else:
+        return "Forbidden", 403
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
