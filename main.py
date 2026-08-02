@@ -48,3 +48,8 @@ def getMessage():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
+# У самому кінці main.py, перед app.run або перед запускoм:
+print(f"🔍 ПЕРЕВІРКА: Усього зареєстровано хендлерів повідомлень: {len(bot.message_handlers)}")
+for h in bot.message_handlers:
+    print(f"   - Фільтри: {h.filters}")
