@@ -1,6 +1,6 @@
 import time
 from telebot import types  # 👈 ДОДАНО: необхідний імпорт для клавіатур
-from config import bot
+from services.config import bot
 from database import get_player
 from keyboards import get_main_menu
 
