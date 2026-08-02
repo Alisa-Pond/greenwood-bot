@@ -39,9 +39,9 @@ def getMessage():
         json_string = request.get_data().decode('utf-8')
         update = telebot.types.Update.de_json(json_string)
         
-        # 🟢 ГОЛОВНА ЗМІНА: викликаємо обробку апдейтів через єдиний бот
+        # Обробляємо оновлення
         bot.process_new_updates([update])
-        return "!", 200
+        return "OK", 200
     else:
         return "Forbidden", 403
 
@@ -49,7 +49,9 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
 
-# У самому кінці main.py, перед app.run або перед запускoм:
-print(f"🔍 ПЕРЕВІРКА: Усього зареєстровано хендлерів повідомлень: {len(bot.message_handlers)}")
+# Замість попереднього циклу фор:
+print(f"🔍 ПЕРЕВІРКА: Усього зареєстровано хендлерів: {len(bot.message_handlers)}")
 for h in bot.message_handlers:
-    print(f"   - Фільтри: {h.filters}")
+    # У telebot h — це словник вида {'function': ..., 'filters': ...}
+    func_name = getattr(h.get('function'), '__name__', 'Unknown')
+    print(f"   - Хендлер: {func_name} | Фільтри: {h.get('filters')}")
