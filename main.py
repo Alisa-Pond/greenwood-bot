@@ -23,6 +23,9 @@ if __name__ == "__main__":
     print("🧹 Видаляємо старий Webhook...")
     bot.remove_webhook()
     
-    print("🚀 Запускаємо бота через Long Polling...")
+   import inspect
+
+print(inspect.signature(bot.infinity_polling))
+print("🚀 Запускаємо бота через Long Polling...")
     # infinity_polling автоматично перезапускає опитування при мережевих збоях
     bot.infinity_polling()
