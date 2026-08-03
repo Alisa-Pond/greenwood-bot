@@ -1,68 +1,45 @@
 import os
 import logging
+from threading import Thread
 import telebot
 from flask import Flask
-from threading import Thread
 
-
-# ==========================
-# 1. Flask сервер для Render
-# ==========================
-
+# 1. Запускаємо веб-сервер Flask у фоні для зовнішніх Pinger/Cron сервісів
 app = Flask(__name__)
-
 
 @app.route('/')
 def home():
-    return "Greenwood Chronicles is alive! 🌲", 200
-
+    return "Хроніки Грінвуду оживають! 🌲", 200
 
 def run_flask():
     port = int(os.environ.get("PORT", 10000))
-    app.run(
-        host="0.0.0.0",
-        port=port,
-        debug=False,
-        use_reloader=False
-    )
+    # use_reloader=False важливо, щоб Flask не створював дублюючі потоки
+    app.run(host="0.0.0.0", port=port, use_reloader=False)
 
+# Фоновий потік для Flask
+server_thread = Thread(target=run_flask)
+server_thread.daemon = True
+server_thread.start()
 
-# ==========================
-# 2. Імпорт бота
-# ==========================
-
-from services.config import bot
+# 2. Імпортуємо конфіг та екземпляр бота
+from services.config import BOT_TOKEN, bot
 
 telebot.logger.setLevel(logging.INFO)
 
-
-# ==========================
-# 3. Завантаження хендлерів
-# ==========================
-
-print("⏳ Завантажуємо обробники команд...")
-
+# 3. Підключаємо обробники команд (Handlers)
+print("⏳ Завантаження обробників команд...")
 import handlers.profile
 import handlers.main_quest
 import handlers.my_quests
-
 print("✅ Усі обробники успішно підключені до бота!")
 
-
-# ==========================
-# 4. Запуск
-# ==========================
-
 if __name__ == "__main__":
-
-    # Запускаємо Flask у фоні
-    server_thread = Thread(target=run_flask)
-    server_thread.daemon = True
-    server_thread.start()
-
-    print("🧹 Видаляємо старий Webhook...")
-    bot.remove_webhook()
-
-    print("🚀 Запускаємо бота через Long Polling...")
-
-    bot.infinity_polling()
+    print("🧹 Видалення старого Webhook...")
+    try:
+        bot.remove_webhook()
+    except Exception as e:
+        print(f"⚠️ Не вдалося видалити вебхук: {e}")
+    
+    print("🚀 Запуск бота Хроніки Грінвуду (Long Polling)...")
+    # skip_pending=True захищає від спаму старок повідомлень та конфліктів при перезапуску
+    bot.infinity_polling(skip_pending=True)
