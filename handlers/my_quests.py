@@ -1,16 +1,23 @@
-import telebot
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import telebot
 from telebot import types
 
-from services.database import get_player, update_player
-from keyboards import get_main_menu, get_quests_menu, get_scrolls_menu, get_rituals_menu, get_greenhouse_menu  
-import re
 from services.config import bot
+from services.database import get_player, update_player
 from services.utils import clean_skin_tones
+from keyboards import (
+    get_main_menu, 
+    get_quests_menu, 
+    get_scrolls_menu, 
+    get_rituals_menu, 
+    get_greenhouse_menu
+)
+
+print("⚙️ Модуль handlers/my_quests (Частина 1) завантажено!")
 
 # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
-print("⚙️ Модуль handlers/my_quests успішно імпортовано і завантажено!")
 
 @bot.message_handler(func=lambda message: message.text in ["🎯 Мої Квести", "🔙 Назад до квестів"])
 def show_quests_menu(message):
@@ -20,24 +27,27 @@ def show_quests_menu(message):
     # Поточна дата за Києвом (формат ДД.ММ)
     today_str = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%d.%m")
 
-    scrolls = player["quests"].get("scrolls", [])
-    active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
-    rituals = player["quests"].get("rituals", [])
-    plants = player["quests"].get("plants", [])
+    scrolls = player.get("quests", {}).get("scrolls", [])
+    active_scrolls = [s for s in scrolls if s.get("done_count", 0) < s.get("max_count", 1)]
+    rituals = player.get("quests", {}).get("rituals", [])
+    plants = player.get("quests", {}).get("plants", [])
 
-    status_text = "🎯 <b>Магічний Органайзер Грінвуду</b>\n"
-    status_text += "────────────────────\n\n"
+    status_text = (
+        "🎯 <b>Органайзер Завдань Грінвуду</b>\n"
+        "<i>🦇 Марчелло коригує окуляри й гортає твої розрахунки...</i>\n"
+        "────────────────────\n\n"
+    )
 
     # === Блок Сувоїв ===
     status_text += "📜 <b>Активні сувої:</b>\n"
     if not active_scrolls:
-        status_text += "• <i>Немає активних сувоїв</i>\n"
+        status_text += "• <i>Немає запечатаних угодок.</i>\n"
     else:
         for s in active_scrolls:
             fire = " 🔥" if s.get("deadline") == today_str else ""
             status_text += (
-                f"• {s['emoji']} {s['task']} "
-                f"({s['done_count']}/{s['max_count']}) | до {s['deadline']}{fire}\n"
+                f"• {s.get('emoji', '📜')} {s.get('task', 'Без назви')} "
+                f"({s.get('done_count', 0)}/{s.get('max_count', 1)}) | до {s.get('deadline', '--.--')}{fire}\n"
             )
 
     status_text += "\n"
@@ -46,24 +56,18 @@ def show_quests_menu(message):
     status_text += "🔄 <b>Активні ритуали на сьогодні:</b>\n"
 
     kyiv_days = {
-        0: "пн",
-        1: "вт",
-        2: "ср",
-        3: "чт",
-        4: "пт",
-        5: "сб",
-        6: "нд"
+        0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"
     }
 
     today_day = kyiv_days[datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
     today_rituals = [r for r in rituals if today_day in r.get("days", [])]
 
     if not today_rituals:
-        status_text += "• <i>На сьогодні немає активних ритуалів</i>\n"
+        status_text += "• <i>На сьогодні ніяких ритуалів не заплановано.</i>\n"
     else:
         for r in today_rituals:
             status = "✅" if r.get("done_today", False) else "⏳"
-            status_text += f"• {status} {r['emoji']} {r['task']}\n"
+            status_text += f"• {status} {r.get('emoji', '🔄')} {r.get('task', 'Без назви')}\n"
 
     status_text += "\n"
 
@@ -71,16 +75,16 @@ def show_quests_menu(message):
     status_text += "🌱 <b>Рослини в теплиці:</b>\n"
 
     if not plants:
-        status_text += "• <i>Теплиця порожня</i>\n"
+        status_text += "• <i>Ґрунт у теплиці відпочиває (порожньо).</i>\n"
     else:
         for p in plants:
             fire = " 🔥" if p.get("deadline") == today_str else ""
             status_text += (
-                f"• {p['emoji']} {p['task']} | до {p['deadline']}{fire}\n"
+                f"• {p.get('emoji', '🌱')} {p.get('task', 'Без назви')} | до {p.get('deadline', '--.--')}{fire}\n"
             )
 
     status_text += "\n────────────────────\n"
-    status_text += "Обери розділ для керування:"
+    status_text += "🦇 <b>Марчелло🦇:</b> Обери розділ для підрахунків та керування:"
 
     bot.send_message(
         message.chat.id,
@@ -91,6 +95,7 @@ def show_quests_menu(message):
 
 
 # --- ПОВЕРНЕННЯ ДО ГОЛОВНОГО МЕНЮ ---
+
 @bot.message_handler(func=lambda message: message.text == "🔙 Назад")
 def back_to_main_menu(message):
     bot.send_message(
@@ -98,16 +103,22 @@ def back_to_main_menu(message):
         "🌲 Повертаємось до головного табору.",
         reply_markup=get_main_menu()
     )
-# --- КВІТКА РОЗКВІТЛА (ЗАВЕРШЕННЯ ЦІЛІ) ---
+
+
+# --- КВІТКА РОЗКВІТЛА (ЗАВЕРШЕННЯ ЦІЛІ У ТЕПЛИЦІ) ---
 
 @bot.message_handler(func=lambda message: message.text == "🌸 Квітка розквітла")
 def harvest_plant_start(message):
     user_id = str(message.from_user.id)
     player = get_player(user_id)
-    plants = player["quests"].get("plants", [])
+    plants = player.get("quests", {}).get("plants", [])
 
     if not plants:
-        bot.send_message(message.chat.id, "🌲Лісовик🌲: У тебе в теплиці порожньо, нічому цвісти!", parse_mode="HTML")
+        bot.send_message(
+            message.chat.id, 
+            "🪵 <b>Олівер:</b> «Шурх-шурх... Твоя теплиця порожня, друже. Поки нічому розквітати!»", 
+            parse_mode="HTML"
+        )
         return
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -117,24 +128,27 @@ def harvest_plant_start(message):
 
     msg = bot.send_message(
         message.chat.id, 
-        "🌲Лісовик🌲: Охохо! Невже якась із рослин дала плоди? Обери, що саме розквітло:", 
+        "🪵 <b>Олівер:</b> «Охо-хо! Відчуваю аромат перемоги! Яка саме рослина розквітла й дала плоди?»", 
         reply_markup=markup, 
         parse_mode="HTML"
     )
-    # Зверни увагу: функція process_harvest_plant буде описана нижче у цьому ж файлі!
     bot.register_next_step_handler(msg, process_harvest_plant)
 
 
-# --- ВИРВАТИ БАОБАБ (СКАСУВАННЯ ЦІЛІ) ---
+# --- ВИРВАТИ БАОБАБ (СКАСУВАННЯ ЦІЛІ У ТЕПЛИЦІ) ---
 
 @bot.message_handler(func=lambda message: message.text in ["🪓 Вирвати баобаб", "🌱 Вирвати баобаб"])
 def remove_plant_start(message):
     user_id = str(message.from_user.id)
     player = get_player(user_id)
-    plants = player["quests"].get("plants", [])
+    plants = player.get("quests", {}).get("plants", [])
 
     if not plants:
-        bot.send_message(message.chat.id, "🌲Лісовик🌲: Тут немає ніяких баобабів, теплиця порожня!", parse_mode="HTML")
+        bot.send_message(
+            message.chat.id, 
+            "🪵 <b>Олівер:</b> «Тут немає жодних бур'янів чи баобабів. Теплиця чиста!»", 
+            parse_mode="HTML"
+        )
         return
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -144,13 +158,11 @@ def remove_plant_start(message):
 
     msg = bot.send_message(
         message.chat.id, 
-        "🌲Лісовик🌲: Ех, закинув рослину і вона перетворилася на загарбницький баобаб? Обери, що треба вирвати з корінням:", 
+        "🪵 <b>Олівер:</b> «Ех, якась ціль перетворилася на загарбницький баобаб? Давай вирвемо її з корінням, щоб не глушила інші паристки!»", 
         reply_markup=markup, 
         parse_mode="HTML"
     )
-    # Зверни увагу: функція process_remove_plant буде описана нижче у цьому ж файлі!
     bot.register_next_step_handler(msg, process_remove_plant)
-
 
 
 # --- СУВОЇ ЗАВДАНЬ ---
@@ -159,25 +171,28 @@ def remove_plant_start(message):
 def show_scrolls_menu(message):
     user_id = str(message.from_user.id)
     player = get_player(user_id)
-    scrolls = player["quests"].get("scrolls", [])
-    active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
+    scrolls = player.get("quests", {}).get("scrolls", [])
+    active_scrolls = [s for s in scrolls if s.get("done_count", 0) < s.get("max_count", 1)]
     
     status_text = (
         "📜 <b>Книга Сувоїв Грінвуду</b>\n\n"
-        "<b>🪷Лілі Понд🪷</b>: Використовуй сувої, аби запечатати обіцянку собі про виконання завдання. "
-        "Вони ідеально підходять для справ із чітким дедлайном або кількома повтореннями.\n\n"
+        "🦇 <b>Марчелло:🦇</b> «Сувій — це не просто папірець. Це чіткий математичний контракт із самим собою. "
+        "Фіксуємо задачу, розбиваємо на кроки й рахуємо чистий XP за кожен виконаний етап!»\n\n"
         "📌 <b>Твої активні сувої:</b>\n"
     )
     
     if not active_scrolls:
-        status_text += "Твій стіл порожній. Час запечатати першу угоду!"
+        status_text += "• <i>Робочий стіл порожній. Жодного підписаного контракту.</i>"
     else:
         for idx, s in enumerate(active_scrolls, 1):
-            status_text += f"{idx}. {s['emoji']} <b>{s['task']}</b> — ({s['done_count']}/{s['max_count']}) | {float(s['xp_per_once']):.1f} XP за крок (⏰ Дедлайн: {s['deadline']})\n"
+            status_text += (
+                f"{idx}. {s.get('emoji', '📜')} <b>{s.get('task', 'Без назви')}</b> — "
+                f"({s.get('done_count', 0)}/{s.get('max_count', 1)}) | "
+                f"{float(s.get('xp_per_once', 0)):.1f} XP за крок (⏰ Дедлайн: {s.get('deadline', '--.--')})\n"
+            )
             
-    status_text += "\n👇 <b>Обери магічну дію:</b>"
+    status_text += "\n👇 <b>Обери дію:</b>"
     bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_scrolls_menu())
-
 
 @bot.message_handler(func=lambda message: message.text == "➕ Створити сувой")
 def create_scroll_start(message):
