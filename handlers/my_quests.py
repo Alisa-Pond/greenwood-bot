@@ -12,7 +12,7 @@ from services.utils import clean_skin_tones
 # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
 print("⚙️ Модуль handlers/my_quests успішно імпортовано і завантажено!")
 
-@bot.message_handler(func=lambda message: message.text == "🎯 Мої Квести")
+@bot.message_handler(func=lambda message: message.text in ["🎯 Мої Квести", "🔙 Назад до квестів"])
 def show_quests_menu(message):
     user_id = str(message.from_user.id)
     player = get_player(user_id)
@@ -45,9 +45,17 @@ def show_quests_menu(message):
     # === Блок Ритуалів ===
     status_text += "🔄 <b>Активні ритуали на сьогодні:</b>\n"
 
-    kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
-    today_day = kyiv_days[datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
+    kyiv_days = {
+        0: "пн",
+        1: "вт",
+        2: "ср",
+        3: "чт",
+        4: "пт",
+        5: "сб",
+        6: "нд"
+    }
 
+    today_day = kyiv_days[datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
     today_rituals = [r for r in rituals if today_day in r.get("days", [])]
 
     if not today_rituals:
@@ -59,14 +67,17 @@ def show_quests_menu(message):
 
     status_text += "\n"
 
-    # === Блок Рослин ===
+    # === Блок Теплиці ===
     status_text += "🌱 <b>Рослини в теплиці:</b>\n"
+
     if not plants:
         status_text += "• <i>Теплиця порожня</i>\n"
     else:
         for p in plants:
             fire = " 🔥" if p.get("deadline") == today_str else ""
-            status_text += f"• {p['emoji']} {p['task']} | до {p['deadline']}{fire}\n"
+            status_text += (
+                f"• {p['emoji']} {p['task']} | до {p['deadline']}{fire}\n"
+            )
 
     status_text += "\n────────────────────\n"
     status_text += "Обери розділ для керування:"
@@ -79,7 +90,7 @@ def show_quests_menu(message):
     )
 
 
-# --- Повернення у головне меню ---
+# --- ПОВЕРНЕННЯ ДО ГОЛОВНОГО МЕНЮ ---
 @bot.message_handler(func=lambda message: message.text == "🔙 Назад")
 def back_to_main_menu(message):
     bot.send_message(
