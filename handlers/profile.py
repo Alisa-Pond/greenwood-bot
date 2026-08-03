@@ -1,45 +1,60 @@
-from services.config import bot
+import time
+import logging
 import traceback
+import telebot
 from telebot import types
+
+from services.config import bot
 from services.database import get_player
 from services.utils import clean_skin_tones
 from keyboards import get_main_menu
-print("⚙️ Реєструємо хендлер /start у profile.py...")
+
+logger = logging.getLogger(__name__)
+
+print("⚙️ Реєструємо хендлери профілю та меню...")
+
+# --- КОМАНДА /START ---
+
 @bot.message_handler(commands=['start'])
 def welcome(message):
     print(f"🚀 Спрацювала команда /start для користувача {message.from_user.id}")
     try:
         user_id = str(message.from_user.id)
-        print("⏳ Викликаємо get_player...")
         player = get_player(user_id)
-        print(f"✅ Гравець отриман/створений: {player}")
-
+        
+        # Повідомлення 1: Знайомство з Лілі Понд (Лор мавки/пліткарки)
         msg_1 = (
-            "🌲 <b>Вітаємо у Greenwood!</b> 🌳\n\n"
-            "Магічний ліс відкриває свої таємниці... А я — 🪷 <b>Lilly Pond</b> 🪷, твій магічний провідник у цьому затишному світі. "
-            "Я допомагатиму тобі перетворювати твої реальні досягнення на справжню силу персонажа!"
+            "🌲 <b>Вітаю у Грінвуді!</b> 🌳\n\n"
+            "Я - 🪷 <b>Lilly Pond</b> 🪷! Сиджу на лататті, "
+            "гріюся на сонечку й збираю найгарячіші плітки цього магічного лісу. "
+            "Кажуть, ти тут, щоб перетворити свої реальні справи на справжній левелап? "
+            "Я вже рознесла про це всім місцевим духам! ✨"
         )
         bot.send_message(message.chat.id, msg_1, parse_mode="HTML")
         
+        time.sleep(2)
+        
+        # Повідомлення 2: Правила світу та квести
         msg_2 = (
-            "🔮 <b>Як влаштований наш світ:</b>\n"
-            "Твій персонаж розвиває 5 основних сфер життя. Кожна з них стартує з 1 рівня і потребує <b>10 XP</b> для першого підвищення левелу.\n\n"
-            "💪 <b>Здоров'я</b> — yoga, тренування, корисна їжа і тд.\n"
-            "🧠 <b>Мудрість</b> — читання, навчання, вивчення мов, кодинг і тд.\n"
-            "🎨 <b>Творчість</b> — малювання, гра на інструментах, в'язання і тд.\n"
-            "💵 <b>Фінанси</b> — робота, планування бюджету і тд.\n"
-            "🤝 <b>Зв'язки</b> — спілкування з близькими, допомога, турбота про рослини чи тварин.\n\n"
+            "🔮 <b>Лови короткий розклад, як тут усе влаштовано:</b>\n\n"
+            "Твій персонаж прокачує <b>5 сфер сили</b>. Усі починають з 1 рівня, "
+            "і для першого стрибка вгору тобі знадобиться <b>10 XP</b>:\n\n"
+            "💪 <b>Здоров'я</b> - тренування, йога, пробіжки та смачна корисна їжа.\n"
+            "🧠 <b>Мудрість</b> - книги, навчання, мови та код.\n"
+            "🎨 <b>Творчість</b> - малювання, музика, в'язання та нові ідеї.\n"
+            "💵 <b>Фінанси</b> - робота, бюджет та фінансова дисципліна.\n"
+            "🤝 <b>Зв'язки</b> - тепло з близькими, турбота про тварин та підтримка друзяк.\n\n"
             "🎯 <b>Розділ Мої Квести:</b>\n"
-            "Це твоє магічне джерело мотивації! Тут ти можеш структурувати свої цілі: створювати 📜 <b>Сувої</b> для "
-            "справ із дедлайнами, налаштовувати щоденні 🔄 <b>Ритуали</b> для корисних звичок на кожен день або саджати великі цілі в "
-            "🌱 <b>Теплиці</b>."
+            "Тут твої секретні сувої та цілі! Згортай справи у 📜 <b>Сувої</b> з дедлайнами, "
+            "закручуй 🔄 <b>Ритуали</b> на кожен день або вирощуй великі мрії в 🌱 <b>Теплиці</b>."
         )
         bot.send_message(message.chat.id, msg_2, parse_mode="HTML", reply_markup=get_main_menu())
-        print("✅ Повідомлення успішно відправлено в Telegram!")
+        print("✅ Привітальне меню успішно надіслано!")
 
     except Exception as e:
         print("❌ ПОМИЛКА ВСЕРЕДИНІ WELCOME:")
         print(traceback.format_exc())
+
 
 # --- ОБРОБНИКИ КНОПОК ПЕРСОНАЖА ТА РЮКЗАКА ---
 
@@ -48,11 +63,12 @@ def show_profile(message):
     user_id = str(message.from_user.id)
     current_player = get_player(user_id)
     
-    status = f"🧙‍♂️ <b>Лист Персонажа (Рівень {current_player['level']})</b>\n"
-    status += f"✨ Загальний досвід: {float(current_player['xp_total']):.1f} XP\n"
+    status = f"🧙‍♂️ <b>Лист Персонажа (Рівень {current_player.get('level', 1)})</b>\n"
+    status += f"✨ Загальний досвід: {float(current_player.get('xp_total', 0)):.1f} XP\n"
     status += "────────────────────\n"
     
-    for key, sphere in current_player["spheres"].items():
+    spheres = current_player.get("spheres", {})
+    for key, sphere in spheres.items():
         status += f"{sphere['name']}: Лвл {sphere['lvl']} ({float(sphere['xp']):.1f}/{float(sphere['max_xp']):.1f} XP)\n"
         
     bot.send_message(message.chat.id, status, parse_mode="HTML")
@@ -62,13 +78,15 @@ def show_profile(message):
 def show_inventory(message):
     user_id = str(message.from_user.id)
     current_player = get_player(user_id)
+    inventory = current_player.get("inventory", [])
     
-    if not current_player.get("inventory"):
-        bot.send_message(message.chat.id, "🎒 <b>Твій рюкзак порожній.</b>", parse_mode="HTML")
+    if not inventory:
+        bot.send_message(message.chat.id, "🎒 <b>Твій рюкзак порожній. Час здобути трофеї!</b>", parse_mode="HTML")
     else:
         items_counts = {}
-        for item in current_player["inventory"]:
+        for item in inventory:
             items_counts[item] = items_counts.get(item, 0) + 1
+        
         inv_text = "🎒 <b>Вміст твого рюкзака:</b>\n\n"
         for item, count in items_counts.items():
             inv_text += f"• {item} x{count}\n"
@@ -77,29 +95,44 @@ def show_inventory(message):
 
 # --- РЕЖИМ ДОДАВАННЯ СПРАВИ (ШВИДКИЙ ЗВІТ) ---
 
-def process_activity(message):
-    # Тимчасова функція-заглушка (якщо справжня функція нижче або в іншому файлі)
-    if message.text == "🔙 Назад":
-        bot.send_message(message.chat.id, "Повертаємось у головне меню.", reply_markup=get_main_menu())
-    else:
-        bot.send_message(message.chat.id, "Звіт прийнято!", reply_markup=get_main_menu())
-
-
 @bot.message_handler(func=lambda message: message.text == "➕ Додати Справу")
 def add_activity_start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("🧙‍♂️ Завершити звіт"), types.KeyboardButton("🔙 Назад"))
+    markup.row(types.KeyboardButton("🔙 Назад"))
     
     guide = (
         "➕ <b>Режим магічного звіту активовано!</b>\n\n"
-        "Запиши свої діяння (по одному в рядку) у форматі:\n"
+        "Напиши мені, що з того, що ти робиш у реалі, дає тобі силу!\n"
+        "Записуй справи по одній у рядку в такому форматі:\n"
         "<code>[Емодзі] [Бали від 4 до 14] [Опис справи]</code>\n\n"
+        "<i>Приклад:</i>\n"
+        "<code>🧠 10 Прочитав 20 сторінок книги</code>\n"
+        "<code>💪 8 Зробив ранкову зарядку</code>\n\n"
         "✨ <b>Доступні сфери сили:</b>\n"
         "• 💪 — Здоров'я\n"
         "• 🧠 — Мудрість\n"
         "• 🎨 — Творчість\n"
         "• 💵 — Фінанси\n"
-        "• 🤝 — Зв'язки\n"
+        "• 🤝 — Зв'язки"
     )
     msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=markup)
     bot.register_next_step_handler(msg, process_activity)
+
+
+def process_activity(message):
+    if message.text == "🔙 Назад":
+        bot.send_message(
+            message.chat.id, 
+            "Повертаємось до головного меню!", 
+            parse_mode="Markdown", 
+            reply_markup=get_main_menu()
+        )
+        return
+
+    # Повідомлення про успішне отримання (тут підключатиметься функція обробки XP з services/utils.py)
+    bot.send_message(
+        message.chat.id, 
+        f"✨ <b>Запис прийнято!</b>\n\n'<i>{message.text}</i>'\n\nЛілі вже занотовує твої досягнення у магічний сувій!", 
+        parse_mode="HTML", 
+        reply_markup=get_main_menu()
+    )
