@@ -193,6 +193,7 @@ def show_scrolls_menu(message):
     bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_scrolls_menu())
 
 # --- СТВОРЕННЯ, ВИКОНАННЯ ТА СПАЛЕННЯ СУВОЇВ ---
+# --- СТВОРЕННЯ, ВИКОНАННЯ ТА СПАЛЕННЯ СУВОЇВ ---
 
 @bot.message_handler(func=lambda message: message.text == "➕ Створити сувой")
 def create_scroll_start(message):
