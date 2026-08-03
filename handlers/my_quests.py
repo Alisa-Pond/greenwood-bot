@@ -16,6 +16,16 @@ print("⚙️ Модуль handlers/my_quests успішно імпортова�
 def show_quests_menu(message):
     user_id = str(message.from_user.id)
     player = get_player(user_id)
+
+# Обробник кнопки "🔙 Назад" з меню "Мої квести" -> Повернення в Головне меню
+@bot.message_handler(func=lambda message: message.text == "🔙 Назад")
+def back_to_main_menu(message):
+    from keyboards import get_main_menu  # Імпортуємо головне меню
+    bot.send_message(
+        message.chat.id, 
+        "🌲 Повертаємось до головного табору.", 
+        reply_markup=get_main_menu()
+    )
     
     # Поточна дата за Києвом (формат ДД.ММ)
     today_str = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%d.%m")
