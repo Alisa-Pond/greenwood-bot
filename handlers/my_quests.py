@@ -33,8 +33,7 @@ def show_quests_menu(message):
     plants = player.get("quests", {}).get("plants", [])
 
     status_text = (
-        "🎯 <b>Органайзер Завдань Грінвуду</b>\n"
-        "<i>🦇 Марчелло коригує окуляри й гортає твої розрахунки...</i>\n"
+        "🌿 <b>Органайзер Завдань Грінвуду</b>\n"
         "────────────────────\n\n"
     )
 
@@ -75,7 +74,7 @@ def show_quests_menu(message):
     status_text += "🌱 <b>Рослини в теплиці:</b>\n"
 
     if not plants:
-        status_text += "• <i>Ґрунт у теплиці відпочиває (порожньо).</i>\n"
+        status_text += "• <i>Ґрунт у теплиці чекає на нову насінину.</i>\n"
     else:
         for p in plants:
             fire = " 🔥" if p.get("deadline") == today_str else ""
@@ -128,7 +127,7 @@ def harvest_plant_start(message):
 
     msg = bot.send_message(
         message.chat.id, 
-        "🪵 <b>Олівер:</b> «Охо-хо! Відчуваю аромат перемоги! Яка саме рослина розквітла й дала плоди?»", 
+        "🌲 <b>Олівер🌲:</b> «Охо-хо! Відчуваю аромат перемоги! Яка саме рослина розквітла й дала плоди?»", 
         reply_markup=markup, 
         parse_mode="HTML"
     )
@@ -146,7 +145,7 @@ def remove_plant_start(message):
     if not plants:
         bot.send_message(
             message.chat.id, 
-            "🪵 <b>Олівер:</b> «Тут немає жодних бур'янів чи баобабів. Теплиця чиста!»", 
+            "🌲 <b>Олівер🌲:</b> «Тут немає жодних бур'янів чи баобабів. Теплиця чиста!»", 
             parse_mode="HTML"
         )
         return
@@ -158,7 +157,7 @@ def remove_plant_start(message):
 
     msg = bot.send_message(
         message.chat.id, 
-        "🪵 <b>Олівер:</b> «Ех, якась ціль перетворилася на загарбницький баобаб? Давай вирвемо її з корінням, щоб не глушила інші паристки!»", 
+        "🌲 <b>Олівер🌲:</b> «Ех, якась ціль перетворилася на загарбницький баобаб? Давай вирвемо її з корінням, щоб не глушила інші паристки!»", 
         reply_markup=markup, 
         parse_mode="HTML"
     )
@@ -176,13 +175,12 @@ def show_scrolls_menu(message):
     
     status_text = (
         "📜 <b>Книга Сувоїв Грінвуду</b>\n\n"
-        "🦇 <b>Марчелло:🦇</b> «Сувій — це не просто папірець. Це чіткий математичний контракт із самим собою. "
-        "Фіксуємо задачу, розбиваємо на кроки й рахуємо чистий XP за кожен виконаний етап!»\n\n"
+        "🦇 <b>Марчелло:🦇</b> Використовуй магічні суввої для заключення угодиз собою про виконання задачі \n\n"
         "📌 <b>Твої активні сувої:</b>\n"
     )
     
     if not active_scrolls:
-        status_text += "• <i>Робочий стіл порожній. Жодного підписаного контракту.</i>"
+        status_text += "• <i>Робочий стіл порожній. Жодного активного контракту.</i>"
     else:
         for idx, s in enumerate(active_scrolls, 1):
             status_text += (
@@ -194,21 +192,23 @@ def show_scrolls_menu(message):
     status_text += "\n👇 <b>Обери дію:</b>"
     bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_scrolls_menu())
 
+# --- СТВОРЕННЯ, ВИКОНАННЯ ТА СПАЛЕННЯ СУВОЇВ ---
+
 @bot.message_handler(func=lambda message: message.text == "➕ Створити сувой")
 def create_scroll_start(message):
     guide = (
         "✍️ <b>Запечатування нового сувою</b>\n\n"
-        "<b>🪷Лілі Понд🪷</b>: Давай розправимо чистий пергамент! Будь ласка, напиши умови "
-        "твого квесту одним рядком за цим магічним шаблоном:\n\n"
-        "📖 [Емодзі сфери] [Кратність] [Бали за крок] [Дедлайн ДД.ММ] [Опис справи та Нагорода]\n"
-        "• Емодзі сфери: 💪, 🧠, 🎨, 💵, 🤝\n"
-        "• Кратність (кількість разів для виконання).\n"
-        "• Бали за крок від 4 до 14.\n"
-        "• Дедлайн у форматі ДД.ММ.\n"
-        "• Опис або назва справи\n\n"
-        "📌 Приклад:\n"
-        "<code>🧠 3 10 22.07 Прочитати 50 сторінок книги (Нагорода: замовити нову сукню)</code>\n\n"
-        "Напиши <code>🔙 Назад до квестів</code> для повернення."
+        "🦇 <b>Марчелло:</b> «Так-так, давай зафіксуємо новий контракт! Будь ласка, вкажи "
+        "параметри квесту чітко в один рядок за цим шаблоном:»\n\n"
+        "📖 <code>[Емодзі сфери] [Кратність] [Бали за крок] [Дедлайн ДД.ММ] [Опис справи]</code>\n\n"
+        "• <b>Емодзі сфери:</b> 💪, 🧠, 🎨, 💵, 🤝\n"
+        "• <b>Кратність:</b> кількість повторень/кроків для повного виконання.\n"
+        "• <b>Бали за крок:</b> від 4 до 14.\n"
+        "• <b>Дедлайн:</b> у форматі ДД.ММ.\n"
+        "• <b>Опис справи:</b> назва та (за бажанням) твоя нагорода.\n\n"
+        "📌 <i>Приклад:</i>\n"
+        "<code>🧠 3 10 22.08 Прочитати 50 сторінок книги (Нагорода: замовити нову сукню)</code>\n\n"
+        "Напиши <code>🔙 Назад до квестів</code> для скасування."
     )
     msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=types.ForceReply(selective=True))
     bot.register_next_step_handler(msg, process_create_scroll)
@@ -218,11 +218,15 @@ def create_scroll_start(message):
 def complete_scroll_start(message):
     user_id = str(message.from_user.id)
     player = get_player(user_id)
-    scrolls = player["quests"].get("scrolls", [])
-    active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
+    scrolls = player.get("quests", {}).get("scrolls", [])
+    active_scrolls = [s for s in scrolls if s.get("done_count", 0) < s.get("max_count", 1)]
     
     if not active_scrolls:
-        bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: На твоїх полицях немає активних сувоїв для виконання.", parse_mode="HTML")
+        bot.send_message(
+            message.chat.id, 
+            "🦇 <b>Марчелло:</b> «Перевірив твій архів — наразі немає жодного активного сувою для зарахування прогресу.»", 
+            parse_mode="HTML"
+        )
         return
         
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -232,7 +236,7 @@ def complete_scroll_start(message):
     
     msg = bot.send_message(
         message.chat.id, 
-        "<b>🪷Лілі Понд🪷</b>: Обери сувой, у якому ти сьогодні зробила крок вперед:", 
+        "🦇 <b>Марчелло:</b> «Обери контракт, у якому ти зробив(ла) черговий крок до виконання:»", 
         reply_markup=markup, 
         parse_mode="HTML" 
     )
@@ -243,11 +247,15 @@ def complete_scroll_start(message):
 def delete_scroll_start(message):
     user_id = str(message.from_user.id)
     player = get_player(user_id)
-    scrolls = player["quests"].get("scrolls", [])
-    active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
+    scrolls = player.get("quests", {}).get("scrolls", [])
+    active_scrolls = [s for s in scrolls if s.get("done_count", 0) < s.get("max_count", 1)]
     
     if not active_scrolls:
-        bot.send_message(message.chat.id, "<b>🪷Лілі Понд🪷</b>: Тобі нема чого спалювати, твій стіл порожній!", parse_mode="HTML")
+        bot.send_message(
+            message.chat.id, 
+            "🦇 <b>Марчелло:</b> «Тут нічого спалювати, твій стіл і так чистий!»", 
+            parse_mode="HTML"
+        )
         return
         
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -257,7 +265,7 @@ def delete_scroll_start(message):
     
     msg = bot.send_message(
         message.chat.id, 
-        "<b>🪷Лілі Понд🪷</b>: Який сувой ти хочеш спалити у синьому вогні без отримання досвіду?", 
+        "🦇 <b>Марчелло:</b> «Який саме сувой втратив актуальність? Спалимо його без нарахування XP, щоб не захаращувати облік:»", 
         parse_mode="HTML", 
         reply_markup=markup
     )
@@ -270,19 +278,19 @@ def delete_scroll_start(message):
 def show_rituals_menu(message):
     user_id = str(message.from_user.id)
     player = get_player(user_id)
-    rituals = player["quests"].get("rituals", [])
+    rituals = player.get("quests", {}).get("rituals", [])
     
     kyiv_time = datetime.now(ZoneInfo("Europe/Kyiv"))
     kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
     today_day = kyiv_days[kyiv_time.weekday()]
     today_date = kyiv_time.strftime("%d.%m")
     
-    status_text = "🔄 <b>Твої магічні ритуали Грінвуду</b>\n"
+    status_text = "🔄 <b>Щоденні Ритуали Грінвуду</b>\n"
     status_text += f"📅 Сьогодні: <b>{today_date}, {today_day}</b>\n" 
     status_text += "────────────────────\n\n"
     
     if not rituals:
-        status_text += "✨ Ти ще не створила жодного щоденного ритуалу, твоя книга порожня."
+        status_text += "🦇 <b>Марчелло:</b> «У тебе поки немає зафіксованих системних ритуалів. Постійність — запорука високого XP!»"
     else:
         for r in rituals:
             is_active_today = today_day in r.get("days", [])
@@ -296,11 +304,11 @@ def show_rituals_menu(message):
             
             days_list = ", ".join(r.get("days", []))
             
-            status_text += f"{status} {r['emoji']} <b>{r['task']}</b> ({float(r['xp']):.1f} XP)\n"
+            status_text += f"{status} {r.get('emoji', '🔄')} <b>{r.get('task', 'Без назви')}</b> ({float(r.get('xp', 0)):.1f} XP)\n"
             status_text += f"    └── Дні: {days_list}\n\n"
             
     status_text += "────────────────────\n"
-    status_text += "👇 <b>Обери магічну дію для ритуалів:</b>"
+    status_text += "👇 <b>Обери дію для керування ритуалами:</b>"
     bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_rituals_menu())
 
 
@@ -308,9 +316,9 @@ def show_rituals_menu(message):
 def create_ritual_start(message):
     guide = (
         "✍️ <b>Створення щоденного ритуалу</b>\n\n"
-        "<b>🪷Лілі Понд🪷</b>: Напиши умови одним рядком за цим шаблоном:\n\n"
-        "📖 [💪, 🧠, 🎨, 💵, 🤝] [Бали (1-14)] [Дні] [Назва справи]\n"
-        "• <b>Дні</b> перерахуй через кому (<code>пн,вт,ср,чт,пт,сб,нд</code>) або напиши <code>щодня</code>.\n\n"
+        "🦇 <b>Марчелло:</b> «Зафіксуємо нову регулярну звичку. Напиши параметри в один рядок:»\n\n"
+        "📖 <code>[Емодзі сфери] [Бали (1-14)] [Дні] [Назва справи]</code>\n\n"
+        "• <b>Дні:</b> перерахуй через кому (<code>пн,вт,ср,чт,пт,сб,нд</code>) або напиши <code>щодня</code>.\n\n"
         "📌 <b>Приклади:</b>\n"
         "<code>🧠 5 пн,ср,пт Читати книгу</code>\n"
         "<code>💪 8 щодня Ранкова руханка</code>\n"
@@ -321,8 +329,7 @@ def create_ritual_start(message):
     
     msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=markup)
     bot.register_next_step_handler(msg, process_create_ritual)
-
-
+    
 @bot.message_handler(func=lambda message: message.text == "✅ Виконати ритуал")
 def complete_ritual_start(message):
     user_id = str(message.from_user.id)
