@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from telebot import types
 
 from services.database import get_player, update_player
-from keyboards import get_quests_menu, get_scrolls_menu, get_rituals_menu, get_greenhouse_menu  
+from keyboards import get_main_menu, get_quests_menu, get_scrolls_menu, get_rituals_menu, get_greenhouse_menu  
 import re
 from services.config import bot
 from services.utils import clean_skin_tones
@@ -12,80 +12,81 @@ from services.utils import clean_skin_tones
 # --- ГОЛОВНЕ МЕНЮ КВЕСТІВ ---
 print("⚙️ Модуль handlers/my_quests успішно імпортовано і завантажено!")
 
-@bot.message_handler(func=lambda message: message.text in ["🎯 Мої Квести", "🔙 Назад до квестів"])
+@bot.message_handler(func=lambda message: message.text == "🎯 Мої Квести")
 def show_quests_menu(message):
     user_id = str(message.from_user.id)
     player = get_player(user_id)
 
-# Обробник кнопки "🔙 Назад" з меню "Мої квести" -> Повернення в Головне меню
-@bot.message_handler(func=lambda message: message.text == "🔙 Назад")
-def back_to_main_menu(message):
-    from keyboards import get_main_menu  # Імпортуємо головне меню
-    bot.send_message(
-        message.chat.id, 
-        "🌲 Повертаємось до головного табору.", 
-        reply_markup=get_main_menu()
-    )
-    
     # Поточна дата за Києвом (формат ДД.ММ)
     today_str = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%d.%m")
-    
+
     scrolls = player["quests"].get("scrolls", [])
     active_scrolls = [s for s in scrolls if s["done_count"] < s["max_count"]]
     rituals = player["quests"].get("rituals", [])
     plants = player["quests"].get("plants", [])
-    
+
     status_text = "🎯 <b>Магічний Органайзер Грінвуду</b>\n"
     status_text += "────────────────────\n\n"
-    
+
     # === Блок Сувоїв ===
     status_text += "📜 <b>Активні сувої:</b>\n"
     if not active_scrolls:
         status_text += "• <i>Немає активних сувоїв</i>\n"
     else:
         for s in active_scrolls:
-            fire = " 🔥" if s.get('deadline') == today_str else ""
-            status_text += f"• {s['emoji']} {s['task']} ({s['done_count']}/{s['max_count']}) | до {s['deadline']}{fire}\n"
-            
+            fire = " 🔥" if s.get("deadline") == today_str else ""
+            status_text += (
+                f"• {s['emoji']} {s['task']} "
+                f"({s['done_count']}/{s['max_count']}) | до {s['deadline']}{fire}\n"
+            )
+
     status_text += "\n"
-    
+
     # === Блок Ритуалів ===
     status_text += "🔄 <b>Активні ритуали на сьогодні:</b>\n"
-    
+
     kyiv_days = {0: "пн", 1: "вт", 2: "ср", 3: "чт", 4: "пт", 5: "сб", 6: "нд"}
     today_day = kyiv_days[datetime.now(ZoneInfo("Europe/Kyiv")).weekday()]
-    
+
     today_rituals = [r for r in rituals if today_day in r.get("days", [])]
-    
+
     if not today_rituals:
         status_text += "• <i>На сьогодні немає активних ритуалів</i>\n"
     else:
         for r in today_rituals:
             status = "✅" if r.get("done_today", False) else "⏳"
             status_text += f"• {status} {r['emoji']} {r['task']}\n"
-            
+
     status_text += "\n"
 
-    # === Блок Рослин (Теплиці) ===
+    # === Блок Рослин ===
     status_text += "🌱 <b>Рослини в теплиці:</b>\n"
     if not plants:
         status_text += "• <i>Теплиця порожня</i>\n"
     else:
         for p in plants:
-            fire = " 🔥" if p.get('deadline') == today_str else ""
+            fire = " 🔥" if p.get("deadline") == today_str else ""
             status_text += f"• {p['emoji']} {p['task']} | до {p['deadline']}{fire}\n"
 
     status_text += "\n────────────────────\n"
     status_text += "Обери розділ для керування:"
 
     bot.send_message(
-        message.chat.id, 
-        status_text, 
-        parse_mode="HTML", 
+        message.chat.id,
+        status_text,
+        parse_mode="HTML",
         reply_markup=get_quests_menu()
     )
 
 
+# --- Повернення у головне меню ---
+@bot.message_handler(func=lambda message: message.text == "🔙 Назад")
+def back_to_main_menu(message):
+    bot.send_message(
+        message.chat.id,
+        "🌲 Повертаємось до головного табору.",
+        reply_markup=get_main_menu()
+    )
 # --- КВІТКА РОЗКВІТЛА (ЗАВЕРШЕННЯ ЦІЛІ) ---
 
 @bot.message_handler(func=lambda message: message.text == "🌸 Квітка розквітла")
