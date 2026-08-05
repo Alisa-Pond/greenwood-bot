@@ -4,8 +4,7 @@ from services.utils import clean_skin_tones
 from keyboards import get_scrolls_menu
 from telebot import types
 import re
-
-print("⚙️ Модуль handlers/scrolls завантажено!")
+print("📜 scrolls.py ЗАВАНТАЖЕНО")
 
 @bot.message_handler(func=lambda message: message.text == "📜 Сувої завдань")
 def show_scrolls_menu(message):
