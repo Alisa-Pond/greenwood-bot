@@ -3,6 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import telebot
 from telebot import types
+import handlers.scrolls.create
 
 from services.config import bot
 from services.database import get_player, update_player
@@ -191,86 +192,6 @@ def show_scrolls_menu(message):
             
     status_text += "\n👇 <b>Обери дію:</b>"
     bot.send_message(message.chat.id, status_text, parse_mode="HTML", reply_markup=get_scrolls_menu())
-
-# --- СТВОРЕННЯ, ВИКОНАННЯ ТА СПАЛЕННЯ СУВОЇВ ---
-# --- СТВОРЕННЯ, ВИКОНАННЯ ТА СПАЛЕННЯ СУВОЇВ ---
-
-@bot.message_handler(func=lambda message: message.text == "➕ Створити сувой")
-def create_scroll_start(message):
-    guide = (
-        "✍️ <b>Запечатування нового сувою</b>\n\n"
-        "🦇 <b>Марчелло:</b> «Так-так, давай зафіксуємо новий контракт! Будь ласка, вкажи "
-        "параметри квесту чітко в один рядок за цим шаблоном:»\n\n"
-        "📖 <code>[Емодзі сфери] [Кратність] [Бали за крок] [Дедлайн ДД.ММ] [Опис справи]</code>\n\n"
-        "• <b>Емодзі сфери:</b> 💪, 🧠, 🎨, 💵, 🤝\n"
-        "• <b>Кратність:</b> кількість повторень/кроків для повного виконання.\n"
-        "• <b>Бали за крок:</b> від 4 до 14.\n"
-        "• <b>Дедлайн:</b> у форматі ДД.ММ.\n"
-        "• <b>Опис справи:</b> назва та (за бажанням) твоя нагорода.\n\n"
-        "📌 <i>Приклад:</i>\n"
-        "<code>🧠 3 10 22.08 Прочитати 50 сторінок книги (Нагорода: замовити нову сукню)</code>\n\n"
-        "Напиши <code>🔙 Назад до квестів</code> для скасування."
-    )
-    msg = bot.send_message(message.chat.id, guide, parse_mode="HTML", reply_markup=types.ForceReply(selective=True))
-    bot.register_next_step_handler(msg, process_create_scroll)
-
-
-@bot.message_handler(func=lambda message: message.text == "✅ Виконати завдання")
-def complete_scroll_start(message):
-    user_id = str(message.from_user.id)
-    player = get_player(user_id)
-    scrolls = player.get("quests", {}).get("scrolls", [])
-    active_scrolls = [s for s in scrolls if s.get("done_count", 0) < s.get("max_count", 1)]
-    
-    if not active_scrolls:
-        bot.send_message(
-            message.chat.id, 
-            "🦇 <b>Марчелло:</b> «Перевірив твій архів — наразі немає жодного активного сувою для зарахування прогресу.»", 
-            parse_mode="HTML"
-        )
-        return
-        
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for s in active_scrolls:
-        markup.add(types.KeyboardButton(s['task']))
-    markup.add(types.KeyboardButton("🔙 Назад до квестів"))
-    
-    msg = bot.send_message(
-        message.chat.id, 
-        "🦇 <b>Марчелло:</b> «Обери контракт, у якому ти зробив(ла) черговий крок до виконання:»", 
-        reply_markup=markup, 
-        parse_mode="HTML" 
-    )
-    bot.register_next_step_handler(msg, process_complete_scroll)
-
-
-@bot.message_handler(func=lambda message: message.text == "🔥 Спалити сувой")
-def delete_scroll_start(message):
-    user_id = str(message.from_user.id)
-    player = get_player(user_id)
-    scrolls = player.get("quests", {}).get("scrolls", [])
-    active_scrolls = [s for s in scrolls if s.get("done_count", 0) < s.get("max_count", 1)]
-    
-    if not active_scrolls:
-        bot.send_message(
-            message.chat.id, 
-            "🦇 <b>Марчелло:</b> «Тут нічого спалювати, твій стіл і так чистий!»", 
-            parse_mode="HTML"
-        )
-        return
-        
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for s in active_scrolls:
-        markup.add(types.KeyboardButton(s['task']))
-    markup.add(types.KeyboardButton("🔙 Назад до квестів"))
-    
-    msg = bot.send_message(
-        message.chat.id, 
-        "🦇 <b>Марчелло:</b> «Який саме сувой втратив актуальність? Спалимо його без нарахування XP, щоб не захаращувати облік:»", 
-        parse_mode="HTML", 
-        reply_markup=markup
-    )
-    bot.register_next_step_handler(msg, process_delete_scroll)
 
 
 # --- ЩОДЕННІ РИТУАЛИ ---
