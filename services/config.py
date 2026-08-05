@@ -1,5 +1,6 @@
 import os
 import telebot
+print("✅ telebot імпортовано")
 from supabase import create_client, Client
 
 telebot.apihelper.ENABLE_MIDDLEWARE = True
