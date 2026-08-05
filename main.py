@@ -21,20 +21,39 @@ server_thread = Thread(target=run_flask)
 server_thread.daemon = True
 server_thread.start()
 
-# 2. Імпортуємо конфіг та екземпляр бота
+print("🔧 Завантажую services.config...")
+
 from services.config import BOT_TOKEN, bot
+
+print("✅ services.config завантажено")
 
 telebot.logger.setLevel(logging.INFO)
 
-# 3. Підключаємо обробники команд (Handlers)
-print("⏳ Завантаження обробників команд...")
+print("⏳ Завантаження profile...")
 import handlers.profile
+print("✅ profile готовий")
+
+print("⏳ Завантаження main_quest...")
 import handlers.main_quest
+print("✅ main_quest готовий")
+
+print("⏳ Завантаження quests...")
 import handlers.quests
+print("✅ quests готовий")
+
+print("⏳ Завантаження scrolls...")
 import handlers.scrolls
+print("✅ scrolls готовий")
+
+print("⏳ Завантаження rituals...")
 import handlers.rituals
+print("✅ rituals готовий")
+
+print("⏳ Завантаження greenhouse...")
 import handlers.greenhouse
-print("✅ Усі обробники успішно підключені до бота!")
+print("✅ greenhouse готовий")
+
+print("🎉 Усі обробники успішно підключені!")
 
 if __name__ == "__main__":
     print("🧹 Видалення старого Webhook...")
