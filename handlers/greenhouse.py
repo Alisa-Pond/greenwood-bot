@@ -1,2 +1,0 @@
-
-print("🌱 greenhouse.py ЗАВАНТАЖЕНО")
