@@ -30,7 +30,10 @@ telebot.logger.setLevel(logging.INFO)
 print("⏳ Завантаження обробників команд...")
 import handlers.profile
 import handlers.main_quest
-import handlers.my_quests
+import handlers.quests
+import handlers.scrolls
+import handlers.rituals
+import handlers.greenhouse
 print("✅ Усі обробники успішно підключені до бота!")
 
 if __name__ == "__main__":
