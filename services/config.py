@@ -2,7 +2,7 @@ import os
 import telebot
 print("✅ telebot імпортовано")
 from supabase import create_client, Client
-
+print("✅ supabase імпортовано")
 telebot.apihelper.ENABLE_MIDDLEWARE = True
 
 # Зчитуємо змінні з Render
