@@ -45,4 +45,4 @@ if __name__ == "__main__":
     
     print("🚀 Запуск бота Хроніки Грінвуду (Long Polling)...")
     # skip_pending=True захищає від спаму старок повідомлень та конфліктів при перезапуску
-    bot.infinity_polling(skip_pending=True)
+    bot.infinity_polling()
