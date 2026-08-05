@@ -3,7 +3,7 @@ import logging
 from threading import Thread
 import telebot
 from flask import Flask
-
+print("🌲 ЗАПУЩЕНО НОВИЙ MAIN.PY ХРОНІК ГРІНВУДУ")
 # 1. Запускаємо веб-сервер Flask у фоні для зовнішніх Pinger/Cron сервісів
 app = Flask(__name__)
 
