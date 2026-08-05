@@ -1,1 +1,2 @@
 
+print("🔄 rituals.py ЗАВАНТАЖЕНО")
