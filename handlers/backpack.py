@@ -1,3 +1,8 @@
+from services.config import bot
+from services.database import get_player
+
+print("⚙️ Реєструємо хендлер рюкзака...")
+
 @bot.message_handler(func=lambda message: message.text == "🎒 Рюкзак")
 def show_inventory(message):
     user_id = str(message.from_user.id)
