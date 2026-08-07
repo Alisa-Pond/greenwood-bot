@@ -20,7 +20,16 @@ print("⚙️ Реєструємо хендлери профілю...")
 @bot.message_handler(commands=['start'])
 def welcome(message):
 
-    print(f"🚀 Спрацювала команда /start для {message.from_user.id}")
+    print("#################################")
+    print("START СПРАЦЮВАВ")
+    print(message.from_user.id)
+    print("#################################")
+
+    user_id = str(message.from_user.id)
+
+    player = get_player(user_id)
+
+    print(player)
 
     try:
 
