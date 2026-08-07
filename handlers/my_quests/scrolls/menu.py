@@ -1,5 +1,5 @@
 from services.config import bot
-from keyboards import get_scrolls_menu
+from keyboards import get_quests_menu, get_scrolls_menu
 
 
 print("⚙️ Реєструємо меню сувоїв...")
@@ -14,4 +14,13 @@ def open_scrolls(message):
         "Тут зберігаються всі твої одноразові справи та завдання.",
         parse_mode="HTML",
         reply_markup=get_scrolls_menu()
+    )
+
+@bot.message_handler(func=lambda m: m.text == "🔙 Назад до квестів")
+def back_from_scrolls(message):
+
+    bot.send_message(
+        message.chat.id,
+        "📝 Меню квестів",
+        reply_markup=get_quests_menu()
     )
