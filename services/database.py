@@ -1,22 +1,15 @@
-import traceback
 import copy
+import traceback
 
 from services.config import supabase
 
 
-# =========================
-# Дані нового гравця
-# =========================
-
-DEFAULT_QUESTS = {
-    "scrolls": [],        # 📜 Сувої
-    "rituals": [],        # 🕯 Ритуали
-    "plants": [],     # 🌱 Теплиця
-    "expeditions": []     # 🧭 Експедиції
-}
-
+# ==================================================
+# СФЕРИ
+# ==================================================
 
 DEFAULT_SPHERES = {
+
     "health": {
         "name": "💪 Здоров'я",
         "emoji": "💪",
@@ -56,65 +49,71 @@ DEFAULT_SPHERES = {
         "xp": 0.0,
         "max_xp": 10.0
     }
+
 }
 
 
-DEFAULT_STATISTICS = {
-    "completed_tasks": 0,
-    "completed_rituals": 0,
-    "plants_harvested": 0,
-    "expeditions_completed": 0
+# ==================================================
+# МОЇ КВЕСТИ
+# ==================================================
+
+DEFAULT_QUESTS = {
+
+    "scrolls": [],
+
+    "rituals": [],
+
+    "plants": [],
+
+    "expeditions": []
+
 }
+
+
+# ==================================================
+# ОСНОВНИЙ КВЕСТ
+# ==================================================
 
 DEFAULT_MAIN_QUEST = {
+
     "chapter": 1,
+
     "current_task": None,
+
     "completed": []
+
 }
 
-# =========================
-# Оновлення гравця
-# =========================
 
-def update_player(user_id, player_data):
+# ==================================================
+# СТАТИСТИКА
+# ==================================================
 
-    try:
-        user_id = str(user_id)
+DEFAULT_STATISTICS = {
 
-        data_to_update = {
-            key: value
-            for key, value in player_data.items()
-            if key != "id"
-        }
+    "completed_scrolls": 0,
 
-        supabase.table("players")\
-            .update(data_to_update)\
-            .eq("user_id", user_id)\
-            .execute()
+    "completed_rituals": 0,
 
-        print(f"✅ Дані гравця {user_id} оновлено.")
+    "plants_harvested": 0,
 
-    except Exception:
+    "expeditions_completed": 0
 
-        print("❌ ПОМИЛКА update_player:")
-        print(traceback.format_exc())
+}
 
 
+# ==================================================
+# ШАБЛОН НОВОГО ГРАВЦЯ
+# ==================================================
 
-# =========================
-# Отримати гравця
-# =========================
+def default_player(user_id):
 
-def get_player(user_id):
+    return {
 
-    user_id = str(user_id)
-
-
-    fallback_player = {
-
-        "user_id": user_id,
+        "user_id": str(user_id),
 
         "level": 1,
+
         "xp_total": 0.0,
 
         "inventory": [],
@@ -123,115 +122,129 @@ def get_player(user_id):
 
         "quests": copy.deepcopy(DEFAULT_QUESTS),
 
+        "main_quest": copy.deepcopy(DEFAULT_MAIN_QUEST),
+
         "statistics": copy.deepcopy(DEFAULT_STATISTICS)
 
     }
 
 
+# ==================================================
+# ОНОВИТИ ГРАВЦЯ
+# ==================================================
+
+def update_player(user_id, player):
+
     try:
 
-        print(f"🔍 Шукаю гравця {user_id}")
+        data = dict(player)
 
-        response = (
+        data.pop("user_id", None)
+
+        data.pop("id", None)
+
+        (
             supabase
             .table("players")
-            .select("*")
-            .eq("user_id", user_id)
+            .update(data)
+            .eq("user_id", str(user_id))
             .execute()
         )
 
+    except Exception:
 
-        # =========================
-        # Існуючий гравець
-        # =========================
+        print(traceback.format_exc())
+
+
+# ==================================================
+# ОТРИМАТИ ГРАВЦЯ
+# ==================================================
+
+def get_player(user_id):
+
+    user_id = str(user_id)
+
+    try:
+
+        response = (
+
+            supabase
+
+            .table("players")
+
+            .select("*")
+
+            .eq("user_id", user_id)
+
+            .execute()
+
+        )
+
+        # -------------------------
+        # Уже існує
+        # -------------------------
 
         if response.data:
 
             player = response.data[0]
 
-            updated = False
+            changed = False
 
+            if "inventory" not in player:
 
-            if not player.get("quests"):
+                player["inventory"] = []
+                changed = True
+
+            if "spheres" not in player:
+
+                player["spheres"] = copy.deepcopy(DEFAULT_SPHERES)
+                changed = True
+
+            if "quests" not in player:
 
                 player["quests"] = copy.deepcopy(DEFAULT_QUESTS)
-                updated = True
+                changed = True
 
-            else:
-
-                for key in DEFAULT_QUESTS:
-
-                    if key not in player["quests"]:
-
-                        player["quests"][key] = []
-
-                        updated = True
-
-
-
-            if not player.get("statistics"):
-
-                player["statistics"] = copy.deepcopy(DEFAULT_STATISTICS)
-
-                updated = True
-
-            if not player.get("main_quest"):
+            if "main_quest" not in player:
 
                 player["main_quest"] = copy.deepcopy(DEFAULT_MAIN_QUEST)
+                changed = True
 
-                updated = True
+            if "statistics" not in player:
 
-            if updated:
+                player["statistics"] = copy.deepcopy(DEFAULT_STATISTICS)
+                changed = True
+
+            if changed:
 
                 update_player(user_id, player)
 
-
             return player
 
-
-
-        # =========================
+        # -------------------------
         # Новий гравець
-        # =========================
+        # -------------------------
 
-        print(f"🆕 Створюю нового гравця {user_id}")
+        player = default_player(user_id)
 
+        (
 
-        new_player = {
+            supabase
 
-    "user_id": user_id,
+            .table("players")
 
-    "level": 1,
+            .insert(player)
 
-    "xp_total": 0.0,
-
-    "inventory": [],
-
-    "spheres": copy.deepcopy(DEFAULT_SPHERES),
-
-    "quests": copy.deepcopy(DEFAULT_QUESTS),
-
-    "main_quest": copy.deepcopy(DEFAULT_MAIN_QUEST),
-
-    "statistics": copy.deepcopy(DEFAULT_STATISTICS)
-
-}
-
-
-        supabase.table("players")\
-            .insert(new_player)\
             .execute()
 
+        )
 
-        print("✨ Гравця створено!")
+        print(f"✨ Створено нового гравця {user_id}")
 
-        return new_player
-
-
+        return player
 
     except Exception:
 
-        print("❌ ПОМИЛКА GET_PLAYER:")
         print(traceback.format_exc())
 
-        return fallback_player
+        return default_player(user_id)
