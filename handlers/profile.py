@@ -70,6 +70,10 @@ def welcome(message):
             parse_mode="HTML",
             reply_markup=get_main_menu()
         )
+    except Exception:
+
+        print("❌ ПОМИЛКА START:")
+        print(traceback.format_exc())
 # =========================
 # ПЕРСОНАЖ
 # =========================
