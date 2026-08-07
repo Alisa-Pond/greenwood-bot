@@ -51,27 +51,16 @@ telebot.logger.setLevel(logging.INFO)
 # =========================
 # Реєстрація handlers
 # =========================
-
-print("⏳ Завантаження profile...")
 import handlers.profile
-print("✅ profile готовий")
-
-
-print("⏳ Завантаження main_quest...")
 import handlers.main_quest
-print("✅ main_quest готовий")
 
-
-print("⏳ Завантаження my_quests...")
 import handlers.my_quests.menu
-print("✅ my_quests готовий")
+import handlers.my_quests.scrolls.menu
+import handlers.my_quests.rituals.menu
+import handlers.my_quests.greenhouse.menu
+import handlers.my_quests.expedition.menu
 
-
-print("⏳ Завантаження backpack...")
 import handlers.backpack
-print("✅ backpack готовий")
-
-
 print("🎉 Усі основні обробники підключені!")
 
 
