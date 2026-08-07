@@ -66,6 +66,11 @@ DEFAULT_STATISTICS = {
     "expeditions_completed": 0
 }
 
+DEFAULT_MAIN_QUEST = {
+    "chapter": 1,
+    "current_task": None,
+    "completed": []
+}
 
 # =========================
 # Оновлення гравця
@@ -170,7 +175,11 @@ def get_player(user_id):
 
                 updated = True
 
+            if not player.get("main_quest"):
 
+                player["main_quest"] = copy.deepcopy(DEFAULT_MAIN_QUEST)
+
+                updated = True
 
             if updated:
 
@@ -200,7 +209,11 @@ def get_player(user_id):
 
     "spheres": copy.deepcopy(DEFAULT_SPHERES),
 
-    "quests": copy.deepcopy(DEFAULT_QUESTS)
+    "quests": copy.deepcopy(DEFAULT_QUESTS),
+
+    "main_quest": copy.deepcopy(DEFAULT_MAIN_QUEST),
+
+    "statistics": copy.deepcopy(DEFAULT_STATISTICS)
 
 }
 
