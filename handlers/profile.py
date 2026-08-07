@@ -70,18 +70,6 @@ def welcome(message):
             parse_mode="HTML",
             reply_markup=get_main_menu()
         )
-
-
-        print("✅ Меню відправлено")
-
-
-    except Exception:
-
-        print("❌ ПОМИЛКА WELCOME:")
-        print(traceback.format_exc())
-
-
-
 # =========================
 # ПЕРСОНАЖ
 # =========================
