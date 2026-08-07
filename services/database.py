@@ -190,21 +190,19 @@ def get_player(user_id):
 
         new_player = {
 
-            "user_id": user_id,
+    "user_id": user_id,
 
-            "level": 1,
+    "level": 1,
 
-            "xp_total": 0.0,
+    "xp_total": 0.0,
 
-            "inventory": [],
+    "inventory": [],
 
-            "spheres": copy.deepcopy(DEFAULT_SPHERES),
+    "spheres": copy.deepcopy(DEFAULT_SPHERES),
 
-            "quests": copy.deepcopy(DEFAULT_QUESTS),
+    "quests": copy.deepcopy(DEFAULT_QUESTS)
 
-            "statistics": copy.deepcopy(DEFAULT_STATISTICS)
-
-        }
+}
 
 
         supabase.table("players")\
