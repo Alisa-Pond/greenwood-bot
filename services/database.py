@@ -11,7 +11,7 @@ from services.config import supabase
 DEFAULT_QUESTS = {
     "scrolls": [],        # 📜 Сувої
     "rituals": [],        # 🕯 Ритуали
-    "greenhouse": [],     # 🌱 Теплиця
+    "plants": [],     # 🌱 Теплиця
     "expeditions": []     # 🧭 Експедиції
 }
 
