@@ -66,6 +66,7 @@ import handlers.my_quests.rituals.delete
 
 import handlers.my_quests.greenhouse.menu
 import handlers.my_quests.greenhouse.create
+import handlers.my_quests.greenhouse.delete
 
 import handlers.my_quests.expedition.menu
 
