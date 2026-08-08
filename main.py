@@ -61,6 +61,7 @@ import handlers.my_quests.scrolls.create
 
 import handlers.my_quests.rituals.menu
 import handlers.my_quests.rituals.create
+import handlers.my_quests.rituals.delete
 
 import handlers.my_quests.greenhouse.menu
 import handlers.my_quests.expedition.menu
