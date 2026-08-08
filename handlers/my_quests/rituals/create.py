@@ -79,7 +79,7 @@ def start_create_ritual(message):
         "💵 Фінанси\n"
         "🤝 Зв'язки\n\n"
 
-        "⭐ <b>Бали:</b> від 1 до 14\n"
+        "⭐ <b>Бали:</b> від 4 до 14\n"
         "📅 <b>Дні:</b> пн, вт, ср, чт, пт, сб, нд\n"
         "або просто <b>щодня</b>\n\n"
 
@@ -188,7 +188,7 @@ def process_ritual_creation(message):
             )
 
 
-        if xp < 1 or xp > 14:
+        if xp < 4 or xp > 14:
 
             raise ValueError(
                 "Для ритуалу кількість балів має бути від 1 до 14."
