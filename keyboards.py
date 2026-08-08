@@ -34,7 +34,7 @@ def get_quests_menu():
 
     markup.row(
         types.KeyboardButton("📜 Сувої"),
-        types.KeyboardButton("🕯 Ритуали")
+        types.KeyboardButton("🔄 Ритуали")
     )
 
     markup.row(
