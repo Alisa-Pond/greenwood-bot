@@ -4,11 +4,12 @@ import traceback
 from services.config import supabase
 
 
-# =========================================================
+# ==================================================
 # СФЕРИ
-# =========================================================
+# ==================================================
 
 DEFAULT_SPHERES = {
+
     "health": {
         "name": "💪 Здоров'я",
         "emoji": "💪",
@@ -51,12 +52,10 @@ DEFAULT_SPHERES = {
 }
 
 
-# =========================================================
+# ==================================================
 # МОЇ КВЕСТИ
-# =========================================================
+# ==================================================
 
-# Старий загальний контейнер.
-# Поки залишаємо для сумісності з таблицею.
 DEFAULT_QUESTS = {
     "scrolls": [],
     "rituals": [],
@@ -65,9 +64,9 @@ DEFAULT_QUESTS = {
 }
 
 
-# =========================================================
+# ==================================================
 # ОСНОВНИЙ КВЕСТ
-# =========================================================
+# ==================================================
 
 DEFAULT_MAIN_QUEST = {
     "chapter": 1,
@@ -76,9 +75,9 @@ DEFAULT_MAIN_QUEST = {
 }
 
 
-# =========================================================
+# ==================================================
 # СТАТИСТИКА
-# =========================================================
+# ==================================================
 
 DEFAULT_STATISTICS = {
     "completed_scrolls": 0,
@@ -88,53 +87,47 @@ DEFAULT_STATISTICS = {
 }
 
 
-# =========================================================
+# ==================================================
 # ШАБЛОН НОВОГО ГРАВЦЯ
-# =========================================================
+# ==================================================
 
 def default_player(user_id):
 
     return {
         "user_id": str(user_id),
 
-        # Загальний прогрес
         "level": 1,
         "xp_total": 0.0,
 
-        # Рюкзак
         "inventory": [],
 
-        # П'ять сфер персонажа
         "spheres": copy.deepcopy(DEFAULT_SPHERES),
 
-        # Окремі розділи "Моїх квестів"
+        # Окремі колонки Supabase
         "scrolls": [],
         "rituals": [],
         "plants": [],
         "expeditions": [],
 
-        # Основний квест
-        "main_quest": copy.deepcopy(DEFAULT_MAIN_QUEST),
-
-        # Поки залишаємо для сумісності
         "quests": copy.deepcopy(DEFAULT_QUESTS),
 
-        # Статистика
+        "main_quest": copy.deepcopy(DEFAULT_MAIN_QUEST),
+
         "statistics": copy.deepcopy(DEFAULT_STATISTICS)
     }
 
 
-# =========================================================
+# ==================================================
 # ОНОВИТИ ГРАВЦЯ
-# =========================================================
+# ==================================================
 
-def update_player(user_id, player):
+def update_player(user_id, player_data):
 
     try:
 
-        data = dict(player)
+        data = dict(player_data)
 
-        # Ці поля не потрібно передавати в UPDATE
+        # Ці поля не повинні оновлюватися через UPDATE
         data.pop("user_id", None)
         data.pop("id", None)
 
@@ -148,16 +141,19 @@ def update_player(user_id, player):
 
         print(f"✅ Дані гравця {user_id} оновлено.")
 
+        return True
+
     except Exception:
 
         print("❌ ПОМИЛКА update_player:")
-
         print(traceback.format_exc())
 
+        return False
 
-# =========================================================
+
+# ==================================================
 # ОТРИМАТИ ГРАВЦЯ
-# =========================================================
+# ==================================================
 
 def get_player(user_id):
 
@@ -165,7 +161,7 @@ def get_player(user_id):
 
     try:
 
-        print(f"🔍 Шукаю гравця {user_id} у Supabase...")
+        print(f"🔍 Шукаю гравця {user_id}")
 
         response = (
             supabase
@@ -175,85 +171,67 @@ def get_player(user_id):
             .execute()
         )
 
-        # =================================================
+        # ==================================================
         # ГРАВЕЦЬ ВЖЕ ІСНУЄ
-        # =================================================
+        # ==================================================
 
         if response.data:
 
             player = response.data[0]
 
-            print(f"📖 Гравця {user_id} знайдено.")
-
             changed = False
 
-            # -------------------------------------------------
-            # Рюкзак
-            # -------------------------------------------------
+
+            # -------------------------
+            # Основні поля
+            # -------------------------
 
             if player.get("inventory") is None:
-
                 player["inventory"] = []
+                changed = True
+
+            if player.get("spheres") is None:
+                player["spheres"] = copy.deepcopy(DEFAULT_SPHERES)
+                changed = True
+
+
+            # -------------------------
+            # Окремі колонки квестів
+            # -------------------------
+
+            quest_columns = [
+                "scrolls",
+                "rituals",
+                "plants",
+                "expeditions"
+            ]
+
+            for column in quest_columns:
+
+                if player.get(column) is None:
+
+                    player[column] = []
+
+                    changed = True
+
+
+            # -------------------------
+            # Старий об'єкт quests
+            # Залишаємо для сумісності
+            # -------------------------
+
+            if player.get("quests") is None:
+
+                player["quests"] = copy.deepcopy(DEFAULT_QUESTS)
 
                 changed = True
 
-            # -------------------------------------------------
-            # Сфери
-            # -------------------------------------------------
 
-            if not player.get("spheres"):
-
-                player["spheres"] = copy.deepcopy(
-                    DEFAULT_SPHERES
-                )
-
-                changed = True
-
-            # -------------------------------------------------
-            # Сувої
-            # -------------------------------------------------
-
-            if player.get("scrolls") is None:
-
-                player["scrolls"] = []
-
-                changed = True
-
-            # -------------------------------------------------
-            # Ритуали
-            # -------------------------------------------------
-
-            if player.get("rituals") is None:
-
-                player["rituals"] = []
-
-                changed = True
-
-            # -------------------------------------------------
-            # Рослини
-            # -------------------------------------------------
-
-            if player.get("plants") is None:
-
-                player["plants"] = []
-
-                changed = True
-
-            # -------------------------------------------------
-            # Експедиції
-            # -------------------------------------------------
-
-            if player.get("expeditions") is None:
-
-                player["expeditions"] = []
-
-                changed = True
-
-            # -------------------------------------------------
+            # -------------------------
             # Основний квест
-            # -------------------------------------------------
+            # -------------------------
 
-            if not player.get("main_quest"):
+            if player.get("main_quest") is None:
 
                 player["main_quest"] = copy.deepcopy(
                     DEFAULT_MAIN_QUEST
@@ -261,23 +239,12 @@ def get_player(user_id):
 
                 changed = True
 
-            # -------------------------------------------------
-            # Старий контейнер quests
-            # -------------------------------------------------
 
-            if not player.get("quests"):
-
-                player["quests"] = copy.deepcopy(
-                    DEFAULT_QUESTS
-                )
-
-                changed = True
-
-            # -------------------------------------------------
+            # -------------------------
             # Статистика
-            # -------------------------------------------------
+            # -------------------------
 
-            if not player.get("statistics"):
+            if player.get("statistics") is None:
 
                 player["statistics"] = copy.deepcopy(
                     DEFAULT_STATISTICS
@@ -285,27 +252,39 @@ def get_player(user_id):
 
                 changed = True
 
-            # -------------------------------------------------
-            # Якщо щось було відсутнє, оновлюємо базу
-            # -------------------------------------------------
+
+            # -------------------------
+            # Якщо щось додали
+            # -------------------------
 
             if changed:
 
                 update_player(
                     user_id,
-                    player
+                    {
+                        "inventory": player["inventory"],
+                        "spheres": player["spheres"],
+                        "scrolls": player["scrolls"],
+                        "rituals": player["rituals"],
+                        "plants": player["plants"],
+                        "expeditions": player["expeditions"],
+                        "quests": player["quests"],
+                        "main_quest": player["main_quest"],
+                        "statistics": player["statistics"]
+                    }
                 )
+
+
+            print(f"📖 Гравця {user_id} знайдено.")
 
             return player
 
-        # =================================================
-        # ГРАВЦЯ НЕМАЄ
-        # =================================================
 
-        print(
-            f"🆕 Гравця {user_id} не знайдено. "
-            f"Створюю нового..."
-        )
+        # ==================================================
+        # НОВИЙ ГРАВЕЦЬ
+        # ==================================================
+
+        print(f"🆕 Створюю нового гравця {user_id}")
 
         player = default_player(user_id)
 
@@ -316,46 +295,128 @@ def get_player(user_id):
             .execute()
         )
 
-        print(
-            f"✨ Нового гравця {user_id} "
-            f"успішно створено в Supabase!"
-        )
+        print(f"✨ Гравця {user_id} успішно створено!")
+
+        # Якщо Supabase повернув створений запис,
+        # використовуємо саме його
+        if response.data:
+
+            return response.data[0]
 
         return player
+
 
     except Exception:
 
         print("❌ ПОМИЛКА GET_PLAYER:")
-
         print(traceback.format_exc())
 
         # Навіть якщо Supabase тимчасово недоступний,
-        # бот отримає правильну структуру персонажа.
+        # бот не повинен падати
         return default_player(user_id)
 
 
-# =========================================================
+# ==================================================
 # ЗБЕРЕГТИ СУВІЙ
-# =========================================================
+# ==================================================
 
 def save_scroll(user_id, scroll):
 
-    player = get_player(user_id)
+    """
+    Додає новий сувій у колонку scrolls.
 
-    scrolls = player.get("scrolls") or []
+    Перевіряє, чи немає активного сувою
+    з такою самою назвою.
 
-    scrolls.append(scroll)
+    Повертає словник:
 
-    update_player(
-        user_id,
-        {
-            "scrolls": scrolls
+    {
+        "success": True / False,
+        "duplicate": True / False,
+        "count": кількість активних сувоїв
+    }
+    """
+
+    try:
+
+        user_id = str(user_id)
+
+        player = get_player(user_id)
+
+        scrolls = player.get("scrolls") or []
+
+        new_title = str(
+            scroll.get("title", "")
+        ).strip()
+
+        # ==================================================
+        # ПЕРЕВІРКА НА ДУБЛЬ
+        # ==================================================
+
+        normalized_new_title = new_title.casefold()
+
+        for existing_scroll in scrolls:
+
+            existing_title = str(
+                existing_scroll.get("title", "")
+            ).strip()
+
+            if existing_title.casefold() == normalized_new_title:
+
+                print(
+                    f"⚠️ Дубль сувою для {user_id}: "
+                    f"{new_title}"
+                )
+
+                return {
+                    "success": False,
+                    "duplicate": True,
+                    "count": len(scrolls)
+                }
+
+
+        # ==================================================
+        # ДОДАВАННЯ СУВОЮ
+        # ==================================================
+
+        scrolls.append(scroll)
+
+        success = update_player(
+            user_id,
+            {
+                "scrolls": scrolls
+            }
+        )
+
+
+        if not success:
+
+            return {
+                "success": False,
+                "duplicate": False,
+                "count": len(scrolls) - 1
+            }
+
+
+        print(
+            f"📜 Сувій '{new_title}' "
+            f"збережено для {user_id}."
+        )
+
+        return {
+            "success": True,
+            "duplicate": False,
+            "count": len(scrolls)
         }
-    )
 
-    print(
-        f"📜 Новий сувій збережено "
-        f"для гравця {user_id}."
-    )
 
-    return len(scrolls)
+    except Exception:
+
+        print("❌ ПОМИЛКА save_scroll:")
+        print(traceback.format_exc())
+
+        return {
+            "success": False,
+            "duplicate": False,
+            "count": 0
+        }
