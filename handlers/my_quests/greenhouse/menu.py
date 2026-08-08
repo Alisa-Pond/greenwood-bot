@@ -4,11 +4,27 @@ from services.config import bot
 from services.database import get_player
 from keyboards import get_quests_menu, get_greenhouse_menu
 
+
 print("⚙️ Реєструємо меню теплиці...")
 
 
 # ==================================================
-# 🌱 ВІДКРИТТЯ ТЕПЛИЦІ
+# Дні тижня
+# ==================================================
+
+WEEKDAYS_UA = {
+    0: "пн",
+    1: "вт",
+    2: "ср",
+    3: "чт",
+    4: "пт",
+    5: "сб",
+    6: "нд"
+}
+
+
+# ==================================================
+# ВІДКРИТТЯ ТЕПЛИЦІ
 # ==================================================
 
 @bot.message_handler(
@@ -24,105 +40,77 @@ def open_greenhouse(message):
 
     today = datetime.now()
 
-    date_text = today.strftime("%d.%m.%Y")
-
-    weekdays = {
-        0: "понеділок",
-        1: "вівторок",
-        2: "середа",
-        3: "четвер",
-        4: "п'ятниця",
-        5: "субота",
-        6: "неділя"
-    }
-
-    weekday = weekdays[today.weekday()]
-
-    text = (
-        "🌱 <b>Теплиця Грінвуду</b>\n\n"
-        f"📅 Сьогодні: <b>{date_text}, {weekday}</b>\n"
-        "────────────────────\n\n"
+    today_text = (
+        f"{today.strftime('%d.%m.%Y')}, "
+        f"{WEEKDAYS_UA[today.weekday()]}"
     )
+
+    # ==================================================
+    # Якщо рослин немає
+    # ==================================================
 
     if not plants:
 
-        text += (
-            "🌿 <i>У теплиці поки тихо.</i>\n\n"
-            "Тут немає жодної активної рослини.\n"
-            "Можливо, настав час посадити щось, "
-            "що справді варте твого ґрунту? 🌱"
+        text = (
+            "🌿 <b>Твоя магічна теплиця</b>\n\n"
+            f"📅 Сьогодні: <b>{today_text}</b>\n"
+            "────────────────────\n\n"
+            "🌱 Тут поки що нічого не росте.\n\n"
+            "Олівер уже стоїть біля грядок і явно "
+            "чекає, коли ти нарешті принесеш йому "
+            "щось гідне вирощування."
         )
 
     else:
 
-        text += (
-            f"🌿 <b>Активні рослини: {len(plants)}</b>\n\n"
+        text = (
+            "🌿 <b>Активні рослини: "
+            f"{len(plants)}</b>\n\n"
+            f"📅 Сьогодні: <b>{today_text}</b>\n"
+            "────────────────────\n\n"
         )
 
         for plant in plants:
 
-            title = plant.get(
-                "title",
-                "Без назви"
-            )
+            title = plant.get("title", "Без назви")
+            xp = float(plant.get("xp", 0))
+            deadline = plant.get("deadline", "—")
+            reward = plant.get("reward", "—")
 
-            spheres = plant.get(
-                "spheres",
-                []
-            )
+            spheres = plant.get("spheres", [])
 
-            xp = plant.get(
-                "xp",
-                0
-            )
+            # Якщо spheres збережені як список назв сфер
+            sphere_emojis = []
 
-            deadline = plant.get(
-                "deadline",
-                "—"
-            )
+            sphere_emoji_map = {
+                "health": "💪",
+                "wisdom": "🧠",
+                "art": "🎨",
+                "finance": "💵",
+                "relations": "🤝"
+            }
 
-            reward = plant.get(
-                "reward",
-                "—"
-            )
+            for sphere in spheres:
 
-            sphere_text = "".join(
-                sphere.get("emoji", "")
-                if isinstance(sphere, dict)
-                else str(sphere)
-                for sphere in spheres
-            )
+                if sphere in sphere_emoji_map:
+                    sphere_emojis.append(
+                        sphere_emoji_map[sphere]
+                    )
 
-            # Якщо дата дедлайну вже близько,
-            # рослина отримує маленький знак уваги.
-            try:
-
-                deadline_date = datetime.strptime(
-                    deadline,
-                    "%d.%m.%y"
-                ).date()
-
-                days_left = (
-                    deadline_date - today.date()
-                ).days
-
-                if days_left < 0:
-                    status = "🥀"
-                elif days_left == 0:
-                    status = "🔥"
-                elif days_left <= 3:
-                    status = "⚠️"
                 else:
-                    status = "🌱"
+                    # На випадок, якщо старий запис
+                    # уже містить емодзі
+                    sphere_emojis.append(str(sphere))
 
-            except Exception:
+            sphere_text = "".join(sphere_emojis)
 
-                status = "🌱"
+            if not sphere_text:
+                sphere_text = "🌱"
 
             text += (
-                f"{status} {sphere_text} "
+                f"🌱 {sphere_text} "
                 f"<b>{title}</b> "
-                f"({float(xp):.1f} XP)\n"
+                f"({xp:.1f} XP)\n"
                 f"    └── 📅 Дедлайн: {deadline}\n"
                 f"    └── 🎁 Нагорода: {reward}\n\n"
             )
@@ -136,7 +124,7 @@ def open_greenhouse(message):
 
 
 # ==================================================
-# 🔙 НАЗАД ДО МОЇХ КВЕСТІВ
+# НАЗАД ДО КВЕСТІВ
 # ==================================================
 
 @bot.message_handler(
@@ -146,7 +134,7 @@ def back_from_greenhouse(message):
 
     bot.send_message(
         message.chat.id,
-        "📝 <b>Повертаємось до твоїх квестів.</b>",
+        "📝 <b>Меню квестів</b>",
         parse_mode="HTML",
         reply_markup=get_quests_menu()
     )
