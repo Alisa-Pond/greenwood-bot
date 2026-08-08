@@ -113,7 +113,7 @@ def get_greenhouse_menu():
     )
 
     markup.row(
-        types.KeyboardButton("🪴 Вирвати рослину")
+        types.KeyboardButton("🪓 Вирвати баобаб")
     )
 
     markup.row(
