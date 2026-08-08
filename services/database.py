@@ -248,3 +248,19 @@ def get_player(user_id):
         print(traceback.format_exc())
 
         return default_player(user_id)
+def save_scroll(user_id, scroll):
+
+    player = get_player(user_id)
+
+    scrolls = player.get("scrolls") or []
+
+    scrolls.append(scroll)
+
+    update_player(
+        user_id,
+        {
+            "scrolls": scrolls
+        }
+    )
+
+    return len(scrolls)
