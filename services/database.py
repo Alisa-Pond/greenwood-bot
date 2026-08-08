@@ -420,3 +420,20 @@ def save_scroll(user_id, scroll):
             "duplicate": False,
             "count": 0
         }
+
+def save_ritual(user_id, ritual):
+
+    player = get_player(user_id)
+
+    rituals = player.get("rituals") or []
+
+    rituals.append(ritual)
+
+    update_player(
+        user_id,
+        {
+            "rituals": rituals
+        }
+    )
+
+    return len(rituals)
