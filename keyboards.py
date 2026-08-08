@@ -61,7 +61,7 @@ def get_scrolls_menu():
     )
 
     markup.row(
-        types.KeyboardButton("🗑 Видалити сувій")
+        types.KeyboardButton("🔥 Спалити сувій")
     )
 
     markup.row(
@@ -87,7 +87,7 @@ def get_rituals_menu():
     )
 
     markup.row(
-        types.KeyboardButton("🗑 Видалити ритуал")
+        types.KeyboardButton("🔥 Спалити ритуал")
     )
 
     markup.row(
