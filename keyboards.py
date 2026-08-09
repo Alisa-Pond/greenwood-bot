@@ -1,11 +1,12 @@
 from telebot import types
 
 
-# =========================
-# Головне меню
-# =========================
+# ==================================================
+# ГОЛОВНЕ МЕНЮ
+# ==================================================
 
 def get_main_menu():
+
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.row(
@@ -25,11 +26,12 @@ def get_main_menu():
     return markup
 
 
-# =========================
-# Меню "Мої квести"
-# =========================
+# ==================================================
+# МЕНЮ "МОЇ КВЕСТИ"
+# ==================================================
 
 def get_quests_menu():
+
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.row(
@@ -49,11 +51,12 @@ def get_quests_menu():
     return markup
 
 
-# =========================
-# Сувої
-# =========================
+# ==================================================
+# СУВОЇ
+# ==================================================
 
 def get_scrolls_menu():
+
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.row(
@@ -65,21 +68,18 @@ def get_scrolls_menu():
     )
 
     markup.row(
-        types.KeyboardButton("📚 Архів сувоїв")
-    )
-
-    markup.row(
         types.KeyboardButton("🔙 Назад до квестів")
     )
 
     return markup
 
 
-# =========================
-# Ритуали
-# =========================
+# ==================================================
+# РИТУАЛИ
+# ==================================================
 
 def get_rituals_menu():
+
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.row(
@@ -91,21 +91,18 @@ def get_rituals_menu():
     )
 
     markup.row(
-        types.KeyboardButton("📚 Архів ритуалів")
-    )
-
-    markup.row(
         types.KeyboardButton("🔙 Назад до квестів")
     )
 
     return markup
 
 
-# =========================
-# Теплиця
-# =========================
+# ==================================================
+# ТЕПЛИЦЯ
+# ==================================================
 
 def get_greenhouse_menu():
+
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.row(
@@ -117,17 +114,22 @@ def get_greenhouse_menu():
     )
 
     markup.row(
+        types.KeyboardButton("📚 Архів теплиці")
+    )
+
+    markup.row(
         types.KeyboardButton("🔙 Назад до квестів")
     )
 
     return markup
 
 
-# =========================
-# Експедиції
-# =========================
+# ==================================================
+# ЕКСПЕДИЦІЇ
+# ==================================================
 
 def get_expeditions_menu():
+
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.row(
