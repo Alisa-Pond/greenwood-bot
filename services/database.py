@@ -111,8 +111,10 @@ def default_player(user_id):
         "plants": [],
         "expeditions": [],
 
-        # Архів завершених рослин
+        "scroll_archive": [],
+        "ritual_archive": [],
         "plant_archive": [],
+
 
         "quests": copy.deepcopy(DEFAULT_QUESTS),
 
