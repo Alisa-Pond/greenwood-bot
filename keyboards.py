@@ -102,7 +102,6 @@ def get_rituals_menu():
 # ==================================================
 
 def get_greenhouse_menu():
-
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.row(
