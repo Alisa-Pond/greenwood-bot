@@ -5,4 +5,4 @@ postgrest
 realtime
 storage
 flask
-import services.scheduler
+APScheduler>=3.11,<4
