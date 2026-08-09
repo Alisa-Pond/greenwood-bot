@@ -63,7 +63,7 @@ DEFAULT_QUESTS = {
     "expeditions": []
 }
 
-
+DEFAULT_PLANT_ARCHIVE = []
 # ==================================================
 # ОСНОВНИЙ КВЕСТ
 # ==================================================
@@ -108,6 +108,9 @@ def default_player(user_id):
         "rituals": [],
         "plants": [],
         "expeditions": [],
+
+        # Архів завершених рослин
+        "plant_archive": [],
 
         "quests": copy.deepcopy(DEFAULT_QUESTS),
 
