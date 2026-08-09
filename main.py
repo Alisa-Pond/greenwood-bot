@@ -55,6 +55,7 @@ import handlers.profile
 import handlers.main_quest
 
 import handlers.my_quests.menu
+import handlers.complete_activity
 
 import handlers.my_quests.scrolls.menu
 import handlers.my_quests.scrolls.create
