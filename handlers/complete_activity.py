@@ -4,270 +4,562 @@ from telebot import types
 
 from services.config import bot
 from services.database import get_player, update_player
-from keyboards import get_main_menu
 
 
-print("⚙️ Завантажено функціонал виконання справ...")
+print("⚙️ Завантажено систему виконання справ...")
 
 
-# ==================================================
-# НАЛАШТУВАННЯ
-# ==================================================
-
-EMOJI_TO_SPHERE = {
-    "💪": "health",
-    "🧠": "wisdom",
-    "🎨": "art",
-    "💵": "finance",
-    "🤝": "relations"
-}
-
+# =========================================================
+# ДОПОМІЖНІ ФУНКЦІЇ
+# =========================================================
 
 SPHERE_NAMES = {
-    "health": "💪 Здоров'я",
-    "wisdom": "🧠 Мудрість",
-    "art": "🎨 Творчість",
-    "finance": "💵 Фінанси",
-    "relations": "🤝 Зв'язки"
+    "health": "💪",
+    "wisdom": "🧠",
+    "art": "🎨",
+    "finance": "💵",
+    "relations": "🤝"
 }
 
 
-WEEKDAYS = {
-    0: "пн",
-    1: "вт",
-    2: "ср",
-    3: "чт",
-    4: "пт",
-    5: "сб",
-    6: "нд"
-}
+def get_sphere_emoji(sphere):
+    """
+    Перетворює назву сфери або її emoji
+    на emoji для відображення.
+    """
+
+    if sphere in SPHERE_NAMES:
+        return SPHERE_NAMES[sphere]
+
+    if sphere in SPHERE_NAMES.values():
+        return sphere
+
+    return sphere
 
 
-# ==================================================
-# КНОПКА "ВИКОНАТИ СПРАВУ"
-# ==================================================
+def get_spheres(item):
+    """
+    Отримує список сфер із сувою / ритуалу / рослини.
 
-@bot.message_handler(
-    func=lambda message: message.text == "✅ Виконати справу"
-)
-def start_complete_activity(message):
+    Підтримує кілька можливих форматів,
+    щоб не ламати вже створені записи.
+    """
+
+    spheres = item.get("spheres")
+
+    if not spheres:
+        spheres = item.get("sphere")
+
+    if not spheres:
+        return []
+
+    if isinstance(spheres, str):
+
+        result = []
+
+        for emoji, sphere_name in SPHERE_NAMES.items():
+
+            if emoji in spheres:
+                result.append(emoji)
+
+        if result:
+            return result
+
+        return [spheres]
+
+    if isinstance(spheres, list):
+
+        result = []
+
+        for sphere in spheres:
+
+            if isinstance(sphere, dict):
+
+                emoji = sphere.get("emoji")
+
+                if emoji:
+                    result.append(emoji)
+
+                elif sphere.get("name"):
+                    result.append(sphere["name"])
+
+            else:
+                result.append(get_sphere_emoji(sphere))
+
+        return result
+
+    return []
+
+
+def get_title(item):
+    """
+    Отримує назву справи.
+    """
+
+    return (
+        item.get("title")
+        or item.get("name")
+        or item.get("task")
+        or "Без назви"
+    )
+
+
+def get_xp(item):
+    """
+    Отримує кількість XP.
+    """
+
+    try:
+        return float(
+            item.get("xp")
+            or item.get("points")
+            or item.get("reward_xp")
+            or 0
+        )
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def get_today():
+    """
+    Повертає сьогоднішню дату.
+    """
+
+    return datetime.now().strftime("%d.%m.%Y")
+
+
+def add_xp_to_spheres(player, spheres, total_xp):
+    """
+    Розподіляє XP між сферами.
+
+    Якщо сфер одна:
+        10 XP → 10 XP
+
+    Якщо сфер дві:
+        10 XP → 5 + 5 XP
+
+    Якщо сфер три:
+        12 XP → 4 + 4 + 4 XP
+    """
+
+    if not spheres or total_xp <= 0:
+        return
+
+    player_spheres = player.get("spheres") or {}
+
+    share = total_xp / len(spheres)
+
+    for sphere in spheres:
+
+        # Якщо прийшла назва сфери
+        sphere_key = None
+
+        for key, emoji in SPHERE_NAMES.items():
+
+            if sphere == key or sphere == emoji:
+                sphere_key = key
+                break
+
+        # Якщо це вже ключ
+        if sphere in player_spheres:
+            sphere_key = sphere
+
+        if not sphere_key:
+            continue
+
+        if sphere_key not in player_spheres:
+            continue
+
+        player_spheres[sphere_key]["xp"] = (
+            float(player_spheres[sphere_key].get("xp", 0))
+            + share
+        )
+
+        # Підвищення рівня
+        while (
+            player_spheres[sphere_key]["xp"]
+            >= float(
+                player_spheres[sphere_key].get(
+                    "max_xp",
+                    10
+                )
+            )
+        ):
+
+            max_xp = float(
+                player_spheres[sphere_key].get(
+                    "max_xp",
+                    10
+                )
+            )
+
+            player_spheres[sphere_key]["xp"] -= max_xp
+
+            player_spheres[sphere_key]["lvl"] = (
+                int(
+                    player_spheres[sphere_key].get(
+                        "lvl",
+                        1
+                    )
+                )
+                + 1
+            )
+
+            # Наступний рівень трохи складніший
+            player_spheres[sphere_key]["max_xp"] = (
+                max_xp * 1.5
+            )
+
+
+def add_total_xp(player, xp):
+    """
+    Додає XP до загального досвіду персонажа.
+    """
+
+    player["xp_total"] = (
+        float(player.get("xp_total", 0))
+        + xp
+    )
+
+
+def build_back_button():
+    """
+    Кнопка повернення.
+    """
 
     markup = types.ReplyKeyboardMarkup(
         resize_keyboard=True
-    )
-
-    markup.row(
-        types.KeyboardButton("📜 Запланована справа")
-    )
-
-    markup.row(
-        types.KeyboardButton("🌿 Незапланована справа")
     )
 
     markup.row(
         types.KeyboardButton("🔙 Назад")
     )
 
-    text = (
-        "🦇 <b>Марчелло розгортає книгу виконаних справ.</b>\n\n"
-
-        "— Ну що, герой, щось таки зробив? "
-        "Тоді не смій залишати це без нагороди.\n\n"
-
-        "Обери, що саме ти зробила:\n\n"
-
-        "📜 <b>Запланована справа</b>\n"
-        "— Виконати те, що вже чекало на тебе "
-        "у сувоях, ритуалах або теплиці.\n\n"
-
-        "🌿 <b>Незапланована справа</b>\n"
-        "— Зробила щось корисне, чого заздалегідь "
-        "не було в твоєму списку? Запиши це прямо зараз.\n\n"
-
-        "✨ У будь-якому випадку магія не пропаде."
-    )
-
-    bot.send_message(
-        message.chat.id,
-        text,
-        parse_mode="HTML",
-        reply_markup=markup
-    )
+    return markup
 
 
-# ==================================================
-# ЗАПЛАНОВАНА СПРАВА
-# ==================================================
+# =========================================================
+# ГОЛОВНЕ МЕНЮ ВИКОНАННЯ
+# =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "📜 Запланована справа"
+    func=lambda message: message.text == "✅ Виконати справу"
 )
-def choose_planned_activity(message):
-
-    user_id = str(message.from_user.id)
-    player = get_player(user_id)
-
-    scrolls = player.get("scrolls") or []
-    rituals = player.get("rituals") or []
-    plants = player.get("plants") or []
-
-    today = datetime.now().date()
-    today_weekday = WEEKDAYS[today.weekday()]
-
-    activities = []
-
-    # --------------------------------------------------
-    # СУВОЇ
-    # --------------------------------------------------
-
-    for index, scroll in enumerate(scrolls):
-
-        title = scroll.get(
-            "title",
-            scroll.get("name", "Без назви")
-        )
-
-        xp = scroll.get("xp", 0)
-
-        activities.append({
-            "type": "scroll",
-            "index": index,
-            "title": title,
-            "xp": xp,
-            "label": f"📜 {title} ({xp} XP)"
-        })
-
-
-    # --------------------------------------------------
-    # РИТУАЛИ
-    # --------------------------------------------------
-
-    for index, ritual in enumerate(rituals):
-
-        days = ritual.get("days", [])
-
-        if isinstance(days, str):
-
-            if days.lower().strip() == "щодня":
-
-                ritual_days = [
-                    "пн", "вт", "ср",
-                    "чт", "пт", "сб", "нд"
-                ]
-
-            else:
-
-                ritual_days = [
-                    day.strip().lower()
-                    for day in days.split(",")
-                ]
-
-        elif isinstance(days, list):
-
-            ritual_days = [
-                str(day).strip().lower()
-                for day in days
-            ]
-
-        else:
-
-            ritual_days = []
-
-
-        # Ритуал можна виконати лише в день,
-        # для якого він запланований.
-
-        if today_weekday not in ritual_days:
-            continue
-
-
-        title = ritual.get(
-            "title",
-            ritual.get("name", "Без назви")
-        )
-
-        xp = ritual.get("xp", 0)
-
-        activities.append({
-            "type": "ritual",
-            "index": index,
-            "title": title,
-            "xp": xp,
-            "label": f"🔄 {title} ({xp} XP)"
-        })
-
-
-    # --------------------------------------------------
-    # РОСЛИНИ
-    # --------------------------------------------------
-
-    for index, plant in enumerate(plants):
-
-        title = plant.get(
-            "title",
-            plant.get("name", "Без назви")
-        )
-
-        xp = plant.get("xp", 0)
-
-        activities.append({
-            "type": "plant",
-            "index": index,
-            "title": title,
-            "xp": xp,
-            "label": f"🌱 {title} ({xp} XP)"
-        })
-
-
-    # --------------------------------------------------
-    # НЕМАЄ СПРАВ
-    # --------------------------------------------------
-
-    if not activities:
-
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True
-        )
-
-        markup.row(
-            types.KeyboardButton("🔙 Назад")
-        )
-
-        bot.send_message(
-            message.chat.id,
-
-            "🦇 <b>Марчелло перегортає сторінки...</b>\n\n"
-
-            "— Тут порожньо.\n\n"
-
-            "Немає жодної запланованої справи, "
-            "яку можна виконати сьогодні.\n\n"
-
-            "Можеш записати незаплановану справу.",
-
-            parse_mode="HTML",
-            reply_markup=markup
-        )
-
-        return
-
-
-    # --------------------------------------------------
-    # СПИСОК
-    # --------------------------------------------------
+def start_complete(message):
 
     markup = types.ReplyKeyboardMarkup(
         resize_keyboard=True
     )
 
-    for number, activity in enumerate(
-        activities,
-        start=1
-    ):
+    markup.row(
+        types.KeyboardButton("📜 Виконати сувій"),
+        types.KeyboardButton("🔄 Провести ритуал")
+    )
+
+    markup.row(
+        types.KeyboardButton("🌱 Завершити вирощування")
+    )
+
+    markup.row(
+        types.KeyboardButton("✨ Зробити поза планом")
+    )
+
+    markup.row(
+        types.KeyboardButton("🔙 Назад")
+    )
+
+    bot.send_message(
+        message.chat.id,
+
+        "🪷 <b>Час перетворити зроблене на XP!</b>\n\n"
+
+        "Обери, що саме ти щойно завершила:\n\n"
+
+        "📜 <b>Сувій</b> — запланована одноразова справа.\n"
+        "🔄 <b>Ритуал</b> — справа, що повертається за своїм розкладом.\n"
+        "🌱 <b>Рослина</b> — велика ціль, яку ти виростила до кінця.\n"
+        "✨ <b>Поза планом</b> — щось корисне, чого взагалі не було в планах.\n\n"
+
+        "🦇 <b>Марчелло</b> уже тримає перо над книгою XP. "
+        "Не змушуй його чекати.",
+
+        parse_mode="HTML",
+        reply_markup=markup
+    )
+
+
+# =========================================================
+# ВИБІР СУВОЮ
+# =========================================================
+
+@bot.message_handler(
+    func=lambda message: message.text == "📜 Виконати сувій"
+)
+def choose_scroll(message):
+
+    user_id = str(message.from_user.id)
+
+    player = get_player(user_id)
+
+    scrolls = player.get("scrolls") or []
+
+    if not scrolls:
+
+        bot.send_message(
+            message.chat.id,
+
+            "📜 <b>Жодного активного сувою.</b>\n\n"
+            "Схоже, Марчелло вже не має чим тебе завантажити. "
+            "Поки що. 🦇",
+
+            parse_mode="HTML",
+            reply_markup=build_back_button()
+        )
+
+        return
+
+
+    markup = types.ReplyKeyboardMarkup(
+        resize_keyboard=True
+    )
+
+    for index, scroll in enumerate(scrolls):
+
+        title = get_title(scroll)
 
         markup.row(
             types.KeyboardButton(
-                f"{number}. {activity['label']}"
+                f"📜 {index + 1}. {title}"
+            )
+        )
+
+    markup.row(
+        types.KeyboardButton("🔙 Назад")
+    )
+
+
+    msg = bot.send_message(
+        message.chat.id,
+
+        "📜 <b>Обери сувій, який запечатати виконаним:</b>",
+
+        parse_mode="HTML",
+        reply_markup=markup
+    )
+
+
+    bot.register_next_step_handler(
+        msg,
+        complete_scroll
+    )
+
+
+# =========================================================
+# ВИКОНАННЯ СУВОЮ
+# =========================================================
+
+def complete_scroll(message):
+
+    if message.text == "🔙 Назад":
+
+        start_complete(message)
+        return
+
+
+    user_id = str(message.from_user.id)
+
+    player = get_player(user_id)
+
+    scrolls = player.get("scrolls") or []
+
+    selected_index = None
+
+
+    try:
+
+        selected_index = (
+            int(
+                message.text.split(".")[0]
+                .replace("📜", "")
+                .strip()
+            )
+            - 1
+        )
+
+    except (ValueError, IndexError):
+
+        pass
+
+
+    if (
+        selected_index is None
+        or selected_index < 0
+        or selected_index >= len(scrolls)
+    ):
+
+        bot.send_message(
+            message.chat.id,
+
+            "🦇 <b>Марчелло насупився.</b>\n\n"
+            "Я не знайшов такого сувою в реєстрі. "
+            "Обери його кнопкою нижче.",
+
+            parse_mode="HTML"
+        )
+
+        choose_scroll(message)
+        return
+
+
+    scroll = scrolls[selected_index]
+
+    title = get_title(scroll)
+    xp = get_xp(scroll)
+    spheres = get_spheres(scroll)
+
+
+    # Додаємо XP
+    add_total_xp(player, xp)
+
+    add_xp_to_spheres(
+        player,
+        spheres,
+        xp
+    )
+
+
+    # Видаляємо виконаний сувій
+    scrolls.pop(selected_index)
+
+    player["scrolls"] = scrolls
+
+
+    update_player(
+        user_id,
+        {
+            "xp_total": player["xp_total"],
+            "spheres": player["spheres"],
+            "scrolls": player["scrolls"]
+        }
+    )
+
+
+    bot.send_message(
+        message.chat.id,
+
+        "🦇 <b>Марчелло ставить останню печатку.</b>\n\n"
+
+        f"📜 <b>{title}</b>\n"
+        f"⭐ Отримано: <b>{xp:.1f} XP</b>\n\n"
+
+        f"🎯 Сфери: "
+        f"{' '.join(get_sphere_emoji(s) for s in spheres)}\n\n"
+
+        "✨ Сувій виконано й відправлено до історії Грінвуду.",
+
+        parse_mode="HTML",
+        reply_markup=build_back_button()
+    )
+
+
+# =========================================================
+# ВИБІР РИТУАЛУ
+# =========================================================
+
+@bot.message_handler(
+    func=lambda message: message.text == "🔄 Провести ритуал"
+)
+def choose_ritual(message):
+
+    user_id = str(message.from_user.id)
+
+    player = get_player(user_id)
+
+    rituals = player.get("rituals") or []
+
+    if not rituals:
+
+        bot.send_message(
+            message.chat.id,
+
+            "🔄 <b>Жодного активного ритуалу.</b>\n\n"
+            "Ліс сьогодні напрочуд тихий. 🌲",
+
+            parse_mode="HTML",
+            reply_markup=build_back_button()
+        )
+
+        return
+
+
+    today = datetime.now().weekday()
+
+    markup = types.ReplyKeyboardMarkup(
+        resize_keyboard=True
+    )
+
+    available = []
+
+
+    for index, ritual in enumerate(rituals):
+
+        days = ritual.get("days") or []
+
+        is_today = False
+
+        if ritual.get("daily") is True:
+            is_today = True
+
+        elif today in days:
+            is_today = True
+
+        elif isinstance(days, list):
+
+            weekday_names = [
+                "пн",
+                "вт",
+                "ср",
+                "чт",
+                "пт",
+                "сб",
+                "нд"
+            ]
+
+            if today < len(weekday_names):
+
+                if weekday_names[today] in days:
+                    is_today = True
+
+
+        if is_today:
+
+            available.append(
+                (index, ritual)
+            )
+
+
+    if not available:
+
+        bot.send_message(
+            message.chat.id,
+
+            "💤 <b>Сьогодні жоден ритуал не чекає на виконання.</b>\n\n"
+            "Твої ритуали відпочивають до свого дня. 🌙",
+
+            parse_mode="HTML",
+            reply_markup=build_back_button()
+        )
+
+        return
+
+
+    for index, ritual in available:
+
+        title = get_title(ritual)
+
+        markup.row(
+            types.KeyboardButton(
+                f"🔄 {index + 1}. {title}"
             )
         )
 
@@ -277,277 +569,206 @@ def choose_planned_activity(message):
     )
 
 
-    text = (
-        "🦇 <b>Марчелло розгортає список.</b>\n\n"
-
-        "— Ось що сьогодні чекає на твою руку "
-        "і трохи героїчної рішучості.\n\n"
-
-        "Обери виконану справу:\n\n"
-    )
-
-
-    for number, activity in enumerate(
-        activities,
-        start=1
-    ):
-
-        text += (
-            f"<b>{number}.</b> "
-            f"{activity['label']}\n"
-        )
-
-
     msg = bot.send_message(
         message.chat.id,
-        text,
+
+        "🔄 <b>Сьогоднішні ритуали:</b>\n\n"
+        "Обери той, який щойно провела.",
+
         parse_mode="HTML",
         reply_markup=markup
     )
 
+
     bot.register_next_step_handler(
         msg,
-        process_planned_activity,
-        activities
+        complete_ritual,
+        available
     )
 
 
-# ==================================================
-# ОБРОБКА ЗАПЛАНОВАНОЇ СПРАВИ
-# ==================================================
+# =========================================================
+# ВИКОНАННЯ РИТУАЛУ
+# =========================================================
 
-def process_planned_activity(
-    message,
-    activities
-):
+def complete_ritual(message, available):
 
     if message.text == "🔙 Назад":
 
-        bot.send_message(
-            message.chat.id,
-            "🌲 Повертаємось до головної галявини.",
-            reply_markup=get_main_menu()
-        )
-
+        start_complete(message)
         return
 
-
-    try:
-
-        number = int(
-            message.text.split(".")[0]
-        )
-
-        if number < 1 or number > len(activities):
-
-            raise ValueError
-
-
-    except (ValueError, IndexError):
-
-        bot.send_message(
-            message.chat.id,
-
-            "🦇 <b>Марчелло постукав пальцем по столу.</b>\n\n"
-            "— Номер. Просто номер зі списку.\n\n"
-            "Спробуй ще раз.",
-
-            parse_mode="HTML"
-        )
-
-        bot.register_next_step_handler(
-            message,
-            process_planned_activity,
-            activities
-        )
-
-        return
-
-
-    activity = activities[number - 1]
 
     user_id = str(message.from_user.id)
 
     player = get_player(user_id)
 
-
-    # ==================================================
-    # ЗАХИСТ ВІД ЗМІН
-    # ==================================================
-
-    activity_type = activity["type"]
-    activity_index = activity["index"]
+    rituals = player.get("rituals") or []
 
 
-    if activity_type == "scroll":
+    selected_index = None
 
-        items = player.get("scrolls") or []
+    try:
 
-    elif activity_type == "ritual":
+        selected_index = (
+            int(
+                message.text.split(".")[0]
+                .replace("🔄", "")
+                .strip()
+            )
+            - 1
+        )
 
-        items = player.get("rituals") or []
+    except (ValueError, IndexError):
 
-    else:
-
-        items = player.get("plants") or []
+        pass
 
 
-    if (
-        activity_index < 0
-        or activity_index >= len(items)
-    ):
+    if selected_index is None:
+
+        bot.send_message(
+            message.chat.id,
+            "🔄 Не вдалося знайти цей ритуал. "
+            "Спробуй обрати його кнопкою."
+        )
+
+        choose_ritual(message)
+        return
+
+
+    if selected_index < 0 or selected_index >= len(rituals):
+
+        choose_ritual(message)
+        return
+
+
+    ritual = rituals[selected_index]
+
+    title = get_title(ritual)
+    xp = get_xp(ritual)
+    spheres = get_spheres(ritual)
+
+
+    # Перевіряємо, чи вже виконано сьогодні
+    today = get_today()
+
+    if ritual.get("last_completed") == today:
 
         bot.send_message(
             message.chat.id,
 
-            "🦇 <b>Марчелло моргнув.</b>\n\n"
-            "— Ця справа кудись зникла. "
-            "Спробуй відкрити список ще раз.",
+            "🌙 <b>Цей ритуал уже виконано сьогодні.</b>\n\n"
+            "Не треба чаклувати над одним завданням двічі. ✨",
 
             parse_mode="HTML",
-            reply_markup=get_main_menu()
+            reply_markup=build_back_button()
         )
 
         return
 
 
-    selected = items[activity_index]
+    # XP
+    add_total_xp(player, xp)
 
-    title = selected.get(
-        "title",
-        selected.get("name", "Без назви")
-    )
-
-    xp = float(
-        selected.get("xp", 0)
-    )
-
-
-    spheres = selected.get(
-        "spheres",
-        []
-    )
-
-
-    # ==================================================
-    # НАРАХУВАННЯ XP
-    # ==================================================
-
-    award_xp(
+    add_xp_to_spheres(
         player,
         spheres,
         xp
     )
 
 
-    # ==================================================
-    # ЗАПЛАНОВАНА СПРАВА
-    # ==================================================
+    # Позначаємо виконаним
+    ritual["last_completed"] = today
 
-    if activity_type == "scroll":
+    rituals[selected_index] = ritual
 
-        items.pop(activity_index)
-
-        player["scrolls"] = items
-
-
-    elif activity_type == "plant":
-
-        items.pop(activity_index)
-
-        player["plants"] = items
-
-
-    elif activity_type == "ritual":
-
-        # Ритуал не видаляємо.
-        # Він залишається активним і буде доступний
-        # знову після нового дня.
-
-        selected["completed_today"] = True
-
-        items[activity_index] = selected
-
-        player["rituals"] = items
+    player["rituals"] = rituals
 
 
     update_player(
         user_id,
-        player
+        {
+            "xp_total": player["xp_total"],
+            "spheres": player["spheres"],
+            "rituals": player["rituals"]
+        }
     )
 
-
-    # ==================================================
-    # ПОВІДОМЛЕННЯ
-    # ==================================================
 
     bot.send_message(
         message.chat.id,
 
-        "🦇 <b>Марчелло задоволено закриває книгу.</b>\n\n"
+        "🔥 <b>Ритуал проведено!</b>\n\n"
 
-        f"✨ <b>{title}</b> виконано!\n\n"
+        f"🔄 <b>{title}</b>\n"
+        f"⭐ Отримано: <b>{xp:.1f} XP</b>\n\n"
 
-        f"⭐ Ти отримуєш <b>{xp:.1f} XP</b>.\n\n"
-
-        "— Отак. Зроблене діло має бути "
-        "записане в хроніках.",
+        "🕯️ Полум'я ритуалу згасло до наступного призначеного дня.",
 
         parse_mode="HTML",
-        reply_markup=get_main_menu()
+        reply_markup=build_back_button()
     )
 
 
-# ==================================================
-# НЕЗАПЛАНОВАНА СПРАВА
-# ==================================================
+# =========================================================
+# ВИБІР РОСЛИНИ
+# =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "🌿 Незапланована справа"
+    func=lambda message: message.text == "🌱 Завершити вирощування"
 )
-def start_unplanned_activity(message):
+def choose_plant(message):
+
+    user_id = str(message.from_user.id)
+
+    player = get_player(user_id)
+
+    plants = player.get("plants") or []
+
+
+    if not plants:
+
+        bot.send_message(
+            message.chat.id,
+
+            "🌱 <b>У теплиці немає рослин, готових до збору.</b>\n\n"
+            "Олівер оглядає ґрунт і хмикає:\n\n"
+            "«Ну? Чого стоїш? Посади щось путнє.» 🌿",
+
+            parse_mode="HTML",
+            reply_markup=build_back_button()
+        )
+
+        return
+
 
     markup = types.ReplyKeyboardMarkup(
         resize_keyboard=True
     )
 
+
+    for index, plant in enumerate(plants):
+
+        title = get_title(plant)
+
+        markup.row(
+            types.KeyboardButton(
+                f"🌱 {index + 1}. {title}"
+            )
+        )
+
+
     markup.row(
-        types.KeyboardButton("🔙 Скасувати")
-    )
-
-
-    text = (
-        "🦇 <b>Марчелло перегортає чистий аркуш.</b>\n\n"
-
-        "— Не все корисне народжується "
-        "у сувоях заздалегідь.\n\n"
-
-        "Якщо ти зробила щось хороше "
-        "і цього не було в планах, "
-        "запиши це зараз.\n\n"
-
-        "<b>Формула:</b>\n"
-        "<code>[Сфери] ; [Бали] ; [Назва справи]</code>\n\n"
-
-        "Наприклад:\n"
-        "<code>💪 ; 6 ; Зробила зарядку</code>\n"
-        "<code>🧠🎨 ; 10 ; Вивчила нову тему і намалювала схему</code>\n\n"
-
-        "⭐ Бали: від <b>4 до 14</b>\n"
-        "🎯 Якщо сфер кілька, XP буде розділено між ними.\n\n"
-
-        "📚 Доступні сфери:\n"
-        "💪 Здоров'я\n"
-        "🧠 Мудрість\n"
-        "🎨 Творчість\n"
-        "💵 Фінанси\n"
-        "🤝 Зв'язки"
+        types.KeyboardButton("🔙 Назад")
     )
 
 
     msg = bot.send_message(
         message.chat.id,
-        text,
+
+        "🌿 <b>Яку рослину ти виростила?</b>\n\n"
+        "Обери її зі списку:",
+
         parse_mode="HTML",
         reply_markup=markup
     )
@@ -555,27 +776,201 @@ def start_unplanned_activity(message):
 
     bot.register_next_step_handler(
         msg,
-        process_unplanned_activity
+        complete_plant
     )
 
 
-# ==================================================
-# ОБРОБКА НЕЗАПЛАНОВАНОЇ СПРАВИ
-# ==================================================
+# =========================================================
+# ВИКОНАННЯ РОСЛИНИ
+# =========================================================
 
-def process_unplanned_activity(message):
+def complete_plant(message):
 
-    if message.text == "🔙 Скасувати":
+    if message.text == "🔙 Назад":
+
+        start_complete(message)
+        return
+
+
+    user_id = str(message.from_user.id)
+
+    player = get_player(user_id)
+
+    plants = player.get("plants") or []
+
+
+    selected_index = None
+
+    try:
+
+        selected_index = (
+            int(
+                message.text.split(".")[0]
+                .replace("🌱", "")
+                .strip()
+            )
+            - 1
+        )
+
+    except (ValueError, IndexError):
+
+        pass
+
+
+    if (
+        selected_index is None
+        or selected_index < 0
+        or selected_index >= len(plants)
+    ):
 
         bot.send_message(
             message.chat.id,
-            "🦇 Марчелло закриває чистий аркуш.\n\n"
-            "Повертаємось до головного меню.",
 
-            parse_mode="HTML",
-            reply_markup=get_main_menu()
+            "🌿 Олівер піднімає брову.\n\n"
+            "«Цієї рослини в теплиці немає. "
+            "Обирай із того, що справді посаджено.»",
+
+            parse_mode="HTML"
         )
 
+        choose_plant(message)
+        return
+
+
+    plant = plants[selected_index]
+
+    title = get_title(plant)
+    xp = get_xp(plant)
+    spheres = get_spheres(plant)
+
+
+    # XP
+    add_total_xp(player, xp)
+
+    add_xp_to_spheres(
+        player,
+        spheres,
+        xp
+    )
+
+
+    # =====================================================
+    # ПЕРЕМІЩЕННЯ В АРХІВ
+    # =====================================================
+
+    archive = player.get("plant_archive") or []
+
+    completed_plant = dict(plant)
+
+    completed_plant["completed_date"] = get_today()
+
+    archive.append(completed_plant)
+
+
+    # Видаляємо з активних
+    plants.pop(selected_index)
+
+    player["plants"] = plants
+    player["plant_archive"] = archive
+
+
+    update_player(
+        user_id,
+        {
+            "xp_total": player["xp_total"],
+            "spheres": player["spheres"],
+            "plants": player["plants"],
+            "plant_archive": player["plant_archive"]
+        }
+    )
+
+
+    reward = plant.get(
+        "reward",
+        "твоя нагорода"
+    )
+
+
+    bot.send_message(
+        message.chat.id,
+
+        "🌳 <b>Олівер мовчки оглядає вирощену рослину.</b>\n\n"
+
+        f"🌱 <b>{title}</b>\n\n"
+
+        "«Гаразд.\n"
+        "Це вже можна назвати справжнім урожаєм.»\n\n"
+
+        f"⭐ Отримано: <b>{xp:.1f} XP</b>\n"
+        f"🎁 Нагорода: <b>{reward}</b>\n\n"
+
+        "🌿 Рослину переміщено до Архіву теплиці.\n"
+        "Тепер вона там, де мають лежати речі, "
+        "якими справді можна пишатися.",
+
+        parse_mode="HTML",
+        reply_markup=build_back_button()
+    )
+
+
+# =========================================================
+# НЕЗАПЛАНОВАНА СПРАВА
+# =========================================================
+
+@bot.message_handler(
+    func=lambda message: message.text == "✨ Зробити поза планом"
+)
+def start_unplanned(message):
+
+    markup = build_back_button()
+
+    msg = bot.send_message(
+        message.chat.id,
+
+        "🦇 <b>Марчелло відкладає перо.</b>\n\n"
+
+        "«Не все корисне в житті народжується "
+        "в календарі, люба чаклунко.»\n\n"
+
+        "Якщо ти зробила щось поза планом, "
+        "це теж заслуговує на XP.\n\n"
+
+        "Запиши справу у форматі:\n\n"
+
+        "<code>💪🧠 ; 10 ; Вивчити нову тему</code>\n\n"
+
+        "або:\n\n"
+
+        "<code>🎨 ; 6 ; Намалювати картину</code>\n\n"
+
+        "🎯 Можна вказати кілька сфер.\n"
+        "⭐ Бали: від 4 до 14.\n"
+        "📝 Остання частина — назва справи.\n\n"
+
+        "⚖️ Якщо сфер кілька, XP буде поділено між ними.\n\n"
+
+        "🔙 Якщо передумала — натисни «Назад».",
+
+        parse_mode="HTML",
+        reply_markup=markup
+    )
+
+
+    bot.register_next_step_handler(
+        msg,
+        process_unplanned
+    )
+
+
+# =========================================================
+# ОБРОБКА НЕЗАПЛАНОВАНОЇ СПРАВИ
+# =========================================================
+
+def process_unplanned(message):
+
+    if message.text == "🔙 Назад":
+
+        start_complete(message)
         return
 
 
@@ -590,40 +985,44 @@ def process_unplanned_activity(message):
         if len(parts) != 3:
 
             raise ValueError(
-                "Потрібно вказати сфери, бали та назву."
+                "Потрібно вказати 3 частини через «;»."
             )
 
 
         spheres_text, xp_text, title = parts
 
 
-        # ==================================================
-        # СФЕРИ
-        # ==================================================
+        # -------------------------
+        # Сфери
+        # -------------------------
 
         spheres = []
 
+
         for emoji in spheres_text:
 
-            if emoji in EMOJI_TO_SPHERE:
+            if emoji in SPHERE_NAMES.values():
 
-                sphere = EMOJI_TO_SPHERE[emoji]
-
-                if sphere not in spheres:
-
-                    spheres.append(sphere)
+                spheres.append(emoji)
 
 
         if not spheres:
 
             raise ValueError(
-                "Не знайдено правильної сфери."
+                "Не знайдено жодної правильної сфери."
             )
 
 
-        # ==================================================
+        if len(spheres) != len(set(spheres)):
+
+            raise ValueError(
+                "Одна сфера вказана двічі."
+            )
+
+
+        # -------------------------
         # XP
-        # ==================================================
+        # -------------------------
 
         try:
 
@@ -632,7 +1031,7 @@ def process_unplanned_activity(message):
         except ValueError:
 
             raise ValueError(
-                "Бали мають бути числом."
+                "Кількість балів має бути числом."
             )
 
 
@@ -643,9 +1042,9 @@ def process_unplanned_activity(message):
             )
 
 
-        # ==================================================
-        # НАЗВА
-        # ==================================================
+        # -------------------------
+        # Назва
+        # -------------------------
 
         if len(title) < 3:
 
@@ -654,77 +1053,68 @@ def process_unplanned_activity(message):
             )
 
 
-        # ==================================================
-        # НАРАХУВАННЯ
-        # ==================================================
+        # -------------------------
+        # Нарахування
+        # -------------------------
 
         user_id = str(message.from_user.id)
 
         player = get_player(user_id)
 
 
-        award_xp(
+        add_total_xp(
+            player,
+            float(xp)
+        )
+
+        add_xp_to_spheres(
             player,
             spheres,
-            xp
+            float(xp)
         )
 
 
         update_player(
             user_id,
-            player
-        )
-
-
-        # ==================================================
-        # УСПІХ
-        # ==================================================
-
-        sphere_text = ", ".join(
-            SPHERE_NAMES[sphere]
-            for sphere in spheres
+            {
+                "xp_total": player["xp_total"],
+                "spheres": player["spheres"]
+            }
         )
 
 
         bot.send_message(
             message.chat.id,
 
-            "🦇 <b>Марчелло посміхається краєчком губ.</b>\n\n"
+            "🦇 <b>Марчелло схвально киває.</b>\n\n"
 
-            "— Непогано. Навіть без сувою "
-            "ти не дозволила хорошій справі "
-            "пройти повз тебе.\n\n"
+            "✨ Справу зараховано!\n\n"
 
-            f"✨ <b>{title}</b>\n"
-            f"⭐ Нагорода: <b>{xp:.1f} XP</b>\n"
-            f"🎯 Сфери: {sphere_text}\n\n"
+            f"📝 <b>{title}</b>\n"
+            f"⭐ Отримано: <b>{xp} XP</b>\n"
+            f"🎯 Сфери: {' '.join(spheres)}\n\n"
 
-            "🔥 XP записано до твоїх хронік.",
+            "«Бачиш? Навіть те, чого не було в планах, "
+            "може стати частиною твоєї хроніки.»",
 
             parse_mode="HTML",
-            reply_markup=get_main_menu()
+            reply_markup=build_back_button()
         )
 
 
     except ValueError as error:
 
-        markup = types.ReplyKeyboardMarkup(
-            resize_keyboard=True
-        )
-
-        markup.row(
-            types.KeyboardButton("🔙 Скасувати")
-        )
+        markup = build_back_button()
 
 
         bot.send_message(
             message.chat.id,
 
-            "🦇 <b>Марчелло насупився.</b>\n\n"
+            "🦇 <b>Марчелло постукує пером по столу.</b>\n\n"
 
             f"❌ {error}\n\n"
 
-            "Спробуй ще раз за формулою:\n\n"
+            "Спробуй ще раз:\n\n"
 
             "<code>💪🧠 ; 10 ; Назва справи</code>",
 
@@ -735,70 +1125,5 @@ def process_unplanned_activity(message):
 
         bot.register_next_step_handler(
             message,
-            process_unplanned_activity
+            process_unplanned
         )
-
-
-# ==================================================
-# XP
-# ==================================================
-
-def award_xp(player, spheres, xp):
-
-    if not spheres:
-
-        return
-
-
-    share = xp / len(spheres)
-
-
-    player["xp_total"] = float(
-        player.get("xp_total", 0)
-    ) + xp
-
-
-    player_spheres = player.get(
-        "spheres",
-        {}
-    )
-
-
-    for sphere_key in spheres:
-
-        if sphere_key not in player_spheres:
-
-            continue
-
-
-        sphere = player_spheres[sphere_key]
-
-
-        sphere["xp"] = float(
-            sphere.get("xp", 0)
-        ) + share
-
-
-        # ==================================================
-        # ЛЕВЕЛАП
-        # ==================================================
-
-        max_xp = float(
-            sphere.get("max_xp", 10)
-        )
-
-
-        while sphere["xp"] >= max_xp:
-
-            sphere["xp"] -= max_xp
-
-            sphere["lvl"] = int(
-                sphere.get("lvl", 1)
-            ) + 1
-
-            max_xp *= 2
-
-            sphere["max_xp"] = max_xp
-
-
-    player["spheres"] = player_spheres
