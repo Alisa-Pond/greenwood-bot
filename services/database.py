@@ -83,7 +83,9 @@ DEFAULT_STATISTICS = {
     "completed_scrolls": 0,
     "completed_rituals": 0,
     "plants_harvested": 0,
-    "expeditions_completed": 0
+    "expeditions_completed": 0,
+    "completed_history": [],
+    "last_summary_date": None
 }
 
 
