@@ -41,6 +41,7 @@ server_thread.start()
 print("🔧 Завантажую services.config...")
 
 from services.config import bot
+import services.scheduler
 
 print("✅ services.config завантажено")
 
