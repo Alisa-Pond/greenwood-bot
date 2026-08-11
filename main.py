@@ -74,6 +74,10 @@ import handlers.my_quests.greenhouse.archive
 import handlers.my_quests.expedition.menu
 
 import handlers.backpack
+
+from services.scheduler import start_scheduler
+start_scheduler()
+
 print("🎉 Усі основні обробники підключені!")
 
 
