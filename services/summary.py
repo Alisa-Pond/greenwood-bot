@@ -10,7 +10,6 @@ from services.database import get_player, update_player
 
 KYIV = ZoneInfo("Europe/Kyiv")
 
-
 SPHERE_NAMES = {
     "health": "💪",
     "wisdom": "🧠",
@@ -18,7 +17,6 @@ SPHERE_NAMES = {
     "finance": "💵",
     "relations": "🤝"
 }
-
 
 WEEKDAYS = [
     "пн",
@@ -32,15 +30,16 @@ WEEKDAYS = [
 
 
 # =========================================================
-# ЧАС ГРІНВУДУ
+# ДОБА ГРІНВУДУ
 # =========================================================
 
 def get_greenwood_date(dt=None):
     """
-    Повертає дату поточної доби Грінвуду.
+    Доба Грінвуду триває з 07:00 до 06:59 наступного дня.
 
-    Доба починається о 07:00 за Києвом,
-    а не о 00:00.
+    Наприклад:
+    11.08 06:59 → ще доба 10.08
+    11.08 07:00 → вже доба 11.08
     """
 
     if dt is None:
@@ -66,9 +65,7 @@ def sphere_emoji(sphere):
 
 def get_spheres(item):
     """
-    Отримує список сфер із сувою / ритуалу / рослини.
-
-    Підтримує різні формати старих і нових записів.
+    Отримує сфери зі старих і нових форматів запису.
     """
 
     spheres = item.get("spheres")
@@ -80,7 +77,7 @@ def get_spheres(item):
         return []
 
     # -----------------------------------------------------
-    # Якщо сфери записані одним рядком
+    # Один рядок
     # -----------------------------------------------------
 
     if isinstance(spheres, str):
@@ -95,7 +92,7 @@ def get_spheres(item):
         return result
 
     # -----------------------------------------------------
-    # Якщо сфери записані списком
+    # Список
     # -----------------------------------------------------
 
     if isinstance(spheres, list):
@@ -104,14 +101,11 @@ def get_spheres(item):
 
         for sphere in spheres:
 
-            # Новий формат:
-            # {"key": "health", "emoji": "💪"}
-
             if isinstance(sphere, dict):
 
                 key = sphere.get("key")
 
-                if key and key in SPHERE_NAMES:
+                if key in SPHERE_NAMES:
                     result.append(key)
                     continue
 
@@ -123,14 +117,9 @@ def get_spheres(item):
                         result.append(sphere_key)
                         break
 
-            # Формат:
-            # "health"
-
             elif sphere in SPHERE_NAMES:
-                result.append(sphere)
 
-            # Формат:
-            # "💪"
+                result.append(sphere)
 
             elif sphere in SPHERE_NAMES.values():
 
@@ -161,7 +150,6 @@ def get_title(item):
 def get_xp(item):
 
     try:
-
         return float(
             item.get("xp")
             or item.get("points")
@@ -170,7 +158,6 @@ def get_xp(item):
         )
 
     except (TypeError, ValueError):
-
         return 0.0
 
 
@@ -182,28 +169,13 @@ def get_history(player):
 
     statistics = player.get("statistics") or {}
 
-    history = statistics.get(
-        "completed_history"
-    )
+    history = statistics.get("completed_history")
 
     if not isinstance(history, list):
-        history = []
+        return []
 
     return history
 
-
-def save_history(player, history):
-
-    statistics = player.get("statistics") or {}
-
-    statistics["completed_history"] = history
-
-    player["statistics"] = statistics
-
-
-# =========================================================
-# ВИКОНАНІ СПРАВИ ЗА ПОПЕРЕДНЮ ДОБУ
-# =========================================================
 
 def get_completed_for_date(player, target_date):
 
@@ -222,16 +194,25 @@ def get_completed_for_date(player, target_date):
 
 
 # =========================================================
-# ШТРАФ ЗА ПРОПУЩЕНУ СПРАВУ
+# ШТРАФ
 # =========================================================
 
 def calculate_penalty(xp):
     """
-    За пропущене завдання стягуємо 2/3
-    від початкової нагороди.
+    За пропущену справу стягується 2/3
+    від її початкової нагороди.
     """
 
     return xp * (2 / 3)
+
+
+def subtract_total_xp(player, xp):
+
+    player["xp_total"] = max(
+        0.0,
+        float(player.get("xp_total", 0))
+        - float(xp)
+    )
 
 
 def subtract_xp_from_spheres(
@@ -253,39 +234,20 @@ def subtract_xp_from_spheres(
             continue
 
         current_xp = float(
-            player_spheres[sphere].get(
-                "xp",
-                0
-            )
+            player_spheres[sphere].get("xp", 0)
         )
 
         player_spheres[sphere]["xp"] = max(
-            0,
+            0.0,
             current_xp - share
         )
 
 
-def subtract_total_xp(player, xp):
-
-    player["xp_total"] = max(
-        0,
-        float(
-            player.get(
-                "xp_total",
-                0
-            )
-        ) - xp
-    )
-
-
 # =========================================================
-# АКТИВНІ РИТУАЛИ В ПЕВНИЙ ДЕНЬ
+# РИТУАЛИ
 # =========================================================
 
-def ritual_is_for_date(
-    ritual,
-    target_date
-):
+def ritual_is_for_date(ritual, target_date):
 
     if ritual.get("daily") is True:
         return True
@@ -295,33 +257,89 @@ def ritual_is_for_date(
     if not isinstance(days, list):
         return False
 
-    weekday = WEEKDAYS[
-        target_date.weekday()
-    ]
+    weekday_number = target_date.weekday()
 
-    # Наприклад:
-    # [0, 2, 4]
-
-    if target_date.weekday() in days:
+    if weekday_number in days:
         return True
 
-    # Наприклад:
-    # ["пн", "ср", "пт"]
+    weekday_name = WEEKDAYS[weekday_number]
 
-    if weekday in days:
+    if weekday_name in days:
+        return True
+
+    return False
+
+
+def ritual_was_completed_on_date(
+    ritual,
+    target_date
+):
+
+    completed = ritual.get("last_completed")
+
+    if not completed:
+        return False
+
+    possible_formats = [
+        "%d.%m.%Y",
+        "%d.%m.%y"
+    ]
+
+    for fmt in possible_formats:
+
+        try:
+
+            parsed = datetime.strptime(
+                completed,
+                fmt
+            ).date()
+
+            return parsed == target_date
+
+        except ValueError:
+            continue
+
+    if completed == target_date.isoformat():
         return True
 
     return False
 
 
 # =========================================================
+# DEADLINE
+# =========================================================
+
+def parse_deadline(value):
+
+    if not value:
+        return None
+
+    if not isinstance(value, str):
+        return None
+
+    for fmt in (
+        "%d.%m.%y",
+        "%d.%m.%Y"
+    ):
+
+        try:
+
+            return datetime.strptime(
+                value,
+                fmt
+            ).date()
+
+        except ValueError:
+            continue
+
+    return None
+
+
+# =========================================================
 # ПОРЯДОК ДЕННИЙ
 # =========================================================
 
-def build_agenda(
-    player,
-    target_date
-):
+def build_agenda(player, target_date):
 
     scrolls = player.get("scrolls") or []
     rituals = player.get("rituals") or []
@@ -329,61 +347,33 @@ def build_agenda(
 
     lines = []
 
-    # =====================================================
+    # -----------------------------------------------------
     # СУВОЇ
-    # =====================================================
+    # -----------------------------------------------------
 
     for scroll in scrolls:
 
         title = get_title(scroll)
         xp = get_xp(scroll)
 
-        deadline = (
+        deadline = parse_deadline(
             scroll.get("deadline")
             or scroll.get("date")
         )
 
-        fire = False
-
-        if deadline:
-
-            try:
-
-                parsed = None
-
-                for fmt in (
-                    "%d.%m.%y",
-                    "%d.%m.%Y"
-                ):
-
-                    try:
-
-                        parsed = datetime.strptime(
-                            deadline,
-                            fmt
-                        ).date()
-
-                        break
-
-                    except ValueError:
-                        continue
-
-                if parsed == target_date:
-                    fire = True
-
-            except Exception:
-                pass
-
-        icon = "🔥" if fire else "📜"
+        if deadline == target_date:
+            icon = "🔥"
+        else:
+            icon = "📜"
 
         lines.append(
             f"{icon} <b>{title}</b> "
             f"({xp:.1f} XP)"
         )
 
-    # =====================================================
+    # -----------------------------------------------------
     # РИТУАЛИ
-    # =====================================================
+    # -----------------------------------------------------
 
     for ritual in rituals:
 
@@ -401,49 +391,20 @@ def build_agenda(
             f"({xp:.1f} XP)"
         )
 
-    # =====================================================
+    # -----------------------------------------------------
     # РОСЛИНИ
-    # =====================================================
+    # -----------------------------------------------------
 
     for plant in plants:
 
         title = get_title(plant)
         xp = get_xp(plant)
 
-        deadline = plant.get(
-            "deadline"
+        deadline = parse_deadline(
+            plant.get("deadline")
         )
 
-        icon = "🌱"
-
-        if deadline:
-
-            try:
-
-                parsed = None
-
-                for fmt in (
-                    "%d.%m.%y",
-                    "%d.%m.%Y"
-                ):
-
-                    try:
-
-                        parsed = datetime.strptime(
-                            deadline,
-                            fmt
-                        ).date()
-
-                        break
-
-                    except ValueError:
-                        continue
-
-                if parsed == target_date:
-                    icon = "🔥"
-
-            except Exception:
-                pass
+        icon = "🔥" if deadline == target_date else "🌱"
 
         lines.append(
             f"{icon} <b>{title}</b> "
@@ -459,13 +420,11 @@ def build_agenda(
 
 def make_player_summary(user_id):
 
-    player = get_player(user_id)
+    player = get_player(str(user_id))
 
     now = datetime.now(KYIV)
 
-    current_greenwood_date = get_greenwood_date(
-        now
-    )
+    current_greenwood_date = get_greenwood_date(now)
 
     previous_date = (
         current_greenwood_date
@@ -473,7 +432,7 @@ def make_player_summary(user_id):
     )
 
     # =====================================================
-    # ВИКОНАНІ СПРАВИ
+    # ЗБИРАЄМО ВИКОНАНЕ
     # =====================================================
 
     completed = get_completed_for_date(
@@ -497,60 +456,30 @@ def make_player_summary(user_id):
 
     for entry in completed:
 
-        entry_type = entry.get(
-            "type"
-        )
+        entry_type = entry.get("type")
 
         title = entry.get(
             "title",
             "Без назви"
         )
 
-        try:
-            xp = float(
-                entry.get(
-                    "xp",
-                    0
-                )
-            )
+        xp = get_xp(entry)
 
-        except (
-            TypeError,
-            ValueError
-        ):
-
-            xp = 0.0
-
-        spheres = entry.get(
-            "spheres",
-            []
-        )
-
-        if isinstance(
-            spheres,
-            str
-        ):
-            spheres = get_spheres(
-                entry
-            )
+        spheres = get_spheres(entry)
 
         # -------------------------------------------------
-        # XP по сферах
+        # Нарахування XP по сферах
         # -------------------------------------------------
 
         if spheres:
 
-            share = (
-                xp / len(spheres)
-            )
+            share = xp / len(spheres)
 
             for sphere in spheres:
 
                 if sphere in earned_by_sphere:
 
-                    earned_by_sphere[
-                        sphere
-                    ] += share
+                    earned_by_sphere[sphere] += share
 
         # -------------------------------------------------
         # Категорія
@@ -578,165 +507,37 @@ def make_player_summary(user_id):
     # ПРОПУЩЕНІ СУВОЇ
     # =====================================================
 
-    scrolls = player.get(
-        "scrolls"
-    ) or []
-
-    missed_activities = []
+    scrolls = player.get("scrolls") or []
 
     remaining_scrolls = []
+    missed_activities = []
 
     for scroll in scrolls:
 
-        deadline = scroll.get(
-            "deadline"
+        deadline = parse_deadline(
+            scroll.get("deadline")
         )
 
-        if not deadline:
+        # Сувій без дедлайну не штрафується
+        if deadline is None:
 
-            remaining_scrolls.append(
-                scroll
-            )
-
+            remaining_scrolls.append(scroll)
             continue
 
-        try:
+        # Дедлайн ще не минув
+        if deadline >= current_greenwood_date:
 
-            parsed = None
-
-            for fmt in (
-                "%d.%m.%y",
-                "%d.%m.%Y"
-            ):
-
-                try:
-
-                    parsed = datetime.strptime(
-                        deadline,
-                        fmt
-                    ).date()
-
-                    break
-
-                except ValueError:
-                    continue
-
-            if parsed is None:
-
-                remaining_scrolls.append(
-                    scroll
-                )
-
-                continue
-
-        except ValueError:
-
-            remaining_scrolls.append(
-                scroll
-            )
-
+            remaining_scrolls.append(scroll)
             continue
 
-        if parsed < current_greenwood_date:
+        # -------------------------------------------------
+        # Прострочений сувій
+        # -------------------------------------------------
 
-            xp = get_xp(scroll)
+        xp = get_xp(scroll)
+        penalty = calculate_penalty(xp)
 
-            penalty = calculate_penalty(
-                xp
-            )
-
-            spheres = get_spheres(
-                scroll
-            )
-
-            subtract_total_xp(
-                player,
-                penalty
-            )
-
-            subtract_xp_from_spheres(
-                player,
-                spheres,
-                penalty
-            )
-
-            share = (
-                penalty / len(spheres)
-                if spheres
-                else 0
-            )
-
-            for sphere in spheres:
-
-                if sphere in penalties_by_sphere:
-
-                    penalties_by_sphere[
-                        sphere
-                    ] += share
-
-            missed_activities.append(
-                (
-                    get_title(scroll),
-                    penalty
-                )
-            )
-
-            continue
-
-        remaining_scrolls.append(
-            scroll
-        )
-
-    player["scrolls"] = (
-        remaining_scrolls
-    )
-
-    # =====================================================
-    # ПРОПУЩЕНІ РИТУАЛИ
-    # =====================================================
-
-    rituals = player.get(
-        "rituals"
-    ) or []
-
-    for ritual in rituals:
-
-        if not ritual_is_for_date(
-            ritual,
-            previous_date
-        ):
-            continue
-
-        last_completed = ritual.get(
-            "last_completed"
-        )
-
-        # Ритуал уже виконаний
-        # у попередню добу
-
-        if last_completed == previous_date.strftime(
-            "%d.%m.%Y"
-        ):
-
-            continue
-
-        # Також підтримуємо ISO-формат
-
-        if last_completed == previous_date.isoformat():
-
-            continue
-
-        xp = get_xp(
-            ritual
-        )
-
-        penalty = calculate_penalty(
-            xp
-        )
-
-        spheres = get_spheres(
-            ritual
-        )
+        spheres = get_spheres(scroll)
 
         subtract_total_xp(
             player,
@@ -749,72 +550,115 @@ def make_player_summary(user_id):
             penalty
         )
 
-        share = (
-            penalty / len(spheres)
-            if spheres
-            else 0
-        )
+        if spheres:
 
-        for sphere in spheres:
+            share = penalty / len(spheres)
 
-            if sphere in penalties_by_sphere:
+            for sphere in spheres:
 
-                penalties_by_sphere[
-                    sphere
-                ] += share
+                if sphere in penalties_by_sphere:
+
+                    penalties_by_sphere[sphere] += share
 
         missed_activities.append(
             (
+                "📜",
+                get_title(scroll),
+                penalty
+            )
+        )
+
+    player["scrolls"] = remaining_scrolls
+
+    # =====================================================
+    # ПРОПУЩЕНІ РИТУАЛИ
+    # =====================================================
+
+    rituals = player.get("rituals") or []
+
+    for ritual in rituals:
+
+        # Ритуал повинен був відбутися
+        # саме в попередню добу
+
+        if not ritual_is_for_date(
+            ritual,
+            previous_date
+        ):
+            continue
+
+        # Якщо виконаний вчасно,
+        # штрафу немає
+
+        if ritual_was_completed_on_date(
+            ritual,
+            previous_date
+        ):
+            continue
+
+        xp = get_xp(ritual)
+        penalty = calculate_penalty(xp)
+
+        spheres = get_spheres(ritual)
+
+        subtract_total_xp(
+            player,
+            penalty
+        )
+
+        subtract_xp_from_spheres(
+            player,
+            spheres,
+            penalty
+        )
+
+        if spheres:
+
+            share = penalty / len(spheres)
+
+            for sphere in spheres:
+
+                if sphere in penalties_by_sphere:
+
+                    penalties_by_sphere[sphere] += share
+
+        missed_activities.append(
+            (
+                "🔄",
                 get_title(ritual),
                 penalty
             )
         )
 
     # =====================================================
-    # ЗБЕРІГАЄМО
+    # ЗБЕРІГАЄМО ДАТУ ОСТАННЬОГО ПІДСУМКУ
     # =====================================================
 
-    statistics = (
-        player.get(
-            "statistics"
-        ) or {}
+    statistics = player.get("statistics") or {}
+
+    statistics["last_summary_date"] = (
+        current_greenwood_date.isoformat()
     )
 
-    statistics[
-        "last_summary_date"
-    ] = current_greenwood_date.isoformat()
+    player["statistics"] = statistics
 
-    player[
-        "statistics"
-    ] = statistics
+    # =====================================================
+    # ЗБЕРІГАЄМО ЗМІНИ
+    # =====================================================
 
     update_player(
-        user_id,
+        str(user_id),
         {
-            "xp_total": player[
-                "xp_total"
-            ],
-
-            "spheres": player[
-                "spheres"
-            ],
-
-            "scrolls": player[
-                "scrolls"
-            ],
-
-            "rituals": player[
-                "rituals"
-            ],
-
-            "statistics": player[
-                "statistics"
-            ]
+            "xp_total": player["xp_total"],
+            "spheres": player["spheres"],
+            "scrolls": player["scrolls"],
+            "rituals": player["rituals"],
+            "statistics": player["statistics"]
         }
     )
 
     # =====================================================
-    # ТЕКСТ ПІДСУМКУ
+    # ФОРМУЄМО ПОВІДОМЛЕННЯ
     # =====================================================
 
     text = (
@@ -838,7 +682,7 @@ def make_player_summary(user_id):
     ):
 
         text += (
-            "Поки що хроніка мовчить. 🌲\n\n"
+            "Хроніка поки що мовчить. 🌲\n\n"
         )
 
     else:
@@ -846,21 +690,21 @@ def make_player_summary(user_id):
         for title, xp in completed_scrolls:
 
             text += (
-                f"📜 {title} "
+                f"📜 <b>{title}</b> "
                 f"✨ +{xp:.1f} XP\n"
             )
 
         for title, xp in completed_rituals:
 
             text += (
-                f"🔄 {title} "
+                f"🔄 <b>{title}</b> "
                 f"✨ +{xp:.1f} XP\n"
             )
 
         for title, xp in completed_plants:
 
             text += (
-                f"🌳 {title} "
+                f"🌳 <b>{title}</b> "
                 f"✨ +{xp:.1f} XP\n"
             )
 
@@ -871,28 +715,28 @@ def make_player_summary(user_id):
     # =====================================================
 
     text += (
-        "⚠️ <b>Пропущено</b>\n\n"
+        "⚠️ <b>Пропущено за дедлайном</b>\n\n"
     )
 
     if not missed_activities:
 
         text += (
-            "Нічого. Ліс задоволений. 🌿\n\n"
+            "Нічого не пропущено. Ліс задоволений. 🌿\n\n"
         )
 
     else:
 
-        for title, penalty in missed_activities:
+        for icon, title, penalty in missed_activities:
 
             text += (
-                f"❌ {title} "
+                f"{icon} <b>{title}</b> "
                 f"−{penalty:.1f} XP\n"
             )
 
         text += "\n"
 
     # =====================================================
-    # СФЕРИ
+    # РУХ СФЕР
     # =====================================================
 
     text += (
@@ -903,32 +747,24 @@ def make_player_summary(user_id):
 
     for sphere, emoji in SPHERE_NAMES.items():
 
-        earned = earned_by_sphere[
-            sphere
-        ]
+        earned = earned_by_sphere[sphere]
+        penalty = penalties_by_sphere[sphere]
 
-        penalty = penalties_by_sphere[
-            sphere
-        ]
-
-        if (
-            earned == 0
-            and penalty == 0
-        ):
+        if earned == 0 and penalty == 0:
             continue
 
         any_sphere_activity = True
 
         text += (
             f"{emoji} "
-            f"+{earned:.1f} / "
-            f"−{penalty:.1f} XP\n"
+            f"<b>+{earned:.1f}</b> / "
+            f"<b>−{penalty:.1f}</b> XP\n"
         )
 
     if not any_sphere_activity:
 
         text += (
-            "Сфери сьогодні не змінилися.\n"
+            "Сфери за попередню добу не змінилися.\n"
         )
 
     text += "\n"
@@ -941,8 +777,7 @@ def make_player_summary(user_id):
         "📖 <b>Порядок денний</b>\n\n"
         f"📅 Сьогодні: "
         f"<b>{format_date(current_greenwood_date)}, "
-        f"{WEEKDAYS[current_greenwood_date.weekday()]}"
-        f"</b>\n\n"
+        f"{WEEKDAYS[current_greenwood_date.weekday()]}</b>\n\n"
     )
 
     agenda = build_agenda(
@@ -954,9 +789,7 @@ def make_player_summary(user_id):
 
         for line in agenda:
 
-            text += (
-                f"{line}\n"
-            )
+            text += f"{line}\n"
 
     else:
 
