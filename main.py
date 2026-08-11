@@ -8,9 +8,9 @@ from flask import Flask
 print("🌲 ЗАПУЩЕНО ХРОНІКИ ГРІНВУДУ")
 
 
-# =========================
-# Flask сервер для Render
-# =========================
+# =========================================================
+# FLASK СЕРВЕР ДЛЯ RENDER
+# =========================================================
 
 app = Flask(__name__)
 
@@ -22,6 +22,7 @@ def home():
 
 def run_flask():
     port = int(os.environ.get("PORT", 10000))
+
     app.run(
         host="0.0.0.0",
         port=port,
@@ -29,29 +30,43 @@ def run_flask():
     )
 
 
-server_thread = Thread(target=run_flask)
-server_thread.daemon = True
+server_thread = Thread(
+    target=run_flask,
+    daemon=True
+)
+
 server_thread.start()
 
 
-# =========================
-# Завантаження бота
-# =========================
+# =========================================================
+# ЗАВАНТАЖЕННЯ БОТА
+# =========================================================
 
 print("🔧 Завантажую services.config...")
 
 from services.config import bot
-import services.scheduler
 
 print("✅ services.config завантажено")
 
 
+# =========================================================
+# НАЛАШТУВАННЯ LOGGING
+# =========================================================
+
 telebot.logger.setLevel(logging.INFO)
 
 
-# =========================
-# Реєстрація handlers
-# =========================
+# =========================================================
+# SCHEDULER
+# =========================================================
+
+from services.scheduler import start_scheduler
+
+
+# =========================================================
+# РЕЄСТРАЦІЯ HANDLERS
+# =========================================================
+
 import handlers.profile
 import handlers.main_quest
 
@@ -75,14 +90,13 @@ import handlers.my_quests.expedition.menu
 
 import handlers.backpack
 
-from services.scheduler import start_scheduler
 
 print("🎉 Усі основні обробники підключені!")
 
 
-# =========================
-# Запуск
-# =========================
+# =========================================================
+# ЗАПУСК
+# =========================================================
 
 if __name__ == "__main__":
 
@@ -90,13 +104,39 @@ if __name__ == "__main__":
 
     try:
         bot.remove_webhook()
-    except Exception as e:
-        print(f"⚠️ Помилка видалення webhook: {e}")
+
+    except Exception as error:
+
+        print(
+            f"⚠️ Помилка видалення webhook: {error}"
+        )
 
 
-    print("🚀 Запуск бота Хроніки Грінвуду...")
+    print(
+        "🚀 Запуск бота Хроніки Грінвуду..."
+    )
 
-start_scheduler()
+
+    # -----------------------------------------------------
+    # ЗАПУСК ПЛАНУВАЛЬНИКА
+    # -----------------------------------------------------
+
+    start_scheduler()
+
+
+    print(
+        "⏰ Планувальник підсумків запущено."
+    )
+
+    print(
+        "🌅 Щоденні підсумки: 07:00 за Києвом."
+    )
+
+
+    # -----------------------------------------------------
+    # TELEGRAM POLLING
+    # -----------------------------------------------------
+
     bot.infinity_polling(
         skip_pending=True
     )
