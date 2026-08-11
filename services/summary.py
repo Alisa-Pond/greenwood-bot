@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from services.database import get_player, update_player
+from services.config import supabase, bot
 
 
 # =========================================================
@@ -10,6 +11,7 @@ from services.database import get_player, update_player
 
 KYIV = ZoneInfo("Europe/Kyiv")
 
+
 SPHERE_NAMES = {
     "health": "💪",
     "wisdom": "🧠",
@@ -17,6 +19,7 @@ SPHERE_NAMES = {
     "finance": "💵",
     "relations": "🤝"
 }
+
 
 WEEKDAYS = [
     "пн",
@@ -37,8 +40,10 @@ def get_greenwood_date(dt=None):
     """
     Доба Грінвуду починається о 07:00 за Києвом.
 
-    06:59  -> ще попередня доба
-    07:00  -> вже нова доба
+    Наприклад:
+
+    06:30 11.08 → ще доба 10.08
+    07:00 11.08 → вже доба 11.08
     """
 
     if dt is None:
@@ -79,21 +84,57 @@ def get_xp(item):
         return 0.0
 
 
+def parse_date(value):
+    """
+    Підтримує:
+    DD.MM.YY
+    DD.MM.YYYY
+    ISO datetime
+    """
+
+    if not value:
+        return None
+
+    if hasattr(value, "date"):
+        try:
+            return value.date()
+        except Exception:
+            pass
+
+    value = str(value).strip()
+
+    formats = [
+        "%d.%m.%y",
+        "%d.%m.%Y",
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f"
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+
+    return None
+
+
 # =========================================================
 # СФЕРИ
 # =========================================================
 
-def get_spheres(item):
+def normalize_spheres(item):
     """
-    Підтримує формати:
+    Повертає сфери у вигляді ключів:
 
-    ["health", "art"]
+    ["health", "art", "relations"]
 
-    ["💪", "🎨"]
-
-    [{"key": "health", "emoji": "💪"}]
-
-    [{"emoji": "💪"}]
+    Підтримує:
+    - health
+    - 💪
+    - список
+    - старі формати
     """
 
     spheres = item.get("spheres")
@@ -104,24 +145,19 @@ def get_spheres(item):
     if not spheres:
         return []
 
-    # -----------------------------------------------------
-    # Рядок
-    # -----------------------------------------------------
-
     if isinstance(spheres, str):
 
         result = []
 
         for key, emoji in SPHERE_NAMES.items():
 
-            if key in spheres or emoji in spheres:
+            if key in spheres:
                 result.append(key)
 
-        return result
+            elif emoji in spheres:
+                result.append(key)
 
-    # -----------------------------------------------------
-    # Список
-    # -----------------------------------------------------
+        return list(dict.fromkeys(result))
 
     if isinstance(spheres, list):
 
@@ -145,57 +181,82 @@ def get_spheres(item):
                         result.append(sphere_key)
                         break
 
-            elif sphere in SPHERE_NAMES:
+                continue
+
+            if sphere in SPHERE_NAMES:
 
                 result.append(sphere)
+                continue
 
-            elif sphere in SPHERE_NAMES.values():
+            for key, emoji in SPHERE_NAMES.items():
 
-                for key, emoji in SPHERE_NAMES.items():
+                if sphere == emoji:
+                    result.append(key)
+                    break
 
-                    if sphere == emoji:
-                        result.append(key)
-                        break
-
-        return result
+        return list(dict.fromkeys(result))
 
     return []
 
 
-def sphere_emoji(sphere):
-    return SPHERE_NAMES.get(
-        sphere,
-        sphere
-    )
+# =========================================================
+# ІСТОРІЯ
+# =========================================================
+
+def get_completed_history(player):
+    """
+    completed_history є ОКРЕМОЮ колонкою Supabase.
+
+    Не беремо її з statistics.
+    """
+
+    history = player.get("completed_history")
+
+    if not isinstance(history, list):
+        return []
+
+    return history
+
+
+def save_completed_history(player, history):
+    player["completed_history"] = history
 
 
 # =========================================================
-# ДАТА ДЕДЛАЙНУ
+# ПЕРЕВІРКА ЧИ ШТРАФ ВЖЕ НАКЛАДАВСЯ
 # =========================================================
 
-def parse_deadline(value):
+def penalty_already_applied(
+    history,
+    activity_type,
+    title,
+    deadline
+):
+    """
+    Не дозволяє стягувати один і той самий штраф
+    повторно кожного ранку.
 
-    if not value:
-        return None
+    Для ідентифікації використовуємо:
+    тип + назву + дедлайн.
+    """
 
-    if not isinstance(value, str):
-        return None
+    for entry in history:
 
-    for fmt in (
-        "%d.%m.%y",
-        "%d.%m.%Y"
-    ):
-
-        try:
-            return datetime.strptime(
-                value,
-                fmt
-            ).date()
-
-        except ValueError:
+        if entry.get("type") != "penalty":
             continue
 
-    return None
+        if entry.get("activity_type") != activity_type:
+            continue
+
+        if entry.get("title") != title:
+            continue
+
+        if entry.get("deadline") != deadline:
+            continue
+
+        return True
+
+    return False
 
 
 # =========================================================
@@ -204,8 +265,8 @@ def parse_deadline(value):
 
 def calculate_penalty(xp):
     """
-    Штраф за прострочене завдання:
-    2/3 від початкової нагороди.
+    За пропущену справу стягується 2/3
+    від зазначеної при створенні нагороди.
     """
 
     return xp * (2 / 3)
@@ -214,10 +275,7 @@ def calculate_penalty(xp):
 def subtract_total_xp(player, xp):
 
     current = float(
-        player.get(
-            "xp_total",
-            0
-        )
+        player.get("xp_total", 0)
     )
 
     player["xp_total"] = max(
@@ -231,13 +289,21 @@ def subtract_xp_from_spheres(
     spheres,
     total_xp
 ):
+    """
+    Віднімає штраф із сфер.
+
+    Якщо:
+        12 XP штрафу
+        3 сфери
+
+    то:
+        -4 XP з кожної.
+    """
 
     if not spheres or total_xp <= 0:
         return
 
-    player_spheres = player.get(
-        "spheres"
-    ) or {}
+    player_spheres = player.get("spheres") or {}
 
     share = total_xp / len(spheres)
 
@@ -246,7 +312,7 @@ def subtract_xp_from_spheres(
         if sphere not in player_spheres:
             continue
 
-        current = float(
+        current_xp = float(
             player_spheres[sphere].get(
                 "xp",
                 0
@@ -255,365 +321,29 @@ def subtract_xp_from_spheres(
 
         player_spheres[sphere]["xp"] = max(
             0,
-            current - share
+            current_xp - share
         )
 
 
 # =========================================================
-# СИСТЕМА ЗАПОБІГАННЯ ПОВТОРНОМУ ШТРАФУ
-# =========================================================
-
-def get_penalized_items(player):
-
-    statistics = player.get(
-        "statistics"
-    ) or {}
-
-    penalized = statistics.get(
-        "penalized_items"
-    )
-
-    if not isinstance(
-        penalized,
-        list
-    ):
-        penalized = []
-
-    return penalized
-
-
-def make_item_identifier(
-    item,
-    item_type
-):
-
-    """
-    Створює стабільний ідентифікатор
-    для простроченого завдання.
-
-    Це потрібно, щоб один і той самий
-    сувій / ритуал / рослина не штрафувався
-    щоранку повторно.
-    """
-
-    title = get_title(item)
-    xp = get_xp(item)
-
-    deadline = (
-        item.get("deadline")
-        or item.get("date")
-        or ""
-    )
-
-    created_at = item.get(
-        "created_at",
-        ""
-    )
-
-    return (
-        f"{item_type}|"
-        f"{title}|"
-        f"{xp}|"
-        f"{deadline}|"
-        f"{created_at}"
-    )
-
-
-def mark_item_penalized(
-    player,
-    identifier
-):
-
-    statistics = player.get(
-        "statistics"
-    ) or {}
-
-    penalized = get_penalized_items(
-        player
-    )
-
-    if identifier not in penalized:
-
-        penalized.append(
-            identifier
-        )
-
-    statistics[
-        "penalized_items"
-    ] = penalized
-
-    player[
-        "statistics"
-    ] = statistics
-
-
-# =========================================================
-# ІСТОРІЯ ВИКОНАНИХ СПРАВ
-# =========================================================
-
-def get_completed_history(player):
-
-    """
-    completed_history є ОКРЕМОЮ колонкою Supabase.
-
-    НЕ беремо її з statistics.
-    """
-
-    history = player.get(
-        "completed_history"
-    )
-
-    if not isinstance(
-        history,
-        list
-    ):
-        history = []
-
-    return history
-
-
-# =========================================================
-# ВИТЯГУВАННЯ ВИКОНАНИХ СПРАВ
-# =========================================================
-
-def get_completed_for_date(
-    player,
-    target_date
-):
-
-    """
-    Шукає виконані справи за greenwood_date.
-
-    Також підтримує completed_date
-    у форматі DD.MM.YYYY.
-    """
-
-    history = get_completed_history(
-        player
-    )
-
-    result = []
-
-    target_iso = target_date.isoformat()
-    target_normal = target_date.strftime(
-        "%d.%m.%Y"
-    )
-
-    for entry in history:
-
-        greenwood_date = entry.get(
-            "greenwood_date"
-        )
-
-        completed_date = entry.get(
-            "completed_date"
-        )
-
-        if (
-            greenwood_date == target_iso
-            or completed_date == target_normal
-        ):
-
-            result.append(
-                entry
-            )
-
-    return result
-
-
-# =========================================================
-# АРХІВИ
-# =========================================================
-
-def get_scroll_archive(player):
-
-    archive = player.get(
-        "scroll_archive"
-    )
-
-    if not isinstance(
-        archive,
-        list
-    ):
-        return []
-
-    return archive
-
-
-def get_ritual_archive(player):
-
-    archive = player.get(
-        "ritual_archive"
-    )
-
-    if not isinstance(
-        archive,
-        list
-    ):
-        return []
-
-    return archive
-
-
-# =========================================================
-# ОБ'ЄДНЕННЯ ВИКОНАНИХ СПРАВ
-# =========================================================
-
-def get_completed_activities(
-    player,
-    target_date
-):
-
-    """
-    Основне джерело:
-        completed_history
-
-    Додатково підтримує:
-        scroll_archive
-        ritual_archive
-
-    Це зроблено для сумісності з уже існуючими
-    записами Supabase.
-    """
-
-    result = []
-
-    # -----------------------------------------------------
-    # completed_history
-    # -----------------------------------------------------
-
-    history = get_completed_for_date(
-        player,
-        target_date
-    )
-
-    for entry in history:
-
-        result.append(
-            entry
-        )
-
-    # -----------------------------------------------------
-    # scroll_archive
-    # -----------------------------------------------------
-
-    for scroll in get_scroll_archive(
-        player
-    ):
-
-        completed_date = scroll.get(
-            "completed_date"
-        )
-
-        if completed_date == target_date.strftime(
-            "%d.%m.%Y"
-        ):
-
-            entry = dict(scroll)
-
-            entry["type"] = "scroll"
-
-            result.append(
-                entry
-            )
-
-    # -----------------------------------------------------
-    # ritual_archive
-    # -----------------------------------------------------
-
-    for ritual in get_ritual_archive(
-        player
-    ):
-
-        completed_date = ritual.get(
-            "completed_date"
-        )
-
-        if completed_date == target_date.strftime(
-            "%d.%m.%Y"
-        ):
-
-            entry = dict(ritual)
-
-            entry["type"] = "ritual"
-
-            result.append(
-                entry
-            )
-
-    return result
-
-
-# =========================================================
-# ТИП ВИКОНАНОЇ СПРАВИ
-# =========================================================
-
-def detect_activity_type(entry):
-
-    entry_type = (
-        entry.get("type")
-        or entry.get("activity_type")
-        or entry.get("quest_type")
-    )
-
-    if entry_type:
-        entry_type = str(
-            entry_type
-        ).lower()
-
-        if entry_type in (
-            "scroll",
-            "suvoy",
-            "сувій"
-        ):
-            return "scroll"
-
-        if entry_type in (
-            "ritual",
-            "ритуал"
-        ):
-            return "ritual"
-
-        if entry_type in (
-            "plant",
-            "plant_archive",
-            "рослина"
-        ):
-            return "plant"
-
-    # -----------------------------------------------------
-    # Якщо тип не записаний
-    # -----------------------------------------------------
-
-    if "reward" in entry:
-        return "plant"
-
-    return "unknown"
-
-
-# =========================================================
-# РИТУАЛ НА ПЕВНУ ДАТУ
+# РИТУАЛИ
 # =========================================================
 
 def ritual_is_for_date(
     ritual,
     target_date
 ):
+    """
+    Перевіряє, чи мав ритуал виконуватися
+    у конкретну добу.
+    """
 
-    if ritual.get(
-        "daily"
-    ) is True:
-
+    if ritual.get("daily") is True:
         return True
 
-    days = ritual.get(
-        "days"
-    ) or []
+    days = ritual.get("days") or []
 
-    if not isinstance(
-        days,
-        list
-    ):
+    if not isinstance(days, list):
         return False
 
     weekday_number = target_date.weekday()
@@ -621,9 +351,7 @@ def ritual_is_for_date(
     if weekday_number in days:
         return True
 
-    weekday_name = WEEKDAYS[
-        weekday_number
-    ]
+    weekday_name = WEEKDAYS[weekday_number]
 
     if weekday_name in days:
         return True
@@ -631,157 +359,349 @@ def ritual_is_for_date(
     return False
 
 
-# =========================================================
-# ПРОПУЩЕНІ ЗАВДАННЯ
-# =========================================================
-
-def process_missed_activity(
-    player,
-    item,
-    item_type,
-    current_greenwood_date,
-    missed_activities,
-    penalties_by_sphere
+def ritual_was_completed(
+    ritual,
+    target_date
 ):
+    """
+    Перевіряє last_completed.
 
-    identifier = make_item_identifier(
-        item,
-        item_type
+    complete_activity.py записує дату
+    у форматі DD.MM.YYYY.
+    """
+
+    last_completed = ritual.get(
+        "last_completed"
     )
 
-    penalized_items = get_penalized_items(
-        player
+    if not last_completed:
+        return False
+
+    completed_date = parse_date(
+        last_completed
     )
 
-    # -----------------------------------------------------
-    # Уже штрафували
-    # -----------------------------------------------------
+    return completed_date == target_date
 
-    if identifier in penalized_items:
-        return
 
-    xp = get_xp(item)
+# =========================================================
+# АРХІВ ВИКОНАНИХ СПРАВ
+# =========================================================
 
-    if xp <= 0:
-        return
+def get_completed_from_archive(
+    archive,
+    target_date,
+    activity_type
+):
+    """
+    Витягує виконані справи з архіву
+    за конкретну добу Грінвуду.
+    """
 
-    penalty = calculate_penalty(
-        xp
-    )
+    result = []
 
-    spheres = get_spheres(
-        item
-    )
+    if not isinstance(archive, list):
+        return result
 
-    # -----------------------------------------------------
-    # Знімаємо загальний XP
-    # -----------------------------------------------------
+    for entry in archive:
 
-    subtract_total_xp(
-        player,
-        penalty
-    )
-
-    # -----------------------------------------------------
-    # Знімаємо XP зі сфер
-    # -----------------------------------------------------
-
-    subtract_xp_from_spheres(
-        player,
-        spheres,
-        penalty
-    )
-
-    # -----------------------------------------------------
-    # Записуємо штраф по сферах
-    # -----------------------------------------------------
-
-    if spheres:
-
-        share = (
-            penalty / len(spheres)
+        completed_date = parse_date(
+            entry.get("completed_date")
         )
 
-        for sphere in spheres:
+        if completed_date != target_date:
+            continue
 
-            if sphere in penalties_by_sphere:
+        result.append({
+            "type": activity_type,
+            "title": get_title(entry),
+            "xp": get_xp(entry),
+            "spheres": normalize_spheres(entry)
+        })
 
-                penalties_by_sphere[
-                    sphere
-                ] += share
-
-    # -----------------------------------------------------
-    # Запам'ятовуємо штраф
-    # -----------------------------------------------------
-
-    mark_item_penalized(
-        player,
-        identifier
-    )
-
-    missed_activities.append(
-        {
-            "type": item_type,
-            "title": get_title(item),
-            "xp": xp,
-            "penalty": penalty
-        }
-    )
+    return result
 
 
 # =========================================================
-# ПЕРЕВІРКА ПРОСТРОЧЕНИХ СПРАВ
+# ВИКОНАНІ СПРАВИ
 # =========================================================
 
-def process_missed_activities(
+def get_completed_activities(
     player,
-    current_greenwood_date,
+    target_date
+):
+    """
+    Джерела:
+
+    📜 scroll_archive
+    🔄 ritual_archive
+    🌱 plant_archive
+    """
+
+    completed = []
+
+    completed.extend(
+        get_completed_from_archive(
+            player.get("scroll_archive") or [],
+            target_date,
+            "scroll"
+        )
+    )
+
+    completed.extend(
+        get_completed_from_archive(
+            player.get("ritual_archive") or [],
+            target_date,
+            "ritual"
+        )
+    )
+
+    completed.extend(
+        get_completed_from_archive(
+            player.get("plant_archive") or [],
+            target_date,
+            "plant"
+        )
+    )
+
+    return completed
+
+
+# =========================================================
+# ШТРАФИ ЗА ПРОПУЩЕНІ СУВОЇ
+# =========================================================
+
+def process_missed_scrolls(
+    player,
+    current_date,
+    history,
     penalties_by_sphere
 ):
+    """
+    Перевіряє активні сувої.
 
-    missed_activities = []
+    Якщо дедлайн минув:
+        штраф = 2/3 XP
 
-    # =====================================================
-    # СУВОЇ
-    # =====================================================
+    Після цього сувій видаляється
+    з активних.
+    """
 
-    scrolls = player.get(
-        "scrolls"
-    ) or []
+    scrolls = player.get("scrolls") or []
+
+    remaining_scrolls = []
+    missed = []
 
     for scroll in scrolls:
 
-        deadline = parse_deadline(
-            scroll.get("deadline")
-            or scroll.get("date")
+        deadline_value = scroll.get(
+            "deadline"
         )
 
-        if not deadline:
-            continue
+        deadline = parse_date(
+            deadline_value
+        )
 
-        if deadline < current_greenwood_date:
+        if deadline is None:
 
-            process_missed_activity(
-                player,
-                scroll,
-                "scroll",
-                current_greenwood_date,
-                missed_activities,
-                penalties_by_sphere
+            remaining_scrolls.append(
+                scroll
             )
 
-    # =====================================================
-    # РИТУАЛИ
-    # =====================================================
+            continue
 
-    rituals = player.get(
-        "rituals"
-    ) or []
+        if deadline >= current_date:
 
-    previous_date = (
-        current_greenwood_date
-        - timedelta(days=1)
-    )
+            remaining_scrolls.append(
+                scroll
+            )
+
+            continue
+
+        title = get_title(scroll)
+        xp = get_xp(scroll)
+
+        if penalty_already_applied(
+            history,
+            "scroll",
+            title,
+            str(deadline_value)
+        ):
+
+            continue
+
+        penalty = calculate_penalty(xp)
+
+        spheres = normalize_spheres(
+            scroll
+        )
+
+        subtract_total_xp(
+            player,
+            penalty
+        )
+
+        subtract_xp_from_spheres(
+            player,
+            spheres,
+            penalty
+        )
+
+        if spheres:
+
+            share = (
+                penalty / len(spheres)
+            )
+
+            for sphere in spheres:
+
+                if sphere in penalties_by_sphere:
+                    penalties_by_sphere[sphere] += share
+
+        history.append({
+            "type": "penalty",
+            "activity_type": "scroll",
+            "title": title,
+            "xp": xp,
+            "penalty": penalty,
+            "deadline": str(deadline_value),
+            "date": current_date.isoformat()
+        })
+
+        missed.append({
+            "type": "scroll",
+            "title": title,
+            "penalty": penalty
+        })
+
+    player["scrolls"] = remaining_scrolls
+
+    return missed
+
+
+# =========================================================
+# ШТРАФИ ЗА ПРОПУЩЕНІ РОСЛИНИ
+# =========================================================
+
+def process_missed_plants(
+    player,
+    current_date,
+    history,
+    penalties_by_sphere
+):
+    """
+    Рослина є довгостроковою ціллю,
+    але має deadline.
+
+    Якщо deadline минув:
+        штраф = 2/3 XP
+
+    Важливо:
+    рослина НЕ видаляється після штрафу.
+
+    Вона залишається активною, оскільки це
+    довгострокова ціль.
+
+    Повторного штрафу за той самий deadline
+    не буде, оскільки запис потрапляє
+    до completed_history.
+    """
+
+    plants = player.get("plants") or []
+
+    missed = []
+
+    for plant in plants:
+
+        deadline_value = plant.get(
+            "deadline"
+        )
+
+        deadline = parse_date(
+            deadline_value
+        )
+
+        if deadline is None:
+            continue
+
+        if deadline >= current_date:
+            continue
+
+        title = get_title(plant)
+        xp = get_xp(plant)
+
+        if penalty_already_applied(
+            history,
+            "plant",
+            title,
+            str(deadline_value)
+        ):
+            continue
+
+        penalty = calculate_penalty(xp)
+
+        spheres = normalize_spheres(
+            plant
+        )
+
+        subtract_total_xp(
+            player,
+            penalty
+        )
+
+        subtract_xp_from_spheres(
+            player,
+            spheres,
+            penalty
+        )
+
+        if spheres:
+
+            share = (
+                penalty / len(spheres)
+            )
+
+            for sphere in spheres:
+
+                if sphere in penalties_by_sphere:
+                    penalties_by_sphere[sphere] += share
+
+        history.append({
+            "type": "penalty",
+            "activity_type": "plant",
+            "title": title,
+            "xp": xp,
+            "penalty": penalty,
+            "deadline": str(deadline_value),
+            "date": current_date.isoformat()
+        })
+
+        missed.append({
+            "type": "plant",
+            "title": title,
+            "penalty": penalty
+        })
+
+    return missed
+
+
+# =========================================================
+# ПРОПУЩЕНІ РИТУАЛИ
+# =========================================================
+
+def process_missed_rituals(
+    player,
+    previous_date,
+    history,
+    penalties_by_sphere
+):
+    """
+    Перевіряє ритуали попередньої доби.
+    """
+
+    rituals = player.get("rituals") or []
+
+    missed = []
 
     for ritual in rituals:
 
@@ -791,64 +711,72 @@ def process_missed_activities(
         ):
             continue
 
-        last_completed = ritual.get(
-            "last_completed"
-        )
-
-        previous_normal = (
-            previous_date.strftime(
-                "%d.%m.%Y"
-            )
-        )
-
-        previous_iso = (
-            previous_date.isoformat()
-        )
-
-        if last_completed in (
-            previous_normal,
-            previous_iso
+        if ritual_was_completed(
+            ritual,
+            previous_date
         ):
             continue
 
-        process_missed_activity(
-            player,
-            ritual,
+        title = get_title(ritual)
+        xp = get_xp(ritual)
+
+        deadline_key = (
+            previous_date.isoformat()
+        )
+
+        if penalty_already_applied(
+            history,
             "ritual",
-            current_greenwood_date,
-            missed_activities,
-            penalties_by_sphere
-        )
-
-    # =====================================================
-    # РОСЛИНИ
-    # =====================================================
-
-    plants = player.get(
-        "plants"
-    ) or []
-
-    for plant in plants:
-
-        deadline = parse_deadline(
-            plant.get("deadline")
-        )
-
-        if not deadline:
+            title,
+            deadline_key
+        ):
             continue
 
-        if deadline < current_greenwood_date:
+        penalty = calculate_penalty(xp)
 
-            process_missed_activity(
-                player,
-                plant,
-                "plant",
-                current_greenwood_date,
-                missed_activities,
-                penalties_by_sphere
+        spheres = normalize_spheres(
+            ritual
+        )
+
+        subtract_total_xp(
+            player,
+            penalty
+        )
+
+        subtract_xp_from_spheres(
+            player,
+            spheres,
+            penalty
+        )
+
+        if spheres:
+
+            share = (
+                penalty / len(spheres)
             )
 
-    return missed_activities
+            for sphere in spheres:
+
+                if sphere in penalties_by_sphere:
+                    penalties_by_sphere[sphere] += share
+
+        history.append({
+            "type": "penalty",
+            "activity_type": "ritual",
+            "title": title,
+            "xp": xp,
+            "penalty": penalty,
+            "deadline": deadline_key,
+            "date": previous_date.isoformat()
+        })
+
+        missed.append({
+            "type": "ritual",
+            "title": title,
+            "penalty": penalty
+        })
+
+    return missed
 
 
 # =========================================================
@@ -857,8 +785,12 @@ def process_missed_activities(
 
 def build_agenda(
     player,
-    target_date
+    current_date
 ):
+    """
+    Формує список активних справ
+    на поточну добу.
+    """
 
     lines = []
 
@@ -866,26 +798,20 @@ def build_agenda(
     # СУВОЇ
     # -----------------------------------------------------
 
-    scrolls = player.get(
-        "scrolls"
-    ) or []
+    for scroll in player.get("scrolls") or []:
 
-    for scroll in scrolls:
+        title = get_title(scroll)
+        xp = get_xp(scroll)
 
-        title = get_title(
-            scroll
+        deadline_value = scroll.get(
+            "deadline"
         )
 
-        xp = get_xp(
-            scroll
+        deadline = parse_date(
+            deadline_value
         )
 
-        deadline = parse_deadline(
-            scroll.get("deadline")
-            or scroll.get("date")
-        )
-
-        if deadline == target_date:
+        if deadline == current_date:
 
             icon = "🔥"
 
@@ -902,25 +828,16 @@ def build_agenda(
     # РИТУАЛИ
     # -----------------------------------------------------
 
-    rituals = player.get(
-        "rituals"
-    ) or []
-
-    for ritual in rituals:
+    for ritual in player.get("rituals") or []:
 
         if not ritual_is_for_date(
             ritual,
-            target_date
+            current_date
         ):
             continue
 
-        title = get_title(
-            ritual
-        )
-
-        xp = get_xp(
-            ritual
-        )
+        title = get_title(ritual)
+        xp = get_xp(ritual)
 
         lines.append(
             f"🔄 <b>{title}</b> "
@@ -931,25 +848,20 @@ def build_agenda(
     # РОСЛИНИ
     # -----------------------------------------------------
 
-    plants = player.get(
-        "plants"
-    ) or []
+    for plant in player.get("plants") or []:
 
-    for plant in plants:
+        title = get_title(plant)
+        xp = get_xp(plant)
 
-        title = get_title(
-            plant
+        deadline_value = plant.get(
+            "deadline"
         )
 
-        xp = get_xp(
-            plant
+        deadline = parse_date(
+            deadline_value
         )
 
-        deadline = parse_deadline(
-            plant.get("deadline")
-        )
-
-        if deadline == target_date:
+        if deadline == current_date:
 
             icon = "🔥"
 
@@ -966,187 +878,32 @@ def build_agenda(
 
 
 # =========================================================
-# ОНОВЛЕННЯ STATISTICS
+# ЗБЕРЕЖЕННЯ ПІДСУМКУ
 # =========================================================
 
-def update_statistics(
-    player,
-    current_greenwood_date
+def save_summary_data(
+    user_id,
+    player
 ):
-
     """
-    statistics використовується тільки
-    для службової статистики.
+    Оновлює тільки ті колонки,
+    які реально використовуються summary.
 
-    completed_history сюди НЕ записуємо.
+    completed_history є окремою колонкою.
     """
 
-    statistics = player.get(
-        "statistics"
-    ) or {}
+    statistics = (
+        player.get("statistics")
+        or {}
+    )
+
+    current_date = get_greenwood_date()
 
     statistics[
         "last_summary_date"
-    ] = current_greenwood_date.isoformat()
+    ] = current_date.isoformat()
 
-    # Якщо цих значень немає,
-    # створюємо їх без руйнування старої статистики.
-
-    statistics.setdefault(
-        "plants_harvested",
-        0
-    )
-
-    statistics.setdefault(
-        "completed_rituals",
-        0
-    )
-
-    statistics.setdefault(
-        "completed_scrolls",
-        0
-    )
-
-    statistics.setdefault(
-        "expeditions_completed",
-        0
-    )
-
-    player[
-        "statistics"
-    ] = statistics
-
-
-# =========================================================
-# ФОРМУВАННЯ ПІДСУМКУ ОДНОГО ГРАВЦЯ
-# =========================================================
-
-def make_player_summary(user_id):
-
-    player = get_player(
-        user_id
-    )
-
-    now = datetime.now(
-        KYIV
-    )
-
-    current_greenwood_date = (
-        get_greenwood_date(
-            now
-        )
-    )
-
-    previous_date = (
-        current_greenwood_date
-        - timedelta(days=1)
-    )
-
-    # =====================================================
-    # ВИКОНАНІ СПРАВИ
-    # =====================================================
-
-    completed = get_completed_activities(
-        player,
-        previous_date
-    )
-
-    completed_scrolls = []
-    completed_rituals = []
-    completed_plants = []
-
-    earned_by_sphere = {
-        key: 0.0
-        for key in SPHERE_NAMES
-    }
-
-    for entry in completed:
-
-        entry_type = detect_activity_type(
-            entry
-        )
-
-        title = get_title(
-            entry
-        )
-
-        xp = get_xp(
-            entry
-        )
-
-        spheres = get_spheres(
-            entry
-        )
-
-        # -------------------------------------------------
-        # XP по сферах
-        # -------------------------------------------------
-
-        if spheres:
-
-            share = (
-                xp / len(spheres)
-            )
-
-            for sphere in spheres:
-
-                if sphere in earned_by_sphere:
-
-                    earned_by_sphere[
-                        sphere
-                    ] += share
-
-        # -------------------------------------------------
-        # Категорії
-        # -------------------------------------------------
-
-        if entry_type == "scroll":
-
-            completed_scrolls.append(
-                (title, xp)
-            )
-
-        elif entry_type == "ritual":
-
-            completed_rituals.append(
-                (title, xp)
-            )
-
-        elif entry_type == "plant":
-
-            completed_plants.append(
-                (title, xp)
-            )
-
-    # =====================================================
-    # ПРОПУЩЕНІ
-    # =====================================================
-
-    penalties_by_sphere = {
-        key: 0.0
-        for key in SPHERE_NAMES
-    }
-
-    missed_activities = (
-        process_missed_activities(
-            player,
-            current_greenwood_date,
-            penalties_by_sphere
-        )
-    )
-
-    # =====================================================
-    # ОНОВЛЮЄМО STATISTICS
-    # =====================================================
-
-    update_statistics(
-        player,
-        current_greenwood_date
-    )
-
-    # =====================================================
-    # ЗБЕРІГАЄМО ВСІ ПОТРІБНІ КОЛОНКИ
-    # =====================================================
+    player["statistics"] = statistics
 
     update_player(
         user_id,
@@ -1166,25 +923,167 @@ def make_player_summary(user_id):
                 []
             ),
 
-            "rituals": player.get(
-                "rituals",
-                []
-            ),
-
             "plants": player.get(
                 "plants",
                 []
             ),
 
-            "statistics": player.get(
-                "statistics",
-                {}
-            )
+            "completed_history": player.get(
+                "completed_history",
+                []
+            ),
+
+            "statistics": statistics
         }
     )
 
+
+# =========================================================
+# ПІДСУМОК ОДНОГО ГРАВЦЯ
+# =========================================================
+
+def make_player_summary(user_id):
+
+    player = get_player(user_id)
+
+    now = datetime.now(KYIV)
+
+    current_greenwood_date = get_greenwood_date(
+        now
+    )
+
+    previous_date = (
+        current_greenwood_date
+        - timedelta(days=1)
+    )
+
     # =====================================================
-    # ТЕКСТ
+    # ІСТОРІЯ ШТРАФІВ
+    # =====================================================
+
+    history = get_completed_history(
+        player
+    )
+
+    # =====================================================
+    # ВИКОНАНІ СПРАВИ
+    # =====================================================
+
+    completed = get_completed_activities(
+        player,
+        previous_date
+    )
+
+    earned_by_sphere = {
+        sphere: 0.0
+        for sphere in SPHERE_NAMES
+    }
+
+    penalties_by_sphere = {
+        sphere: 0.0
+        for sphere in SPHERE_NAMES
+    }
+
+    completed_scrolls = []
+    completed_rituals = []
+    completed_plants = []
+
+    for entry in completed:
+
+        xp = entry["xp"]
+        spheres = entry["spheres"]
+
+        if spheres:
+
+            share = xp / len(spheres)
+
+            for sphere in spheres:
+
+                if sphere in earned_by_sphere:
+
+                    earned_by_sphere[
+                        sphere
+                    ] += share
+
+        if entry["type"] == "scroll":
+
+            completed_scrolls.append(
+                (entry["title"], xp)
+            )
+
+        elif entry["type"] == "ritual":
+
+            completed_rituals.append(
+                (entry["title"], xp)
+            )
+
+        elif entry["type"] == "plant":
+
+            completed_plants.append(
+                (entry["title"], xp)
+            )
+
+    # =====================================================
+    # ПРОПУЩЕНІ СПРАВИ
+    # =====================================================
+
+    missed = []
+
+    # -----------------------------------------------------
+    # Сувої
+    # -----------------------------------------------------
+
+    missed.extend(
+        process_missed_scrolls(
+            player,
+            current_greenwood_date,
+            history,
+            penalties_by_sphere
+        )
+    )
+
+    # -----------------------------------------------------
+    # Рослини
+    # -----------------------------------------------------
+
+    missed.extend(
+        process_missed_plants(
+            player,
+            current_greenwood_date,
+            history,
+            penalties_by_sphere
+        )
+    )
+
+    # -----------------------------------------------------
+    # Ритуали
+    # -----------------------------------------------------
+
+    missed.extend(
+        process_missed_rituals(
+            player,
+            previous_date,
+            history,
+            penalties_by_sphere
+        )
+    )
+
+    save_completed_history(
+        player,
+        history
+    )
+
+    # =====================================================
+    # ЗБЕРІГАЄМО
+    # =====================================================
+
+    save_summary_data(
+        user_id,
+        player
+    )
+
+    # =====================================================
+    # ФОРМУЄМО ТЕКСТ
     # =====================================================
 
     text = (
@@ -1230,7 +1129,7 @@ def make_player_summary(user_id):
         for title, xp in completed_plants:
 
             text += (
-                f"🌳 {title} "
+                f"🌱 {title} "
                 f"✨ +{xp:.1f} XP\n"
             )
 
@@ -1241,102 +1140,59 @@ def make_player_summary(user_id):
     # =====================================================
 
     text += (
-        "⚠️ <b>Пропущено за дедлайном</b>\n\n"
+        "⚠️ <b>Пропущено</b>\n\n"
     )
 
-    if not missed_activities:
+    if not missed:
 
         text += (
-            "Нічого не пропущено. 🌿\n\n"
+            "Нічого. Ліс задоволений. 🌿\n\n"
         )
 
     else:
 
-        for activity in missed_activities:
-
-            icon = {
-                "scroll": "📜",
-                "ritual": "🔄",
-                "plant": "🌳"
-            }.get(
-                activity["type"],
-                "❌"
-            )
+        for activity in missed:
 
             text += (
-                f"{icon} <b>{activity['title']}</b>\n"
-                f"   −{activity['penalty']:.1f} XP\n"
+                f"❌ {activity['title']} "
+                f"−{activity['penalty']:.1f} XP\n"
             )
 
         text += "\n"
 
     # =====================================================
-    # РУХ СФЕР
+    # СФЕРИ
     # =====================================================
 
     text += (
         "🎯 <b>Рух сфер</b>\n\n"
     )
 
-    any_activity = False
+    any_sphere_activity = False
 
     for sphere, emoji in SPHERE_NAMES.items():
 
-        earned = earned_by_sphere[
-            sphere
-        ]
+        earned = earned_by_sphere[sphere]
+        penalty = penalties_by_sphere[sphere]
 
-        penalty = penalties_by_sphere[
-            sphere
-        ]
-
-        if (
-            earned == 0
-            and penalty == 0
-        ):
+        if earned == 0 and penalty == 0:
             continue
 
-        any_activity = True
+        any_sphere_activity = True
 
         text += (
             f"{emoji} "
-            f"нараховано: <b>+{earned:.1f}</b> XP"
+            f"+{earned:.1f} / "
+            f"−{penalty:.1f} XP\n"
         )
 
-        if penalty > 0:
-
-            text += (
-                f" | стягнуто: "
-                f"<b>−{penalty:.1f}</b> XP"
-            )
-
-        text += "\n"
-
-    if not any_activity:
+    if not any_sphere_activity:
 
         text += (
-            "Сфери сьогодні не змінювалися.\n"
+            "Сфери сьогодні не змінилися.\n"
         )
 
     text += "\n"
-
-    # =====================================================
-    # ПІДСУМОК XP
-    # =====================================================
-
-    total_earned = sum(
-        earned_by_sphere.values()
-    )
-
-    total_penalty = sum(
-        penalties_by_sphere.values()
-    )
-
-    text += (
-        "📊 <b>Загальний рух</b>\n\n"
-        f"✨ Нараховано: <b>+{total_earned:.1f} XP</b>\n"
-        f"⚠️ Стягнуто: <b>−{total_penalty:.1f} XP</b>\n\n"
-    )
 
     # =====================================================
     # ПОРЯДОК ДЕННИЙ
@@ -1346,7 +1202,8 @@ def make_player_summary(user_id):
         "📖 <b>Порядок денний</b>\n\n"
         f"📅 Сьогодні: "
         f"<b>{format_date(current_greenwood_date)}, "
-        f"{WEEKDAYS[current_greenwood_date.weekday()]}</b>\n\n"
+        f"{WEEKDAYS[current_greenwood_date.weekday()]}"
+        f"</b>\n\n"
     )
 
     agenda = build_agenda(
@@ -1358,9 +1215,7 @@ def make_player_summary(user_id):
 
         for line in agenda:
 
-            text += (
-                f"{line}\n"
-            )
+            text += f"{line}\n"
 
     else:
 
@@ -1377,27 +1232,35 @@ def make_player_summary(user_id):
 # =========================================================
 
 def send_daily_summaries():
-
     """
     Формує та надсилає ранковий підсумок
-    кожному гравцеві.
+    усім гравцям із таблиці players.
 
-    Викликається scheduler.py о 07:00
-    за київським часом.
+    Цю функцію викликає scheduler.py о 07:00.
     """
 
-    from services.database import get_all_players
+    print("🌅 Починаю формування щоденних підсумків...")
 
-    print(
-        "🌅 Починаю формування щоденних підсумків..."
-    )
+    try:
 
-    players = get_all_players()
+        response = (
+            supabase
+            .table("players")
+            .select("user_id")
+            .execute()
+        )
 
-    if not players:
+        players = response.data or []
 
         print(
-            "🌲 Гравців для підсумку не знайдено."
+            f"👥 Знайдено гравців: {len(players)}"
+        )
+
+    except Exception as error:
+
+        print(
+            "❌ Не вдалося отримати список гравців "
+            f"для щоденних підсумків: {error}"
         )
 
         return
@@ -1405,39 +1268,31 @@ def send_daily_summaries():
     sent = 0
     failed = 0
 
-    # Імпортуємо bot тут, а не на початку,
-    # щоб уникнути циклічних імпортів.
+    for player_row in players:
 
-    from services.config import bot
+        user_id = str(
+            player_row.get("user_id")
+        )
 
-    for player in players:
+        if not user_id:
+            continue
 
         try:
 
-            user_id = str(
-                player.get(
-                    "user_id"
-                )
-            )
-
-            if not user_id:
-                continue
-
-            text = make_player_summary(
+            summary = make_player_summary(
                 user_id
             )
 
             bot.send_message(
                 int(user_id),
-                text,
+                summary,
                 parse_mode="HTML"
             )
 
             sent += 1
 
             print(
-                f"✅ Підсумок відправлено "
-                f"user_id={user_id}"
+                f"✅ Підсумок відправлено: {user_id}"
             )
 
         except Exception as error:
@@ -1445,14 +1300,12 @@ def send_daily_summaries():
             failed += 1
 
             print(
-                f"❌ Не вдалося відправити "
-                f"підсумок user_id="
-                f"{player.get('user_id')}: "
-                f"{error}"
+                f"❌ Помилка підсумку "
+                f"для {user_id}: {error}"
             )
 
     print(
-        f"🌅 Підсумки завершено. "
+        "🌅 Щоденні підсумки завершено. "
         f"Відправлено: {sent}, "
         f"помилок: {failed}"
     )
