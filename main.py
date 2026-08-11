@@ -76,7 +76,6 @@ import handlers.my_quests.expedition.menu
 import handlers.backpack
 
 from services.scheduler import start_scheduler
-start_scheduler()
 
 print("🎉 Усі основні обробники підключені!")
 
@@ -97,6 +96,7 @@ if __name__ == "__main__":
 
     print("🚀 Запуск бота Хроніки Грінвуду...")
 
+start_scheduler()
     bot.infinity_polling(
         skip_pending=True
     )
