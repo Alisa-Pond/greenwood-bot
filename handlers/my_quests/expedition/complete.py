@@ -4,27 +4,36 @@ from datetime import datetime, timezone
 from services.config import bot
 from services.database import get_player, update_player
 
-from handlers.my_quests.expedition.menu import get_active_expedition
+from keyboards import get_quests_menu
+
+from handlers.my_quests.expedition.menu import (
+    get_active_expedition
+)
+
 from handlers.my_quests.expedition.timer import (
     calculate_active_seconds,
     format_expedition_time
 )
-from handlers.my_quests.expedition.items import EXPEDITION_ITEMS
+
+from handlers.my_quests.expedition.items import (
+    EXPEDITION_ITEMS
+)
 
 
 print("🏁 Реєструємо завершення експедицій...")
 
 
 # =========================================================
-# НАЛАШТУВАННЯ XP
+# XP
 # =========================================================
 
-# 5 XP за кожні повні 30 хвилин
+# За кожні повні 30 хвилин експедиції
+# загін приносить 5 XP.
 XP_PER_30_MINUTES = 5
 
 
 # =========================================================
-# НАЛАШТУВАННЯ ЛУТУ
+# ЙМОВІРНОСТІ ЛУТУ
 # =========================================================
 
 LOOT_CHANCES = {
@@ -35,10 +44,11 @@ LOOT_CHANCES = {
 
 
 # =========================================================
-# СФЕРИ
+# НАЗВИ СФЕР
 # =========================================================
 
 SPHERE_NAMES = {
+
     "health": "💪 Здоров'я",
     "wisdom": "🧠 Мудрість",
     "art": "🎨 Творчість",
@@ -48,65 +58,98 @@ SPHERE_NAMES = {
 
 
 # =========================================================
-# ВИПАДКОВИЙ ПРЕДМЕТ
+# ВИБІР ВИПАДКОВОГО ПРЕДМЕТА
 # =========================================================
 
 def get_random_item():
 
     roll = random.random()
 
+    # -----------------------------------------------------
+    # ДУЖЕ РІДКІСНИЙ
+    # -----------------------------------------------------
+
     if roll < LOOT_CHANCES["very_rare"]:
+
         rarity = "very_rare"
+
+    # -----------------------------------------------------
+    # РІДКІСНИЙ
+    # -----------------------------------------------------
 
     elif roll < (
         LOOT_CHANCES["very_rare"]
         + LOOT_CHANCES["rare"]
     ):
+
         rarity = "rare"
+
+    # -----------------------------------------------------
+    # ЗВИЧАЙНИЙ
+    # -----------------------------------------------------
 
     elif roll < (
         LOOT_CHANCES["very_rare"]
         + LOOT_CHANCES["rare"]
         + LOOT_CHANCES["common"]
     ):
+
         rarity = "common"
 
+    # -----------------------------------------------------
+    # НІЧОГО
+    # -----------------------------------------------------
+
     else:
+
         return None
 
     available_items = [
         item_id
-        for item_id, item_data in EXPEDITION_ITEMS.items()
+        for item_id, item_data
+        in EXPEDITION_ITEMS.items()
         if item_data.get("rarity") == rarity
     ]
 
     if not available_items:
+
         return None
 
-    return random.choice(available_items)
+    return random.choice(
+        available_items
+    )
 
 
 # =========================================================
 # ПОШУК АРТЕФАКТІВ
 # =========================================================
 
-def find_expedition_items(active_seconds):
+def find_expedition_items(
+    active_seconds
+):
 
-    completed_periods = int(
-        active_seconds
-    ) // 1800
+    completed_periods = (
+        int(active_seconds)
+        // 1800
+    )
 
     if completed_periods <= 0:
+
         return []
 
     found_items = []
 
-    for _ in range(completed_periods):
+    for _ in range(
+        completed_periods
+    ):
 
         item_id = get_random_item()
 
         if item_id:
-            found_items.append(item_id)
+
+            found_items.append(
+                item_id
+            )
 
     return found_items
 
@@ -116,18 +159,16 @@ def find_expedition_items(active_seconds):
 # =========================================================
 
 def calculate_expedition_xp(
-    active_seconds,
-    spheres_count
+    active_seconds
 ):
 
-    completed_periods = int(
-        active_seconds
-    ) // 1800
+    completed_periods = (
+        int(active_seconds)
+        // 1800
+    )
 
     if completed_periods <= 0:
-        return 0.0
 
-    if spheres_count <= 0:
         return 0.0
 
     return float(
@@ -137,7 +178,7 @@ def calculate_expedition_xp(
 
 
 # =========================================================
-# ДОДАВАННЯ XP СФЕРАМ
+# XP СФЕРАМ
 # =========================================================
 
 def add_xp_to_spheres(
@@ -147,6 +188,23 @@ def add_xp_to_spheres(
 ):
 
     if not spheres:
+
+        return []
+
+    if total_xp <= 0:
+
+        return []
+
+    player_spheres = player.get(
+        "spheres",
+        {}
+    )
+
+    if not isinstance(
+        player_spheres,
+        dict
+    ):
+
         return []
 
     xp_per_sphere = (
@@ -156,11 +214,6 @@ def add_xp_to_spheres(
 
     level_ups = []
 
-    player_spheres = player.get(
-        "spheres",
-        {}
-    )
-
     for sphere_key in spheres:
 
         sphere = player_spheres.get(
@@ -168,6 +221,7 @@ def add_xp_to_spheres(
         )
 
         if not sphere:
+
             continue
 
         sphere["xp"] = float(
@@ -176,6 +230,10 @@ def add_xp_to_spheres(
                 0
             )
         ) + xp_per_sphere
+
+        # -------------------------------------------------
+        # ПІДВИЩЕННЯ РІВНЯ
+        # -------------------------------------------------
 
         while (
             sphere["xp"]
@@ -201,7 +259,7 @@ def add_xp_to_spheres(
 
 
 # =========================================================
-# ДОДАВАННЯ ПРЕДМЕТІВ У РЮКЗАК
+# ДОДАТИ ПРЕДМЕТИ В РЮКЗАК
 # =========================================================
 
 def add_items_to_inventory(
@@ -218,6 +276,7 @@ def add_items_to_inventory(
         inventory,
         list
     ):
+
         inventory = []
 
     for item_id in found_items:
@@ -227,6 +286,7 @@ def add_items_to_inventory(
         )
 
         if not item_data:
+
             continue
 
         item_name = item_data.get(
@@ -234,6 +294,7 @@ def add_items_to_inventory(
         )
 
         if item_name:
+
             inventory.append(
                 item_name
             )
@@ -242,12 +303,15 @@ def add_items_to_inventory(
 
 
 # =========================================================
-# ФОРМУВАННЯ СПИСКУ ЗНАЙДЕНИХ ПРЕДМЕТІВ
+# ФОРМАТУВАННЯ ЗНАХІДОК
 # =========================================================
 
-def format_found_items(found_items):
+def format_found_items(
+    found_items
+):
 
     if not found_items:
+
         return None
 
     counts = {}
@@ -259,6 +323,7 @@ def format_found_items(found_items):
         )
 
         if not item_data:
+
             continue
 
         item_name = item_data.get(
@@ -266,6 +331,7 @@ def format_found_items(found_items):
         )
 
         if not item_name:
+
             continue
 
         counts[item_name] = (
@@ -276,26 +342,24 @@ def format_found_items(found_items):
         )
 
     if not counts:
+
         return None
 
     lines = []
 
     for item_name, count in counts.items():
 
-        if count > 1:
-            lines.append(
-                f"• {item_name} ×{count}"
-            )
-        else:
-            lines.append(
-                f"• {item_name}"
-            )
+        lines.append(
+            f"• {item_name} ×{count}"
+        )
 
-    return "\n".join(lines)
+    return "\n".join(
+        lines
+    )
 
 
 # =========================================================
-# ФОРМУВАННЯ XP-ДОПОВІДІ
+# ФОРМАТУВАННЯ XP
 # =========================================================
 
 def format_xp_report(
@@ -307,7 +371,8 @@ def format_xp_report(
     if total_xp <= 0:
 
         return (
-            "✨ За цей час достатньо не назбиралося "
+            "✨ За цей час загін не встиг "
+            "здобути достатньо досвіду "
             "для нарахування XP."
         )
 
@@ -339,6 +404,7 @@ def format_xp_report(
         for sphere in level_ups:
 
             if sphere not in unique_level_ups:
+
                 unique_level_ups.append(
                     sphere
                 )
@@ -355,13 +421,19 @@ def format_xp_report(
                 f"• {SPHERE_NAMES.get(sphere, sphere)}"
             )
 
-    return "\n".join(lines)
+    return "\n".join(
+        lines
+    )
 
 
 # =========================================================
 # 🏁 ЗАВЕРШЕННЯ ЕКСПЕДИЦІЇ
 # =========================================================
 
+@bot.message_handler(
+    func=lambda message:
+        message.text == "🏁 Завершити експедицію"
+)
 def complete_expedition(message):
 
     user_id = str(
@@ -376,22 +448,32 @@ def complete_expedition(message):
         player
     )
 
+    # =====================================================
+    # НЕМАЄ ЕКСПЕДИЦІЇ
+    # =====================================================
+
     if not expedition:
 
         bot.send_message(
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха:</b>\n\n"
+
                 "Здається, жоден загін зараз "
-                "не перебуває в експедиції."
+                "не перебуває в експедиції.\n\n"
+
+                "Карти порожні, компаси мовчать. "
+                "Мабуть, час відправити когось "
+                "на пошуки пригод."
             ),
-            parse_mode="HTML"
+            parse_mode="HTML",
+            reply_markup=get_quests_menu()
         )
 
         return
 
     # =====================================================
-    # ЧАС
+    # РОЗРАХУНОК ЧАСУ
     # =====================================================
 
     active_seconds = calculate_active_seconds(
@@ -411,6 +493,7 @@ def complete_expedition(message):
         spheres,
         list
     ):
+
         spheres = []
 
     # =====================================================
@@ -418,8 +501,7 @@ def complete_expedition(message):
     # =====================================================
 
     total_xp = calculate_expedition_xp(
-        active_seconds,
-        len(spheres)
+        active_seconds
     )
 
     level_ups = add_xp_to_spheres(
@@ -470,6 +552,7 @@ def complete_expedition(message):
         statistics,
         dict
     ):
+
         statistics = {}
 
     statistics["expeditions_completed"] = (
@@ -483,23 +566,7 @@ def complete_expedition(message):
     )
 
     # =====================================================
-    # ФІНАЛЬНІ ДАНІ ЕКСПЕДИЦІЇ
-    # =====================================================
-
-    expedition["status"] = "completed"
-
-    expedition["completed_at"] = (
-        datetime.now(
-            timezone.utc
-        ).isoformat()
-    )
-
-    expedition["active_seconds"] = (
-        active_seconds
-    )
-
-    # =====================================================
-    # ОЧИЩЕННЯ АКТИВНОЇ ЕКСПЕДИЦІЇ
+    # ОЧИЩАЄМО АКТИВНУ ЕКСПЕДИЦІЮ
     # =====================================================
 
     player["expeditions"] = []
@@ -509,7 +576,7 @@ def complete_expedition(message):
     player["statistics"] = statistics
 
     # =====================================================
-    # ЗБЕРЕЖЕННЯ
+    # ЗБЕРІГАЄМО
     # =====================================================
 
     success = update_player(
@@ -524,7 +591,7 @@ def complete_expedition(message):
     )
 
     # =====================================================
-    # ПОМИЛКА
+    # ПОМИЛКА ЗБЕРЕЖЕННЯ
     # =====================================================
 
     if not success:
@@ -533,11 +600,14 @@ def complete_expedition(message):
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха:</b>\n\n"
+
                 "Загін повернувся до табору, "
-                "але журнал експедиції не вдалося "
-                "надійно оновити.\n\n"
-                "⚠️ Результати експедиції "
-                "не були безпечно збережені."
+                "але виникла проблема із журналом "
+                "експедиції.\n\n"
+
+                "⚠️ Результати не були надійно "
+                "збережені. Спробуй повторити "
+                "завершення трохи пізніше."
             ),
             parse_mode="HTML"
         )
@@ -562,6 +632,10 @@ def complete_expedition(message):
         level_ups
     )
 
+    # =====================================================
+    # ПОЧАТОК ДОПОВІДІ
+    # =====================================================
+
     report = (
         "🐜 <b>ГЕНЕРАЛ МУРАХА ДОПОВІДАЄ!</b>\n\n"
 
@@ -583,6 +657,9 @@ def complete_expedition(message):
         report += (
             "🔎 <b>Під час подорожі мурахи знайшли:</b>\n\n"
             f"{found_text}\n\n"
+
+            "🎒 Усі знахідки передано "
+            "до твого рюкзака.\n\n"
         )
 
     else:
@@ -594,8 +671,8 @@ def complete_expedition(message):
             "залишилися мовчазними.\n\n"
 
             "Мурахи нічого не знайшли, "
-            "але повернулися з новими знаннями "
-            "та польовим досвідом.\n\n"
+            "але повернулися з новими враженнями "
+            "та досвідом.\n\n"
         )
 
     # =====================================================
@@ -607,17 +684,7 @@ def complete_expedition(message):
     )
 
     # =====================================================
-    # РЮКЗАК
-    # =====================================================
-
-    if found_items:
-
-        report += (
-            "🎒 <b>Знахідки додано до твого рюкзака.</b>\n\n"
-        )
-
-    # =====================================================
-    # ФІНАЛ
+    # ФІНАЛЬНА ФРАЗА
     # =====================================================
 
     report += (
@@ -628,8 +695,13 @@ def complete_expedition(message):
         "Загін готовий до наступного наказу.»"
     )
 
+    # =====================================================
+    # ПОВЕРТАЄМО В МЕНЮ "МОЇ КВЕСТИ"
+    # =====================================================
+
     bot.send_message(
         message.chat.id,
         report,
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=get_quests_menu()
     )
