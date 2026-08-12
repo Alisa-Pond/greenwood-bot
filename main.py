@@ -87,6 +87,9 @@ import handlers.my_quests.greenhouse.delete
 import handlers.my_quests.greenhouse.archive
 
 import handlers.my_quests.expedition.menu
+import handlers.my_quests.expedition.start
+import handlers.my_quests.expedition.timer
+import handlers.my_quests.expedition.complete
 
 import handlers.backpack
 
