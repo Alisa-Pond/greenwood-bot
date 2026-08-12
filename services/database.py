@@ -78,6 +78,15 @@ DEFAULT_MAIN_QUEST = {
 # =========================================================
 # СТАТИСТИКА
 # =========================================================
+#
+# Тут НЕ зберігаємо completed_history.
+#
+# Історія виконання живе в окремих архівах:
+# scroll_archive
+# ritual_archive
+# plant_archive
+#
+# =========================================================
 
 DEFAULT_STATISTICS = {
     "completed_scrolls": 0,
@@ -95,11 +104,9 @@ DEFAULT_STATISTICS = {
 def default_player(user_id):
 
     return {
-
         "user_id": str(user_id),
 
         "level": 1,
-
         "xp_total": 0.0,
 
         "inventory": [],
@@ -108,47 +115,26 @@ def default_player(user_id):
             DEFAULT_SPHERES
         ),
 
-        # -------------------------------------------------
         # Активні квести
-        # -------------------------------------------------
-
         "scrolls": [],
-
         "rituals": [],
-
         "plants": [],
-
         "expeditions": [],
 
-        # -------------------------------------------------
         # Архіви
-        # -------------------------------------------------
-
+        "scroll_archive": [],
+        "ritual_archive": [],
         "plant_archive": [],
 
-        "scroll_archive": [],
-
-        "ritual_archive": [],
-
-        # -------------------------------------------------
-        # Старий об'єкт quests
-        # -------------------------------------------------
-
+        # Старе поле quests залишаємо,
+        # щоб не ламати існуючий бот
         "quests": copy.deepcopy(
             DEFAULT_QUESTS
         ),
 
-        # -------------------------------------------------
-        # Основний квест
-        # -------------------------------------------------
-
         "main_quest": copy.deepcopy(
             DEFAULT_MAIN_QUEST
         ),
-
-        # -------------------------------------------------
-        # Статистика
-        # -------------------------------------------------
 
         "statistics": copy.deepcopy(
             DEFAULT_STATISTICS
@@ -162,33 +148,19 @@ def default_player(user_id):
 
 def update_player(user_id, player_data):
 
-    """
-    Оновлює дані ТІЛЬКИ конкретного гравця.
-
-    user_id є головним ідентифікатором.
-    """
-
     try:
-
-        user_id = str(user_id)
 
         data = dict(player_data)
 
-        # -------------------------------------------------
-        # Захист службових полів
-        # -------------------------------------------------
-
+        # Не оновлюємо ідентифікатори
         data.pop("user_id", None)
         data.pop("id", None)
 
-        if not data:
-            return True
-
-        response = (
+        (
             supabase
             .table("players")
             .update(data)
-            .eq("user_id", user_id)
+            .eq("user_id", str(user_id))
             .execute()
         )
 
@@ -212,20 +184,10 @@ def update_player(user_id, player_data):
 
 
 # =========================================================
-# ОТРИМАННЯ ГРАВЦЯ
+# ОТРИМАТИ ГРАВЦЯ
 # =========================================================
 
 def get_player(user_id):
-
-    """
-    Отримує РІВНО одного гравця за user_id.
-
-    Якщо гравця немає:
-        створює новий рядок.
-
-    Всі дані гравця зберігаються
-    в одному рядку Supabase.
-    """
 
     user_id = str(user_id)
 
@@ -240,13 +202,12 @@ def get_player(user_id):
             .table("players")
             .select("*")
             .eq("user_id", user_id)
-            .limit(1)
             .execute()
         )
 
-        # =================================================
+        # =====================================================
         # ГРАВЕЦЬ ІСНУЄ
-        # =================================================
+        # =====================================================
 
         if response.data:
 
@@ -254,69 +215,52 @@ def get_player(user_id):
 
             changed = False
 
-
             # -------------------------------------------------
             # Основні поля
             # -------------------------------------------------
 
             if player.get("inventory") is None:
-
                 player["inventory"] = []
-
                 changed = True
 
-
             if player.get("spheres") is None:
-
                 player["spheres"] = copy.deepcopy(
                     DEFAULT_SPHERES
                 )
-
                 changed = True
-
 
             # -------------------------------------------------
             # Активні квести
             # -------------------------------------------------
 
-            quest_columns = [
-
+            for column in (
                 "scrolls",
                 "rituals",
                 "plants",
                 "expeditions"
-
-            ]
-
-            for column in quest_columns:
+            ):
 
                 if player.get(column) is None:
 
                     player[column] = []
 
                     changed = True
-
 
             # -------------------------------------------------
             # Архіви
             # -------------------------------------------------
 
-            archive_columns = [
-
-                "plant_archive",
+            for column in (
                 "scroll_archive",
-                "ritual_archive"
-
-            ]
-
-            for column in archive_columns:
+                "ritual_archive",
+                "plant_archive"
+            ):
 
                 if player.get(column) is None:
 
                     player[column] = []
 
                     changed = True
-
 
             # -------------------------------------------------
             # Старий quests
@@ -330,9 +274,8 @@ def get_player(user_id):
 
                 changed = True
 
-
             # -------------------------------------------------
-            # Основний квест
+            # Main quest
             # -------------------------------------------------
 
             if player.get("main_quest") is None:
@@ -343,9 +286,8 @@ def get_player(user_id):
 
                 changed = True
 
-
             # -------------------------------------------------
-            # Статистика
+            # Statistics
             # -------------------------------------------------
 
             if player.get("statistics") is None:
@@ -356,55 +298,75 @@ def get_player(user_id):
 
                 changed = True
 
+            else:
 
-            # =================================================
-            # Якщо якихось даних не було
-            # =================================================
+                statistics = player["statistics"]
+
+                if not isinstance(
+                    statistics,
+                    dict
+                ):
+                    statistics = {}
+
+                statistics_changed = False
+
+                for key, default_value in (
+                    DEFAULT_STATISTICS.items()
+                ):
+
+                    if key not in statistics:
+
+                        statistics[key] = copy.deepcopy(
+                            default_value
+                        )
+
+                        statistics_changed = True
+
+                if statistics_changed:
+
+                    player["statistics"] = statistics
+
+                    changed = True
+
+            # -------------------------------------------------
+            # Якщо щось потрібно було додати
+            # -------------------------------------------------
 
             if changed:
 
                 update_player(
                     user_id,
                     {
+                        "inventory": player["inventory"],
+                        "spheres": player["spheres"],
 
-                        "inventory":
-                            player["inventory"],
+                        "scrolls": player["scrolls"],
+                        "rituals": player["rituals"],
+                        "plants": player["plants"],
+                        "expeditions": player["expeditions"],
 
-                        "spheres":
-                            player["spheres"],
+                        "scroll_archive": player[
+                            "scroll_archive"
+                        ],
 
-                        "scrolls":
-                            player["scrolls"],
+                        "ritual_archive": player[
+                            "ritual_archive"
+                        ],
 
-                        "rituals":
-                            player["rituals"],
+                        "plant_archive": player[
+                            "plant_archive"
+                        ],
 
-                        "plants":
-                            player["plants"],
+                        "quests": player["quests"],
+                        "main_quest": player[
+                            "main_quest"
+                        ],
 
-                        "expeditions":
-                            player["expeditions"],
-
-                        "plant_archive":
-                            player["plant_archive"],
-
-                        "scroll_archive":
-                            player["scroll_archive"],
-
-                        "ritual_archive":
-                            player["ritual_archive"],
-
-                        "quests":
-                            player["quests"],
-
-                        "main_quest":
-                            player["main_quest"],
-
-                        "statistics":
-                            player["statistics"]
+                        "statistics": player[
+                            "statistics"
+                        ]
                     }
                 )
-
 
             print(
                 f"📖 Гравця {user_id} знайдено."
@@ -412,18 +374,15 @@ def get_player(user_id):
 
             return player
 
-
-        # =================================================
+        # =====================================================
         # НОВИЙ ГРАВЕЦЬ
-        # =================================================
+        # =====================================================
 
         print(
             f"🆕 Створюю нового гравця {user_id}"
         )
 
-        player = default_player(
-            user_id
-        )
+        player = default_player(user_id)
 
         response = (
             supabase
@@ -442,7 +401,6 @@ def get_player(user_id):
 
         return player
 
-
     except Exception:
 
         print(
@@ -453,13 +411,44 @@ def get_player(user_id):
             traceback.format_exc()
         )
 
-        # -------------------------------------------------
-        # Безпечний fallback
-        # -------------------------------------------------
+        return default_player(user_id)
 
-        return default_player(
-            user_id
+
+# =========================================================
+# ОТРИМАТИ ВСІХ ГРАВЦІВ
+# =========================================================
+#
+# Потрібно scheduler/summary.
+#
+# Кожен гравець обробляється окремо
+# за його user_id.
+#
+# =========================================================
+
+def get_all_players():
+
+    try:
+
+        response = (
+            supabase
+            .table("players")
+            .select("*")
+            .execute()
         )
+
+        return response.data or []
+
+    except Exception:
+
+        print(
+            "❌ ПОМИЛКА get_all_players:"
+        )
+
+        print(
+            traceback.format_exc()
+        )
+
+        return []
 
 
 # =========================================================
@@ -468,36 +457,23 @@ def get_player(user_id):
 
 def save_scroll(user_id, scroll):
 
-    """
-    Додає сувій конкретному користувачу.
-
-    Перевіряє дублікати за назвою.
-    """
-
     try:
 
         user_id = str(user_id)
 
-        player = get_player(
-            user_id
-        )
+        player = get_player(user_id)
 
-        scrolls = (
-            player.get("scrolls")
-            or []
-        )
+        scrolls = player.get(
+            "scrolls"
+        ) or []
 
         new_title = str(
             scroll.get("title", "")
         ).strip()
 
-        normalized_title = (
+        normalized_new_title = (
             new_title.casefold()
         )
-
-        # -------------------------------------------------
-        # Перевірка дубля
-        # -------------------------------------------------
 
         for existing_scroll in scrolls:
 
@@ -510,7 +486,7 @@ def save_scroll(user_id, scroll):
 
             if (
                 existing_title.casefold()
-                == normalized_title
+                == normalized_new_title
             ):
 
                 print(
@@ -519,22 +495,12 @@ def save_scroll(user_id, scroll):
                 )
 
                 return {
-
                     "success": False,
-
                     "duplicate": True,
-
                     "count": len(scrolls)
                 }
 
-
-        # -------------------------------------------------
-        # Додаємо сувій
-        # -------------------------------------------------
-
-        scrolls.append(
-            scroll
-        )
+        scrolls.append(scroll)
 
         success = update_player(
             user_id,
@@ -546,14 +512,10 @@ def save_scroll(user_id, scroll):
         if not success:
 
             return {
-
                 "success": False,
-
                 "duplicate": False,
-
                 "count": len(scrolls) - 1
             }
-
 
         print(
             f"📜 Сувій '{new_title}' "
@@ -561,14 +523,10 @@ def save_scroll(user_id, scroll):
         )
 
         return {
-
             "success": True,
-
             "duplicate": False,
-
             "count": len(scrolls)
         }
-
 
     except Exception:
 
@@ -581,11 +539,8 @@ def save_scroll(user_id, scroll):
         )
 
         return {
-
             "success": False,
-
             "duplicate": False,
-
             "count": 0
         }
 
@@ -596,26 +551,17 @@ def save_scroll(user_id, scroll):
 
 def save_ritual(user_id, ritual):
 
-    """
-    Додає ритуал конкретному користувачу.
-    """
-
     try:
 
         user_id = str(user_id)
 
-        player = get_player(
-            user_id
-        )
+        player = get_player(user_id)
 
-        rituals = (
-            player.get("rituals")
-            or []
-        )
+        rituals = player.get(
+            "rituals"
+        ) or []
 
-        rituals.append(
-            ritual
-        )
+        rituals.append(ritual)
 
         success = update_player(
             user_id,
@@ -624,15 +570,10 @@ def save_ritual(user_id, ritual):
             }
         )
 
-        if success:
-
-            print(
-                f"🔄 Ритуал збережено "
-                f"для {user_id}."
-            )
+        if not success:
+            return 0
 
         return len(rituals)
-
 
     except Exception:
 
@@ -645,304 +586,3 @@ def save_ritual(user_id, ritual):
         )
 
         return 0
-
-
-# =========================================================
-# ЗБЕРЕГТИ РОСЛИНУ
-# =========================================================
-
-def save_plant(user_id, plant):
-
-    """
-    Додає рослину конкретному користувачу.
-    """
-
-    try:
-
-        user_id = str(user_id)
-
-        player = get_player(
-            user_id
-        )
-
-        plants = (
-            player.get("plants")
-            or []
-        )
-
-        plants.append(
-            plant
-        )
-
-        success = update_player(
-            user_id,
-            {
-                "plants": plants
-            }
-        )
-
-        if success:
-
-            print(
-                f"🌱 Рослину збережено "
-                f"для {user_id}."
-            )
-
-        return len(plants)
-
-
-    except Exception:
-
-        print(
-            "❌ ПОМИЛКА save_plant:"
-        )
-
-        print(
-            traceback.format_exc()
-        )
-
-        return 0
-
-
-# =========================================================
-# ЗБЕРЕГТИ ЕКСПЕДИЦІЮ
-# =========================================================
-
-def save_expedition(
-    user_id,
-    expedition
-):
-
-    """
-    Додає експедицію конкретному користувачу.
-    """
-
-    try:
-
-        user_id = str(user_id)
-
-        player = get_player(
-            user_id
-        )
-
-        expeditions = (
-            player.get("expeditions")
-            or []
-        )
-
-        expeditions.append(
-            expedition
-        )
-
-        success = update_player(
-            user_id,
-            {
-                "expeditions":
-                    expeditions
-            }
-        )
-
-        if success:
-
-            print(
-                f"🧭 Експедицію збережено "
-                f"для {user_id}."
-            )
-
-        return len(expeditions)
-
-
-    except Exception:
-
-        print(
-            "❌ ПОМИЛКА save_expedition:"
-        )
-
-        print(
-            traceback.format_exc()
-        )
-
-        return 0
-
-
-# =========================================================
-# ДОДАТИ ДО АРХІВУ
-# =========================================================
-
-def add_to_archive(
-    user_id,
-    archive_name,
-    item
-):
-
-    """
-    Універсальне додавання запису
-    до архіву конкретного користувача.
-
-    Дозволені архіви:
-
-        scroll_archive
-        ritual_archive
-        plant_archive
-    """
-
-    allowed_archives = {
-
-        "scroll_archive",
-
-        "ritual_archive",
-
-        "plant_archive"
-    }
-
-    if archive_name not in allowed_archives:
-
-        raise ValueError(
-            f"Недозволений архів: "
-            f"{archive_name}"
-        )
-
-    try:
-
-        user_id = str(user_id)
-
-        player = get_player(
-            user_id
-        )
-
-        archive = (
-            player.get(
-                archive_name
-            )
-            or []
-        )
-
-        archive.append(
-            item
-        )
-
-        success = update_player(
-            user_id,
-            {
-                archive_name: archive
-            }
-        )
-
-        return success
-
-
-    except Exception:
-
-        print(
-            "❌ ПОМИЛКА add_to_archive:"
-        )
-
-        print(
-            traceback.format_exc()
-        )
-
-        return False
-
-
-# =========================================================
-# ОНОВИТИ СТАТИСТИКУ
-# =========================================================
-
-def update_statistics(
-    user_id,
-    statistics_updates
-):
-
-    """
-    Оновлює statistics конкретного користувача,
-    не стираючи вже існуючі значення.
-    """
-
-    try:
-
-        user_id = str(user_id)
-
-        player = get_player(
-            user_id
-        )
-
-        statistics = (
-            player.get("statistics")
-            or {}
-        )
-
-        statistics.update(
-            statistics_updates
-        )
-
-        return update_player(
-            user_id,
-            {
-                "statistics":
-                    statistics
-            }
-        )
-
-
-    except Exception:
-
-        print(
-            "❌ ПОМИЛКА update_statistics:"
-        )
-
-        print(
-            traceback.format_exc()
-        )
-
-        return False
-
-
-# =========================================================
-# ОНОВИТИ ОКРЕМЕ ПОЛЕ
-# =========================================================
-
-def update_player_field(
-    user_id,
-    field,
-    value
-):
-
-    """
-    Безпечне оновлення одного поля
-    конкретного користувача.
-    """
-
-    allowed_fields = {
-
-        "level",
-        "xp_total",
-        "inventory",
-        "spheres",
-
-        "quests",
-        "main_quest",
-
-        "statistics",
-
-        "scrolls",
-        "rituals",
-        "plants",
-        "expeditions",
-
-        "plant_archive",
-        "scroll_archive",
-        "ritual_archive"
-    }
-
-    if field not in allowed_fields:
-
-        raise ValueError(
-            f"Недозволене поле: {field}"
-        )
-
-    return update_player(
-        user_id,
-        {
-            field: value
-        }
-    )
