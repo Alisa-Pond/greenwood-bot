@@ -3,7 +3,11 @@ from datetime import datetime, timezone
 from services.config import bot
 from services.database import get_player, update_player
 
-from handlers.my_quests.expedition.menu import get_active_expedition
+from handlers.my_quests.expedition.menu import (
+    get_active_expedition
+)
+
+from keyboards import get_expedition_menu
 
 
 print("⏱️ Реєструємо таймер експедицій...")
@@ -37,8 +41,8 @@ def parse_datetime(value):
             value
         )
 
-        # Якщо старий запис не має timezone,
-        # вважаємо його UTC.
+        # Якщо timezone відсутній,
+        # вважаємо час UTC.
 
         if dt.tzinfo is None:
 
@@ -62,7 +66,7 @@ def calculate_active_seconds(expedition):
     Повертає загальну кількість секунд,
     проведених саме в активній частині експедиції.
 
-    Привал не враховується.
+    Час привалу не враховується.
     """
 
     saved_seconds = int(
@@ -78,7 +82,7 @@ def calculate_active_seconds(expedition):
     )
 
     # -----------------------------------------------------
-    # Якщо експедиція зараз на привалі
+    # Експедиція на привалі
     # -----------------------------------------------------
 
     if status == "paused":
@@ -86,7 +90,7 @@ def calculate_active_seconds(expedition):
         return saved_seconds
 
     # -----------------------------------------------------
-    # Якщо експедиція активна
+    # Експедиція активна
     # -----------------------------------------------------
 
     last_resumed_at = parse_datetime(
@@ -122,9 +126,6 @@ def calculate_active_seconds(expedition):
 # =========================================================
 
 def format_expedition_time(seconds):
-    """
-    Перетворює секунди у зручний текст.
-    """
 
     seconds = int(
         seconds or 0
@@ -190,8 +191,9 @@ def pause_expedition(message):
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха:</b>\n\n"
-                "Генерал не бачить поблизу жодного "
-                "експедиційного загону."
+
+                "Генерал не бачить поблизу "
+                "жодного експедиційного загону."
             ),
             parse_mode="HTML"
         )
@@ -210,11 +212,16 @@ def pause_expedition(message):
             message.chat.id,
             (
                 "🏕️ <b>Генерал Мураха:</b>\n\n"
+
                 "Загін уже відпочиває біля вогнища.\n\n"
-                "Не хвилюйся, жодна хвилина привалу "
-                "не загубить прогрес експедиції."
+
+                "Карти розкладені, запаси перевірені, "
+                "а мурахи заслужено відпочивають."
             ),
-            parse_mode="HTML"
+            parse_mode="HTML",
+            reply_markup=get_expedition_menu(
+                expedition
+            )
         )
 
         return
@@ -240,7 +247,7 @@ def pause_expedition(message):
     )
 
     # -----------------------------------------------------
-    # Оновлюємо базу
+    # Зберігаємо
     # -----------------------------------------------------
 
     success = update_player(
@@ -258,7 +265,10 @@ def pause_expedition(message):
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха:</b>\n\n"
-                "Виникла проблема з журналом експедиції. "
+
+                "Виникла проблема з журналом "
+                "експедиції.\n\n"
+
                 "Привал не вдалося зареєструвати."
             ),
             parse_mode="HTML"
@@ -267,7 +277,7 @@ def pause_expedition(message):
         return
 
     # -----------------------------------------------------
-    # Повідомлення
+    # Доповідь
     # -----------------------------------------------------
 
     time_text = format_expedition_time(
@@ -280,17 +290,21 @@ def pause_expedition(message):
             "🏕️ <b>Генерал Мураха доповідає:</b>\n\n"
 
             "Загін зупинився для привалу.\n"
+
             "Мурахи розклали карти, перевірили "
-            "запаси та трохи перепочивають.\n\n"
+            "запаси та влаштували короткий відпочинок.\n\n"
 
             f"⏱️ Активний час експедиції: "
             f"<b>{time_text}</b>\n\n"
 
-            "Таймер зупинено. "
-            "Коли будеш готова продовжити, "
+            "Таймер зупинено.\n"
+            "Коли будеш готова продовжити подорож, "
             "натисни <b>▶️ Продовжити експедицію</b>."
         ),
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=get_expedition_menu(
+            expedition
+        )
     )
 
 
@@ -326,6 +340,7 @@ def resume_expedition(message):
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха:</b>\n\n"
+
                 "Схоже, цей загін уже повернувся "
                 "з експедиції."
             ),
@@ -346,17 +361,22 @@ def resume_expedition(message):
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха:</b>\n\n"
+
                 "Загін уже в дорозі.\n"
-                "Мурахи не можуть вирушити двічі "
-                "одночасно."
+
+                "Мурахи не можуть вирушити "
+                "двічі одночасно."
             ),
-            parse_mode="HTML"
+            parse_mode="HTML",
+            reply_markup=get_expedition_menu(
+                expedition
+            )
         )
 
         return
 
     # -----------------------------------------------------
-    # Зберігаємо новий час старту
+    # Продовження
     # -----------------------------------------------------
 
     now = get_now()
@@ -370,7 +390,7 @@ def resume_expedition(message):
     expedition["paused_at"] = None
 
     # -----------------------------------------------------
-    # Оновлюємо базу
+    # Зберігаємо
     # -----------------------------------------------------
 
     success = update_player(
@@ -388,6 +408,7 @@ def resume_expedition(message):
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха:</b>\n\n"
+
                 "Не вдалося передати загону "
                 "наказ про продовження."
             ),
@@ -397,7 +418,7 @@ def resume_expedition(message):
         return
 
     # -----------------------------------------------------
-    # Повідомлення
+    # Доповідь
     # -----------------------------------------------------
 
     time_text = format_expedition_time(
@@ -420,87 +441,42 @@ def resume_expedition(message):
 
             "🧭 Дослідження Грінвуду продовжується."
         ),
-        parse_mode="HTML"
-    )
-
-
-# =========================================================
-# 🏁 ЗАВЕРШИТИ ЕКСПЕДИЦІЮ
-# =========================================================
-#
-# Тут ми поки НЕ завершуємо експедицію самостійно.
-#
-# Логіка завершення буде в complete.py.
-#
-# Це зроблено навмисно, щоб:
-#
-# timer.py
-#     → відповідав за час
-#
-# complete.py
-#     → відповідав за завершення
-#
-# =========================================================
-
-@bot.message_handler(
-    func=lambda message:
-        message.text == "🏁 Завершити експедицію"
-)
-def request_expedition_completion(message):
-
-    user_id = str(
-        message.from_user.id
-    )
-
-    player = get_player(
-        user_id
-    )
-
-    expedition = get_active_expedition(
-        player
-    )
-
-    if not expedition:
-
-        bot.send_message(
-            message.chat.id,
-            (
-                "🐜 <b>Генерал Мураха:</b>\n\n"
-                "Експедиційний загін уже повернувся "
-                "або ще не був відправлений."
-            ),
-            parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=get_expedition_menu(
+            expedition
         )
-
-        return
-
-    # -----------------------------------------------------
-    # Передаємо керування complete.py
-    # -----------------------------------------------------
-
-    from handlers.my_quests.expedition.complete import (
-        complete_expedition
-    )
-
-    complete_expedition(
-        message
     )
 
 
 # =========================================================
-# ПЕРЕВІРКА 60-ХВИЛИННИХ НАГАДУВАНЬ
+# 🏁 ЗАВЕРШЕННЯ
+# =========================================================
+#
+# УВАГА:
+#
+# Тут НЕМАЄ handler для:
+#
+# 🏁 Завершити експедицію
+#
+# Його обробляє complete.py.
+#
+# Це важливо, щоб одна кнопка не мала
+# двох різних handlers.
+#
 # =========================================================
 
-def check_expedition_reminder(
-    player
-):
+
+# =========================================================
+# ⏰ ПЕРЕВІРКА 60-ХВИЛИННИХ НАГАДУВАНЬ
+# =========================================================
+
+def check_expedition_reminder(player):
     """
     Перевіряє, чи настав час нагадати користувачу
     про активну експедицію.
 
-    Функція НЕ запускає окремий таймер.
-
-    Її можна викликати із scheduler.py.
+    Функція не створює власний таймер.
+    Її викликатиме scheduler.py.
     """
 
     user_id = str(
@@ -528,7 +504,7 @@ def check_expedition_reminder(
     )
 
     # -----------------------------------------------------
-    # Скільки повних годин минуло
+    # Повні години
     # -----------------------------------------------------
 
     completed_hours = (
@@ -539,6 +515,10 @@ def check_expedition_reminder(
 
         return False
 
+    current_reminder_minute = (
+        completed_hours * 60
+    )
+
     last_reminder = int(
         expedition.get(
             "last_reminder_minute",
@@ -546,12 +526,8 @@ def check_expedition_reminder(
         ) or 0
     )
 
-    current_reminder_minute = (
-        completed_hours * 60
-    )
-
     # -----------------------------------------------------
-    # Не надсилаємо повторно
+    # Нагадування вже надсилалося
     # -----------------------------------------------------
 
     if current_reminder_minute <= last_reminder:
@@ -559,7 +535,7 @@ def check_expedition_reminder(
         return False
 
     # -----------------------------------------------------
-    # Оновлюємо позначку нагадування
+    # Фіксуємо нагадування
     # -----------------------------------------------------
 
     expedition["last_reminder_minute"] = (
@@ -576,7 +552,7 @@ def check_expedition_reminder(
     )
 
     # -----------------------------------------------------
-    # Надсилаємо нагадування
+    # Надсилаємо
     # -----------------------------------------------------
 
     time_text = format_expedition_time(
