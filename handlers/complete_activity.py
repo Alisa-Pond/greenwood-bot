@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from telebot import types
 
 from services.config import bot
@@ -44,9 +43,6 @@ def get_sphere_emoji(sphere):
 def get_spheres(item):
     """
     Отримує список сфер із сувою / ритуалу / рослини.
-
-    Підтримує кілька можливих форматів,
-    щоб не ламати вже створені записи.
     """
 
     spheres = item.get("spheres")
@@ -88,7 +84,10 @@ def get_spheres(item):
                     result.append(sphere["name"])
 
             else:
-                result.append(get_sphere_emoji(sphere))
+
+                result.append(
+                    get_sphere_emoji(sphere)
+                )
 
         return result
 
@@ -136,21 +135,131 @@ def get_today():
 
 
 # =========================================================
+# ДАТА ДЕДЛАЙНУ
+# =========================================================
+
+def parse_deadline(deadline):
+    """
+    Перетворює дедлайн DD.MM.YY або DD.MM.YYYY
+    у datetime.
+    """
+
+    if not deadline:
+        return None
+
+    try:
+
+        return datetime.strptime(
+            str(deadline),
+            "%d.%m.%y"
+        )
+
+    except ValueError:
+
+        try:
+
+            return datetime.strptime(
+                str(deadline),
+                "%d.%m.%Y"
+            )
+
+        except ValueError:
+
+            return None
+
+
+def is_overdue(item):
+    """
+    Перевіряє, чи прострочена справа.
+    """
+
+    deadline = parse_deadline(
+        item.get("deadline")
+    )
+
+    if not deadline:
+        return False
+
+    today = datetime.now().replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    return today > deadline
+
+
+# =========================================================
+# ШТРАФ ЗА ПРОСТРОЧЕННЯ
+# =========================================================
+
+def get_penalty_xp(item):
+    """
+    Отримує штраф за прострочення.
+
+    Підтримує:
+        penalty
+        penalty_xp
+        overdue_penalty
+    """
+
+    possible_fields = [
+        "penalty",
+        "penalty_xp",
+        "overdue_penalty"
+    ]
+
+    for field in possible_fields:
+
+        value = item.get(field)
+
+        if value is not None:
+
+            try:
+                return abs(float(value))
+
+            except (TypeError, ValueError):
+                pass
+
+    return 0.0
+
+
+def calculate_plant_reward(plant):
+    """
+    Розраховує фактичну нагороду рослини.
+
+    Якщо рослина виконана до дедлайну:
+        повний XP.
+
+    Якщо після дедлайну:
+        XP мінус штраф.
+
+    Нагорода не може бути меншою за 0.
+    """
+
+    base_xp = get_xp(plant)
+
+    if not is_overdue(plant):
+        return base_xp, 0.0
+
+    penalty = get_penalty_xp(plant)
+
+    final_xp = max(
+        0.0,
+        base_xp - penalty
+    )
+
+    return final_xp, penalty
+
+
+# =========================================================
 # XP СФЕР
 # =========================================================
 
 def add_xp_to_spheres(player, spheres, total_xp):
     """
     Розподіляє XP між сферами.
-
-    1 сфера:
-        10 XP → 10 XP
-
-    2 сфери:
-        10 XP → 5 + 5 XP
-
-    3 сфери:
-        12 XP → 4 + 4 + 4 XP
     """
 
     if not spheres or total_xp <= 0:
@@ -167,6 +276,7 @@ def add_xp_to_spheres(player, spheres, total_xp):
         for key, emoji in SPHERE_NAMES.items():
 
             if sphere == key or sphere == emoji:
+
                 sphere_key = key
                 break
 
@@ -181,12 +291,14 @@ def add_xp_to_spheres(player, spheres, total_xp):
 
         player_spheres[sphere_key]["xp"] = (
             float(
-                player_spheres[sphere_key].get("xp", 0)
+                player_spheres[sphere_key].get(
+                    "xp",
+                    0
+                )
             )
             + share
         )
 
-        # Підвищення рівня
         while (
             player_spheres[sphere_key]["xp"]
             >= float(
@@ -233,6 +345,79 @@ def add_total_xp(player, xp):
 
 
 # =========================================================
+# СТАТИСТИКА
+# =========================================================
+
+def update_statistics(
+    player,
+    completed_scrolls=0,
+    completed_rituals=0,
+    plants_harvested=0,
+    expeditions_completed=0
+):
+    """
+    Оновлює statistics.
+
+    Використовуються тільки поля:
+
+        completed_scrolls
+        completed_rituals
+        plants_harvested
+        expeditions_completed
+        last_summary_date
+
+    completed_history НЕ використовується.
+    """
+
+    statistics = player.get("statistics") or {}
+
+    statistics["completed_scrolls"] = (
+        int(
+            statistics.get(
+                "completed_scrolls",
+                0
+            )
+        )
+        + completed_scrolls
+    )
+
+    statistics["completed_rituals"] = (
+        int(
+            statistics.get(
+                "completed_rituals",
+                0
+            )
+        )
+        + completed_rituals
+    )
+
+    statistics["plants_harvested"] = (
+        int(
+            statistics.get(
+                "plants_harvested",
+                0
+            )
+        )
+        + plants_harvested
+    )
+
+    statistics["expeditions_completed"] = (
+        int(
+            statistics.get(
+                "expeditions_completed",
+                0
+            )
+        )
+        + expeditions_completed
+    )
+
+    if "last_summary_date" not in statistics:
+        statistics["last_summary_date"] = None
+
+    player["statistics"] = statistics
+
+
+# =========================================================
 # КНОПКА НАЗАД
 # =========================================================
 
@@ -254,7 +439,8 @@ def build_back_button():
 # =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "✅ Виконати справу"
+    func=lambda message:
+        message.text == "✅ Виконати справу"
 )
 def start_complete(message):
 
@@ -287,12 +473,11 @@ def start_complete(message):
         "Обери, що саме ти щойно завершила:\n\n"
 
         "📜 <b>Сувій</b> — запланована одноразова справа.\n"
-        "🔄 <b>Ритуал</b> — справа, що повертається за своїм розкладом.\n"
+        "🔄 <b>Ритуал</b> — справа, що повертається за розкладом.\n"
         "🌱 <b>Рослина</b> — велика ціль, яку ти виростила до кінця.\n"
-        "✨ <b>Поза планом</b> — щось корисне, чого взагалі не було в планах.\n\n"
+        "✨ <b>Поза планом</b> — корисна справа, якої не було в планах.\n\n"
 
-        "🦇 <b>Марчелло</b> уже тримає перо над книгою XP. "
-        "Не змушуй його чекати.",
+        "🦇 <b>Марчелло</b> уже тримає перо над книгою XP.",
 
         parse_mode="HTML",
         reply_markup=markup
@@ -300,11 +485,12 @@ def start_complete(message):
 
 
 # =========================================================
-# ВИБІР СУВОЮ
+# СУВОЇ
 # =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "📜 Виконати сувій"
+    func=lambda message:
+        message.text == "📜 Виконати сувій"
 )
 def choose_scroll(message):
 
@@ -320,8 +506,7 @@ def choose_scroll(message):
             message.chat.id,
 
             "📜 <b>Жодного активного сувою.</b>\n\n"
-            "Схоже, Марчелло вже не має чим тебе завантажити. "
-            "Поки що. 🦇",
+            "Марчелло поки не має чим тебе завантажити. 🦇",
 
             parse_mode="HTML",
             reply_markup=build_back_button()
@@ -335,11 +520,10 @@ def choose_scroll(message):
 
     for index, scroll in enumerate(scrolls):
 
-        title = get_title(scroll)
-
         markup.row(
             types.KeyboardButton(
-                f"📜 {index + 1}. {title}"
+                f"📜 {index + 1}. "
+                f"{get_title(scroll)}"
             )
         )
 
@@ -350,7 +534,7 @@ def choose_scroll(message):
     msg = bot.send_message(
         message.chat.id,
 
-        "📜 <b>Обери сувій, який запечатати виконаним:</b>",
+        "📜 <b>Обери сувій:</b>",
 
         parse_mode="HTML",
         reply_markup=markup
@@ -361,10 +545,6 @@ def choose_scroll(message):
         complete_scroll
     )
 
-
-# =========================================================
-# ВИКОНАННЯ СУВОЮ
-# =========================================================
 
 def complete_scroll(message):
 
@@ -405,12 +585,7 @@ def complete_scroll(message):
 
         bot.send_message(
             message.chat.id,
-
-            "🦇 <b>Марчелло насупився.</b>\n\n"
-            "Я не знайшов такого сувою в реєстрі. "
-            "Обери його кнопкою нижче.",
-
-            parse_mode="HTML"
+            "🦇 Не вдалося знайти цей сувій."
         )
 
         choose_scroll(message)
@@ -422,11 +597,10 @@ def complete_scroll(message):
     xp = get_xp(scroll)
     spheres = get_spheres(scroll)
 
-    # =====================================================
-    # НАРАХУВАННЯ XP
-    # =====================================================
-
-    add_total_xp(player, xp)
+    add_total_xp(
+        player,
+        xp
+    )
 
     add_xp_to_spheres(
         player,
@@ -434,36 +608,28 @@ def complete_scroll(message):
         xp
     )
 
-    # =====================================================
-    # АРХІВ СУВОЇВ
-    # =====================================================
-
     scroll_archive = (
-        player.get("scroll_archive")
-        or []
+        player.get("scroll_archive") or []
     )
 
     completed_scroll = dict(scroll)
 
+    completed_scroll["completed"] = True
     completed_scroll["completed_date"] = get_today()
 
     scroll_archive.append(
         completed_scroll
     )
 
-    # =====================================================
-    # ВИДАЛЯЄМО З АКТИВНИХ
-    # =====================================================
-
     scrolls.pop(selected_index)
 
     player["scrolls"] = scrolls
-
     player["scroll_archive"] = scroll_archive
 
-    # =====================================================
-    # ЗБЕРІГАЄМО
-    # =====================================================
+    update_statistics(
+        player,
+        completed_scrolls=1
+    )
 
     update_player(
         user_id,
@@ -471,7 +637,8 @@ def complete_scroll(message):
             "xp_total": player["xp_total"],
             "spheres": player["spheres"],
             "scrolls": player["scrolls"],
-            "scroll_archive": player["scroll_archive"]
+            "scroll_archive": player["scroll_archive"],
+            "statistics": player["statistics"]
         }
     )
 
@@ -495,11 +662,12 @@ def complete_scroll(message):
 
 
 # =========================================================
-# ВИБІР РИТУАЛУ
+# РИТУАЛИ
 # =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "🔄 Провести ритуал"
+    func=lambda message:
+        message.text == "🔄 Провести ритуал"
 )
 def choose_ritual(message):
 
@@ -523,7 +691,17 @@ def choose_ritual(message):
 
         return
 
-    today = datetime.now().weekday()
+    today_weekday = datetime.now().weekday()
+
+    weekday_names = [
+        "пн",
+        "вт",
+        "ср",
+        "чт",
+        "пт",
+        "сб",
+        "нд"
+    ]
 
     markup = types.ReplyKeyboardMarkup(
         resize_keyboard=True
@@ -541,27 +719,15 @@ def choose_ritual(message):
 
             is_today = True
 
-        elif today in days:
+        elif today_weekday in days:
 
             is_today = True
 
         elif isinstance(days, list):
 
-            weekday_names = [
-                "пн",
-                "вт",
-                "ср",
-                "чт",
-                "пт",
-                "сб",
-                "нд"
-            ]
+            if weekday_names[today_weekday] in days:
 
-            if today < len(weekday_names):
-
-                if weekday_names[today] in days:
-
-                    is_today = True
+                is_today = True
 
         if is_today:
 
@@ -586,11 +752,10 @@ def choose_ritual(message):
 
     for index, ritual in available:
 
-        title = get_title(ritual)
-
         markup.row(
             types.KeyboardButton(
-                f"🔄 {index + 1}. {title}"
+                f"🔄 {index + 1}. "
+                f"{get_title(ritual)}"
             )
         )
 
@@ -610,16 +775,11 @@ def choose_ritual(message):
 
     bot.register_next_step_handler(
         msg,
-        complete_ritual,
-        available
+        complete_ritual
     )
 
 
-# =========================================================
-# ВИКОНАННЯ РИТУАЛУ
-# =========================================================
-
-def complete_ritual(message, available):
+def complete_ritual(message):
 
     if message.text == "🔙 Назад":
 
@@ -650,19 +810,9 @@ def complete_ritual(message, available):
 
         pass
 
-    if selected_index is None:
-
-        bot.send_message(
-            message.chat.id,
-            "🔄 Не вдалося знайти цей ритуал. "
-            "Спробуй обрати його кнопкою."
-        )
-
-        choose_ritual(message)
-        return
-
     if (
-        selected_index < 0
+        selected_index is None
+        or selected_index < 0
         or selected_index >= len(rituals)
     ):
 
@@ -675,10 +825,6 @@ def complete_ritual(message, available):
     xp = get_xp(ritual)
     spheres = get_spheres(ritual)
 
-    # =====================================================
-    # ПЕРЕВІРКА ПОВТОРНОГО ВИКОНАННЯ
-    # =====================================================
-
     today = get_today()
 
     if ritual.get("last_completed") == today:
@@ -686,8 +832,7 @@ def complete_ritual(message, available):
         bot.send_message(
             message.chat.id,
 
-            "🌙 <b>Цей ритуал уже виконано сьогодні.</b>\n\n"
-            "Не треба чаклувати над одним завданням двічі. ✨",
+            "🌙 <b>Цей ритуал уже виконано сьогодні.</b>",
 
             parse_mode="HTML",
             reply_markup=build_back_button()
@@ -695,11 +840,10 @@ def complete_ritual(message, available):
 
         return
 
-    # =====================================================
-    # XP
-    # =====================================================
-
-    add_total_xp(player, xp)
+    add_total_xp(
+        player,
+        xp
+    )
 
     add_xp_to_spheres(
         player,
@@ -707,13 +851,8 @@ def complete_ritual(message, available):
         xp
     )
 
-    # =====================================================
-    # ЗАПИС В АРХІВ РИТУАЛІВ
-    # =====================================================
-
     ritual_archive = (
-        player.get("ritual_archive")
-        or []
+        player.get("ritual_archive") or []
     )
 
     completed_ritual = dict(ritual)
@@ -724,21 +863,17 @@ def complete_ritual(message, available):
         completed_ritual
     )
 
-    # =====================================================
-    # ПОЗНАЧАЄМО РИТУАЛ ВИКОНАНИМ СЬОГОДНІ
-    # =====================================================
-
     ritual["last_completed"] = today
 
     rituals[selected_index] = ritual
 
     player["rituals"] = rituals
-
     player["ritual_archive"] = ritual_archive
 
-    # =====================================================
-    # ЗБЕРІГАЄМО
-    # =====================================================
+    update_statistics(
+        player,
+        completed_rituals=1
+    )
 
     update_player(
         user_id,
@@ -746,7 +881,8 @@ def complete_ritual(message, available):
             "xp_total": player["xp_total"],
             "spheres": player["spheres"],
             "rituals": player["rituals"],
-            "ritual_archive": player["ritual_archive"]
+            "ritual_archive": player["ritual_archive"],
+            "statistics": player["statistics"]
         }
     )
 
@@ -761,11 +897,8 @@ def complete_ritual(message, available):
         f"🎯 Сфери: "
         f"{' '.join(get_sphere_emoji(s) for s in spheres)}\n\n"
 
-        "🕯️ Запис про виконання збережено в "
-        "<b>Архіві ритуалів</b>.\n\n"
-
-        "Полум'я ритуалу згасло до наступного "
-        "призначеного дня.",
+        "🕯️ Запис збережено в "
+        "<b>Архіві ритуалів</b>.",
 
         parse_mode="HTML",
         reply_markup=build_back_button()
@@ -773,11 +906,12 @@ def complete_ritual(message, available):
 
 
 # =========================================================
-# ВИБІР РОСЛИНИ
+# РОСЛИНИ
 # =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "🌱 Завершити вирощування"
+    func=lambda message:
+        message.text == "🌱 Завершити вирощування"
 )
 def choose_plant(message):
 
@@ -792,9 +926,8 @@ def choose_plant(message):
         bot.send_message(
             message.chat.id,
 
-            "🌱 <b>У теплиці немає рослин, готових до збору.</b>\n\n"
-            "Олівер оглядає ґрунт і хмикає:\n\n"
-            "«Ну? Чого стоїш? Посади щось путнє.» 🌿",
+            "🌱 <b>У теплиці немає рослин.</b>\n\n"
+            "Олівер дивиться на порожній ґрунт. 🌿",
 
             parse_mode="HTML",
             reply_markup=build_back_button()
@@ -808,11 +941,10 @@ def choose_plant(message):
 
     for index, plant in enumerate(plants):
 
-        title = get_title(plant)
-
         markup.row(
             types.KeyboardButton(
-                f"🌱 {index + 1}. {title}"
+                f"🌱 {index + 1}. "
+                f"{get_title(plant)}"
             )
         )
 
@@ -835,10 +967,6 @@ def choose_plant(message):
         complete_plant
     )
 
-
-# =========================================================
-# ВИКОНАННЯ РОСЛИНИ
-# =========================================================
 
 def complete_plant(message):
 
@@ -877,67 +1005,57 @@ def complete_plant(message):
         or selected_index >= len(plants)
     ):
 
-        bot.send_message(
-            message.chat.id,
-
-            "🌿 Олівер піднімає брову.\n\n"
-            "«Цієї рослини в теплиці немає. "
-            "Обирай із того, що справді посаджено.»",
-
-            parse_mode="HTML"
-        )
-
         choose_plant(message)
         return
 
     plant = plants[selected_index]
 
     title = get_title(plant)
-    xp = get_xp(plant)
     spheres = get_spheres(plant)
 
-    # =====================================================
-    # XP
-    # =====================================================
+    base_xp = get_xp(plant)
 
-    add_total_xp(player, xp)
+    final_xp, penalty = calculate_plant_reward(
+        plant
+    )
+
+    add_total_xp(
+        player,
+        final_xp
+    )
 
     add_xp_to_spheres(
         player,
         spheres,
-        xp
+        final_xp
     )
 
-    # =====================================================
-    # АРХІВ РОСЛИН
-    # =====================================================
-
-    archive = (
-        player.get("plant_archive")
-        or []
+    plant_archive = (
+        player.get("plant_archive") or []
     )
 
     completed_plant = dict(plant)
 
     completed_plant["completed_date"] = get_today()
+    completed_plant["earned_xp"] = final_xp
 
-    archive.append(
+    if penalty > 0:
+
+        completed_plant["penalty_applied"] = penalty
+
+    plant_archive.append(
         completed_plant
     )
-
-    # =====================================================
-    # ВИДАЛЯЄМО З АКТИВНИХ
-    # =====================================================
 
     plants.pop(selected_index)
 
     player["plants"] = plants
+    player["plant_archive"] = plant_archive
 
-    player["plant_archive"] = archive
-
-    # =====================================================
-    # ЗБЕРІГАЄМО
-    # =====================================================
+    update_statistics(
+        player,
+        plants_harvested=1
+    )
 
     update_player(
         user_id,
@@ -945,7 +1063,8 @@ def complete_plant(message):
             "xp_total": player["xp_total"],
             "spheres": player["spheres"],
             "plants": player["plants"],
-            "plant_archive": player["plant_archive"]
+            "plant_archive": player["plant_archive"],
+            "statistics": player["statistics"]
         }
     )
 
@@ -954,22 +1073,33 @@ def complete_plant(message):
         "твоя нагорода"
     )
 
+    if penalty > 0:
+
+        xp_message = (
+            f"⭐ Базова нагорода: <b>{base_xp:.1f} XP</b>\n"
+            f"⚠️ Штраф за прострочення: "
+            f"<b>-{penalty:.1f} XP</b>\n"
+            f"✨ Отримано: <b>{final_xp:.1f} XP</b>"
+        )
+
+    else:
+
+        xp_message = (
+            f"⭐ Отримано: <b>{final_xp:.1f} XP</b>"
+        )
+
     bot.send_message(
         message.chat.id,
 
-        "🌳 <b>Олівер мовчки оглядає вирощену рослину.</b>\n\n"
+        "🌳 <b>Олівер оглядає вирощену рослину.</b>\n\n"
 
         f"🌱 <b>{title}</b>\n\n"
 
-        "«Гаразд.\n"
-        "Це вже можна назвати справжнім урожаєм.»\n\n"
-
-        f"⭐ Отримано: <b>{xp:.1f} XP</b>\n"
+        f"{xp_message}\n"
         f"🎁 Нагорода: <b>{reward}</b>\n\n"
 
-        "🌿 Рослину переміщено до Архіву теплиці.\n"
-        "Тепер вона там, де мають лежати речі, "
-        "якими справді можна пишатися.",
+        "🌿 Рослину переміщено до "
+        "<b>Архіву теплиці</b>.",
 
         parse_mode="HTML",
         reply_markup=build_back_button()
@@ -981,7 +1111,8 @@ def complete_plant(message):
 # =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "✨ Зробити поза планом"
+    func=lambda message:
+        message.text == "✨ Зробити поза планом"
 )
 def start_unplanned(message):
 
@@ -993,10 +1124,7 @@ def start_unplanned(message):
         "🦇 <b>Марчелло відкладає перо.</b>\n\n"
 
         "«Не все корисне в житті народжується "
-        "в календарі, люба чаклунко.»\n\n"
-
-        "Якщо ти зробила щось поза планом, "
-        "це теж заслуговує на XP.\n\n"
+        "в календарі.»\n\n"
 
         "Запиши справу у форматі:\n\n"
 
@@ -1010,9 +1138,7 @@ def start_unplanned(message):
         "⭐ Бали: від 4 до 14.\n"
         "📝 Остання частина — назва справи.\n\n"
 
-        "⚖️ Якщо сфер кілька, XP буде поділено між ними.\n\n"
-
-        "🔙 Якщо передумала — натисни «Назад».",
+        "⚖️ Якщо сфер кілька, XP буде поділено між ними.",
 
         parse_mode="HTML",
         reply_markup=markup
@@ -1023,10 +1149,6 @@ def start_unplanned(message):
         process_unplanned
     )
 
-
-# =========================================================
-# ОБРОБКА НЕЗАПЛАНОВАНОЇ СПРАВИ
-# =========================================================
 
 def process_unplanned(message):
 
@@ -1050,10 +1172,6 @@ def process_unplanned(message):
 
         spheres_text, xp_text, title = parts
 
-        # -------------------------
-        # Сфери
-        # -------------------------
-
         spheres = []
 
         for emoji in spheres_text:
@@ -1074,10 +1192,6 @@ def process_unplanned(message):
                 "Одна сфера вказана двічі."
             )
 
-        # -------------------------
-        # XP
-        # -------------------------
-
         try:
 
             xp = int(xp_text)
@@ -1094,19 +1208,11 @@ def process_unplanned(message):
                 "Кількість балів має бути від 4 до 14."
             )
 
-        # -------------------------
-        # Назва
-        # -------------------------
-
         if len(title) < 3:
 
             raise ValueError(
                 "Назва справи занадто коротка."
             )
-
-        # -------------------------
-        # Нарахування
-        # -------------------------
 
         user_id = str(message.from_user.id)
 
@@ -1140,18 +1246,13 @@ def process_unplanned(message):
 
             f"📝 <b>{title}</b>\n"
             f"⭐ Отримано: <b>{xp} XP</b>\n"
-            f"🎯 Сфери: {' '.join(spheres)}\n\n"
-
-            "«Бачиш? Навіть те, чого не було в планах, "
-            "може стати частиною твоєї хроніки.»",
+            f"🎯 Сфери: {' '.join(spheres)}",
 
             parse_mode="HTML",
             reply_markup=build_back_button()
         )
 
     except ValueError as error:
-
-        markup = build_back_button()
 
         bot.send_message(
             message.chat.id,
@@ -1165,7 +1266,7 @@ def process_unplanned(message):
             "<code>💪🧠 ; 10 ; Назва справи</code>",
 
             parse_mode="HTML",
-            reply_markup=markup
+            reply_markup=build_back_button()
         )
 
         bot.register_next_step_handler(
