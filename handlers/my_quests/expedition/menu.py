@@ -1,82 +1,9 @@
-from telebot import types
-
 from services.config import bot
 from services.database import get_player
+from keyboards import get_expedition_menu
 
 
 print("🧭 Реєструємо хендлер експедицій...")
-
-
-# =========================================================
-# КЛАВІАТУРИ
-# =========================================================
-
-def expedition_menu_keyboard(active_expedition=None):
-    """
-    Створює клавіатуру меню Експедицій
-    залежно від поточного стану експедиції.
-    """
-
-    keyboard = types.ReplyKeyboardMarkup(
-        resize_keyboard=True
-    )
-
-    # -----------------------------------------------------
-    # Експедиція НЕ активна
-    # -----------------------------------------------------
-
-    if not active_expedition:
-
-        keyboard.add(
-            types.KeyboardButton(
-                "🐜 Відправити мурах в експедицію"
-            )
-        )
-
-    # -----------------------------------------------------
-    # Експедиція активна
-    # -----------------------------------------------------
-
-    else:
-
-        status = active_expedition.get(
-            "status",
-            "active"
-        )
-
-        if status == "paused":
-
-            keyboard.add(
-                types.KeyboardButton(
-                    "▶️ Продовжити експедицію"
-                )
-            )
-
-        else:
-
-            keyboard.add(
-                types.KeyboardButton(
-                    "🏕️ Зробити привал"
-                )
-            )
-
-        keyboard.add(
-            types.KeyboardButton(
-                "🏁 Завершити експедицію"
-            )
-        )
-
-    # -----------------------------------------------------
-    # Назад
-    # -----------------------------------------------------
-
-    keyboard.add(
-        types.KeyboardButton(
-            "🔙 Назад"
-        )
-    )
-
-    return keyboard
 
 
 # =========================================================
@@ -87,8 +14,8 @@ def get_active_expedition(player):
     """
     Повертає поточну активну експедицію.
 
-    На цьому етапі в колонці expeditions
-    зберігається максимум одна поточна експедиція.
+    У колонці expeditions зберігається
+    максимум одна поточна експедиція.
     """
 
     expeditions = player.get(
@@ -115,10 +42,37 @@ def get_active_expedition(player):
         "active",
         "paused"
     ):
-
         return expedition
 
     return None
+
+
+# =========================================================
+# ФОРМАТУВАННЯ ЧАСУ
+# =========================================================
+
+def format_active_time(active_seconds):
+
+    try:
+        active_seconds = int(
+            active_seconds or 0
+        )
+    except (TypeError, ValueError):
+        active_seconds = 0
+
+    hours = active_seconds // 3600
+
+    minutes = (
+        active_seconds % 3600
+    ) // 60
+
+    if hours > 0:
+
+        return (
+            f"{hours} год {minutes} хв"
+        )
+
+    return f"{minutes} хв"
 
 
 # =========================================================
@@ -159,37 +113,33 @@ def show_expeditions(message):
             0
         )
 
-        hours = active_seconds // 3600
-        minutes = (
-            active_seconds % 3600
-        ) // 60
+        time_text = format_active_time(
+            active_seconds
+        )
 
-        if hours > 0:
-
-            time_text = (
-                f"{hours} год {minutes} хв"
-            )
-
-        else:
-
-            time_text = (
-                f"{minutes} хв"
-            )
+        # -------------------------------------------------
+        # ПРИВАЛ
+        # -------------------------------------------------
 
         if status == "paused":
 
             text = (
                 "🐜 <b>Генерал Мураха доповідає!</b>\n\n"
 
-                "Експедиція тимчасово зупинена. "
+                "Експедиція тимчасово зупинена.\n"
                 "Загін розклав карти, перевіряє запаси "
-                "та чекає на подальший наказ.\n\n"
+                "та відпочиває після мандрівки.\n\n"
 
-                f"⏱️ Активний час: <b>{time_text}</b>\n\n"
+                f"⏱️ Активний час: "
+                f"<b>{time_text}</b>\n\n"
 
                 "Коли будеш готова продовжити подорож, "
                 "дай наказ вирушати далі."
             )
+
+        # -------------------------------------------------
+        # ЕКСПЕДИЦІЯ ТРИВАЄ
+        # -------------------------------------------------
 
         else:
 
@@ -200,17 +150,20 @@ def show_expeditions(message):
                 "Мурахи досліджують Грінвуд, "
                 "поки ти займаєшся своїми справами.\n\n"
 
-                f"⏱️ Активний час: <b>{time_text}</b>\n\n"
+                f"⏱️ Активний час: "
+                f"<b>{time_text}</b>\n\n"
 
-                "Коли захочеш зробити привал або "
-                "повернути загін, скористайся кнопками нижче."
+                "Загін продовжує пошуки. "
+                "Коли захочеш зробити привал "
+                "або повернути мурах, скористайся "
+                "кнопками нижче."
             )
 
         bot.send_message(
             message.chat.id,
             text,
             parse_mode="HTML",
-            reply_markup=expedition_menu_keyboard(
+            reply_markup=get_expedition_menu(
                 active_expedition
             )
         )
@@ -218,7 +171,7 @@ def show_expeditions(message):
         return
 
     # =====================================================
-    # НЕМАЄ АКТИВНОЇ ЕКСПЕДИЦІЇ
+    # НОВА ЕКСПЕДИЦІЯ
     # =====================================================
 
     text = (
@@ -246,5 +199,5 @@ def show_expeditions(message):
         message.chat.id,
         text,
         parse_mode="HTML",
-        reply_markup=expedition_menu_keyboard()
+        reply_markup=get_expedition_menu()
     )
