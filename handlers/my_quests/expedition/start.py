@@ -3,7 +3,11 @@ from datetime import datetime, timezone
 from services.config import bot
 from services.database import get_player, update_player
 
-from handlers.my_quests.expedition.menu import get_active_expedition
+from keyboards import get_expedition_menu
+
+from handlers.my_quests.expedition.menu import (
+    get_active_expedition
+)
 
 
 print("🐜 Реєструємо запуск експедицій...")
@@ -26,7 +30,6 @@ SPHERE_ALIASES = {
     "wisdom": "wisdom",
 
     "🎨": "art",
-    "творчість": "art",
     "творчість": "art",
     "мистецтво": "art",
     "art": "art",
@@ -89,11 +92,16 @@ def start_expedition(message):
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха доповідає:</b>\n\n"
+
                 "Загін уже перебуває в експедиції.\n\n"
+
                 "Не можна відправити новий загін, "
                 "поки попередній ще не повернувся."
             ),
-            parse_mode="HTML"
+            parse_mode="HTML",
+            reply_markup=get_expedition_menu(
+                active_expedition
+            )
         )
 
         return
@@ -148,7 +156,7 @@ def process_expedition_spheres(message):
     )
 
     # =====================================================
-    # СКАСУВАННЯ
+    # ПЕРЕВІРКА ПОВІДОМЛЕННЯ
     # =====================================================
 
     if message.text is None:
@@ -158,14 +166,24 @@ def process_expedition_spheres(message):
             (
                 "🐜 Генерал Мураха не зміг розібрати "
                 "цей наказ.\n\n"
+
                 "Спробуй ще раз, використовуючи "
                 "назви сфер або їхні емодзі."
             )
         )
 
+        bot.register_next_step_handler(
+            message,
+            process_expedition_spheres
+        )
+
         return
 
     user_text = message.text.strip()
+
+    # =====================================================
+    # СКАСУВАННЯ
+    # =====================================================
 
     if user_text.lower() in (
         "скасувати",
@@ -187,18 +205,6 @@ def process_expedition_spheres(message):
     # РОЗБИВАЄМО ТЕКСТ
     # =====================================================
 
-    # Дозволяємо:
-    #
-    # 🧠 🎨
-    #
-    # або:
-    #
-    # мудрість творчість
-    #
-    # або:
-    #
-    # 🧠, 🎨
-    #
     normalized_text = (
         user_text
         .replace(",", " ")
@@ -217,7 +223,9 @@ def process_expedition_spheres(message):
 
     for part in parts:
 
-        normalized_part = part.strip().lower()
+        normalized_part = (
+            part.strip().lower()
+        )
 
         sphere_key = SPHERE_ALIASES.get(
             normalized_part
@@ -269,7 +277,7 @@ def process_expedition_spheres(message):
         return
 
     # =====================================================
-    # ЯКЩО Є НЕВІДОМІ СЛОВА
+    # Є НЕВІДОМІ СЛОВА
     # =====================================================
 
     if unknown_parts:
@@ -324,11 +332,16 @@ def process_expedition_spheres(message):
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха:</b>\n\n"
+
                 "Стоп!\n\n"
+
                 "Загін уже вирушив у експедицію. "
                 "Новий наказ більше не потрібен."
             ),
-            parse_mode="HTML"
+            parse_mode="HTML",
+            reply_markup=get_expedition_menu(
+                active_expedition
+            )
         )
 
         return
@@ -377,14 +390,20 @@ def process_expedition_spheres(message):
         }
     )
 
+    # =====================================================
+    # ПОМИЛКА ЗБЕРЕЖЕННЯ
+    # =====================================================
+
     if not success:
 
         bot.send_message(
             message.chat.id,
             (
                 "🐜 <b>Генерал Мураха:</b>\n\n"
+
                 "Виникла проблема з картою експедиції. "
                 "Я не можу безпечно відправити загін.\n\n"
+
                 "Спробуй ще раз трохи пізніше."
             ),
             parse_mode="HTML"
@@ -393,7 +412,7 @@ def process_expedition_spheres(message):
         return
 
     # =====================================================
-    # ГОТУЄМО НАЗВИ СФЕР
+    # НАЗВИ СФЕР
     # =====================================================
 
     spheres_text = "\n".join(
@@ -402,35 +421,40 @@ def process_expedition_spheres(message):
     )
 
     # =====================================================
-    # ФІНАЛЬНА ДОПОВІДЬ ПРО СТАРТ
+    # ДОПОВІДЬ ПРО СТАРТ
     # =====================================================
 
     text = (
         "🐜 <b>ГЕНЕРАЛ МУРАХА ДОПОВІДАЄ!</b>\n\n"
 
-        "Загін отримав наказ і вирушає "
-        "досліджувати Грінвуд.\n\n"
+        "Загін мурах готовий до виходу.\n"
+        "Рюкзаки споряджено. Компаси перевірено. "
+        "Один солдат знову забув шкарпетки, "
+        "але це вже не моя компетенція.\n\n"
+
+        "Ми вирушаємо досліджувати Грінвуд.\n\n"
 
         "<b>Сфери експедиції:</b>\n"
         f"{spheres_text}\n\n"
 
-        "🎒 Рюкзаки споряджено.\n"
-        "🧭 Компаси перевірено.\n"
-        "🔎 Розвідники розосереджені по стежках.\n\n"
-
-        "⏱️ <b>Експедицію розпочато.</b>\n\n"
+        "🧭 <b>Експедицію розпочато.</b>\n"
+        "⏱️ Час пішов.\n\n"
 
         "Ти можеш займатися своєю справою, "
         "а мурахи тим часом шукатимуть "
         "те, що приховано серед дерев, води "
-        "та нічного неба.\n\n"
-
-        "🐜 <i>Коли захочеш повернути загін, "
-        "відкрий розділ «🧭 Експедиції».</i>"
+        "та неба."
     )
+
+    # =====================================================
+    # ВІДПРАВЛЯЄМО НОВУ КЛАВІАТУРУ
+    # =====================================================
 
     bot.send_message(
         message.chat.id,
         text,
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=get_expedition_menu(
+            expedition
+        )
     )
