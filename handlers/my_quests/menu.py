@@ -24,37 +24,168 @@ WEEKDAYS = {
 
 
 # ==================================================
+# СФЕРИ
+# ==================================================
+
+SPHERE_NAMES = {
+    "health": "💪 Здоров'я",
+    "wisdom": "🧠 Мудрість",
+    "art": "🎨 Творчість",
+    "finance": "💵 Фінанси",
+    "relations": "🤝 Зв'язки"
+}
+
+
+# ==================================================
+# ФОРМАТУВАННЯ СФЕР
+# ==================================================
+
+def format_spheres(spheres):
+    """
+    Перетворює список сфер у красивий текст.
+
+    Наприклад:
+
+    ["wisdom", "art"]
+
+    →
+
+    🧠 Мудрість • 🎨 Творчість
+    """
+
+    if not spheres:
+        return "⚪ Без визначених сфер"
+
+    formatted = []
+
+    for sphere in spheres:
+
+        sphere_key = str(
+            sphere
+        ).strip().lower()
+
+        sphere_name = SPHERE_NAMES.get(
+            sphere_key
+        )
+
+        if sphere_name:
+            formatted.append(
+                sphere_name
+            )
+
+        else:
+            # Якщо в базі раптом зберігатиметься
+            # невідома сфера, не ламаємо меню.
+            formatted.append(
+                str(sphere)
+            )
+
+    return " • ".join(
+        formatted
+    )
+
+
+# ==================================================
+# ПЕРЕВІРКА ДЕДЛАЙНУ
+# ==================================================
+
+def get_deadline_marker(
+    deadline_text,
+    default_marker
+):
+    """
+    Визначає маркер квесту.
+
+    Якщо дедлайн сьогодні:
+        🔥
+
+    Якщо дата некоректна або інша:
+        переданий default_marker
+    """
+
+    try:
+
+        deadline = datetime.strptime(
+            str(deadline_text),
+            "%d.%m.%y"
+        ).date()
+
+        today = datetime.now().date()
+
+        if deadline == today:
+            return "🔥"
+
+    except (
+        ValueError,
+        TypeError
+    ):
+        pass
+
+    return default_marker
+
+
+# ==================================================
 # МОЇ КВЕСТИ
 # ==================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "📝 Мої квести"
+    func=lambda message:
+        message.text == "📝 Мої квести"
 )
 def open_my_quests(message):
 
-    user_id = str(message.from_user.id)
-    player = get_player(user_id)
+    user_id = str(
+        message.from_user.id
+    )
 
-    scrolls = player.get("scrolls") or []
-    rituals = player.get("rituals") or []
-    plants = player.get("plants") or []
+    player = get_player(
+        user_id
+    )
+
+    # ==================================================
+    # АКТИВНІ КВЕСТИ
+    # ==================================================
+
+    scrolls = player.get(
+        "scrolls"
+    ) or []
+
+    rituals = player.get(
+        "rituals"
+    ) or []
+
+    plants = player.get(
+        "plants"
+    ) or []
+
+    # ==================================================
+    # СЬОГОДНІ
+    # ==================================================
 
     today = datetime.now().date()
-    today_weekday = WEEKDAYS[today.weekday()]
+
+    today_weekday = WEEKDAYS[
+        today.weekday()
+    ]
 
     text = (
         "📝 <b>Твої активні квести Грінвуду</b>\n\n"
-        f"📅 Сьогодні: <b>{today.strftime('%d.%m.%Y')}, "
+
+        f"📅 Сьогодні: <b>"
+        f"{today.strftime('%d.%m.%Y')}, "
         f"{today_weekday}</b>\n"
+
         "────────────────────\n\n"
     )
 
 
     # ==================================================
-    # СУВОЇ
+    # 📜 СУВОЇ
     # ==================================================
 
-    text += "📜 <b>Сувої</b>\n\n"
+    text += (
+        "📜 <b>Сувої</b>\n\n"
+    )
 
     if scrolls:
 
@@ -62,42 +193,78 @@ def open_my_quests(message):
 
             title = scroll.get(
                 "title",
-                scroll.get("name", "Без назви")
+                scroll.get(
+                    "name",
+                    "Без назви"
+                )
             )
 
-            xp = scroll.get("xp", 0)
-            deadline_text = scroll.get("deadline", "")
+            xp = scroll.get(
+                "xp",
+                0
+            )
 
-            marker = "📜"
+            deadline_text = scroll.get(
+                "deadline",
+                ""
+            )
 
-            try:
-                deadline = datetime.strptime(
-                    deadline_text,
-                    "%d.%m.%y"
-                ).date()
+            spheres = scroll.get(
+                "spheres",
+                []
+            )
 
-                if deadline == today:
-                    marker = "🔥"
+            # ------------------------------------------
+            # Маркер дедлайну
+            # ------------------------------------------
 
-            except (ValueError, TypeError):
-                pass
+            marker = get_deadline_marker(
+                deadline_text,
+                "🔥"
+            )
+
+            # ------------------------------------------
+            # Назва + XP
+            # ------------------------------------------
 
             text += (
                 f"{marker} <b>{title}</b> "
                 f"({float(xp):.1f} XP)\n"
-                f"    └── 📅 Дедлайн: {deadline_text}\n\n"
+            )
+
+            # ------------------------------------------
+            # Сфери
+            # ------------------------------------------
+
+            text += (
+                "    └── "
+                f"{format_spheres(spheres)}\n"
+            )
+
+            # ------------------------------------------
+            # Дедлайн
+            # ------------------------------------------
+
+            text += (
+                "    └── 📅 Дедлайн: "
+                f"{deadline_text}\n\n"
             )
 
     else:
 
-        text += "    Поки що немає активних сувоїв.\n\n"
+        text += (
+            "    Поки що немає "
+            "активних сувоїв.\n\n"
+        )
 
 
     # ==================================================
-    # РИТУАЛИ
+    # 🔄 РИТУАЛИ
     # ==================================================
 
-    text += "🔄 <b>Ритуали</b>\n\n"
+    text += (
+        "🔄 <b>Ритуали</b>\n\n"
+    )
 
     if rituals:
 
@@ -105,21 +272,49 @@ def open_my_quests(message):
 
             title = ritual.get(
                 "title",
-                ritual.get("name", "Без назви")
+                ritual.get(
+                    "name",
+                    "Без назви"
+                )
             )
 
-            xp = ritual.get("xp", 0)
+            xp = ritual.get(
+                "xp",
+                0
+            )
 
-            days = ritual.get("days", [])
+            days = ritual.get(
+                "days",
+                []
+            )
 
-            # Якщо days зберігається як текст
-            if isinstance(days, str):
+            spheres = ritual.get(
+                "spheres",
+                []
+            )
 
-                if days.lower().strip() == "щодня":
+            # ------------------------------------------
+            # ДНІ
+            # ------------------------------------------
+
+            if isinstance(
+                days,
+                str
+            ):
+
+                if (
+                    days.lower().strip()
+                    == "щодня"
+                ):
 
                     ritual_days = [
-                        "пн", "вт", "ср",
-                        "чт", "пт", "сб", "нд"
+                        "пн",
+                        "вт",
+                        "ср",
+                        "чт",
+                        "пт",
+                        "сб",
+                        "нд"
                     ]
 
                 else:
@@ -127,22 +322,32 @@ def open_my_quests(message):
                     ritual_days = [
                         day.strip().lower()
                         for day in days.split(",")
+                        if day.strip()
                     ]
 
-            # Якщо days зберігається як список
-            elif isinstance(days, list):
+            elif isinstance(
+                days,
+                list
+            ):
 
                 ritual_days = [
                     str(day).strip().lower()
                     for day in days
+                    if str(day).strip()
                 ]
 
             else:
 
                 ritual_days = []
 
+            # ------------------------------------------
+            # Маркер
+            # ------------------------------------------
 
-            if today_weekday in ritual_days:
+            if (
+                today_weekday
+                in ritual_days
+            ):
 
                 marker = "🔥"
 
@@ -150,25 +355,56 @@ def open_my_quests(message):
 
                 marker = "💤"
 
+            # ------------------------------------------
+            # Дні для відображення
+            # ------------------------------------------
 
-            days_display = ", ".join(ritual_days)
+            days_display = ", ".join(
+                ritual_days
+            )
+
+            # ------------------------------------------
+            # Назва + XP
+            # ------------------------------------------
 
             text += (
                 f"{marker} <b>{title}</b> "
                 f"({float(xp):.1f} XP)\n"
-                f"    └── 📅 Дні: {days_display}\n\n"
+            )
+
+            # ------------------------------------------
+            # Сфери
+            # ------------------------------------------
+
+            text += (
+                "    └── "
+                f"{format_spheres(spheres)}\n"
+            )
+
+            # ------------------------------------------
+            # Дні
+            # ------------------------------------------
+
+            text += (
+                "    └── 📅 Дні: "
+                f"{days_display}\n\n"
             )
 
     else:
 
-        text += "    Поки що немає активних ритуалів.\n\n"
+        text += (
+            "    Поки що немає "
+            "активних ритуалів.\n\n"
+        )
 
 
     # ==================================================
-    # РОСЛИНИ
+    # 🌱 ТЕПЛИЦЯ
     # ==================================================
 
-    text += "🌱 <b>Теплиця</b>\n\n"
+    text += (
+        "🌱 <b>Теплиця</b>\n\n"
+    )
 
     if plants:
 
@@ -176,37 +412,69 @@ def open_my_quests(message):
 
             title = plant.get(
                 "title",
-                plant.get("name", "Без назви")
+                plant.get(
+                    "name",
+                    "Без назви"
+                )
             )
 
-            xp = plant.get("xp", 0)
-            deadline_text = plant.get("deadline", "")
+            xp = plant.get(
+                "xp",
+                0
+            )
 
-            marker = "🌱"
+            deadline_text = plant.get(
+                "deadline",
+                ""
+            )
 
-            try:
+            spheres = plant.get(
+                "spheres",
+                []
+            )
 
-                deadline = datetime.strptime(
-                    deadline_text,
-                    "%d.%m.%y"
-                ).date()
+            # ------------------------------------------
+            # Маркер дедлайну
+            # ------------------------------------------
 
-                if deadline == today:
-                    marker = "🔥"
+            marker = get_deadline_marker(
+                deadline_text,
+                "🌱"
+            )
 
-            except (ValueError, TypeError):
-                pass
-
+            # ------------------------------------------
+            # Назва + XP
+            # ------------------------------------------
 
             text += (
                 f"{marker} <b>{title}</b> "
                 f"({float(xp):.1f} XP)\n"
-                f"    └── 📅 Дедлайн: {deadline_text}\n\n"
+            )
+
+            # ------------------------------------------
+            # Сфери
+            # ------------------------------------------
+
+            text += (
+                "    └── "
+                f"{format_spheres(spheres)}\n"
+            )
+
+            # ------------------------------------------
+            # Дедлайн
+            # ------------------------------------------
+
+            text += (
+                "    └── 📅 Дедлайн: "
+                f"{deadline_text}\n\n"
             )
 
     else:
 
-        text += "    У теплиці поки нічого не росте.\n\n"
+        text += (
+            "    У теплиці поки нічого "
+            "не росте.\n\n"
+        )
 
 
     # ==================================================
@@ -222,11 +490,12 @@ def open_my_quests(message):
 
 
 # ==================================================
-# НАЗАД
+# 🔙 НАЗАД
 # ==================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "🔙 Назад"
+    func=lambda message:
+        message.text == "🔙 Назад"
 )
 def back_from_quests(message):
 
@@ -234,7 +503,10 @@ def back_from_quests(message):
 
     bot.send_message(
         message.chat.id,
-        "🌲 <b>Повертаємось до головної галявини.</b>",
+        (
+            "🌲 <b>Повертаємось "
+            "до головної галявини.</b>"
+        ),
         parse_mode="HTML",
         reply_markup=get_main_menu()
     )
