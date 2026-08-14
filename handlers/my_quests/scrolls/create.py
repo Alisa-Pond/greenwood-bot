@@ -50,7 +50,6 @@ def start_create_scroll(message):
         types.KeyboardButton("🔙 Скасувати")
     )
 
-
     text = (
         "🦇 <b>Марчелло відкриває стародавній сувій...</b>\n\n"
 
@@ -84,9 +83,12 @@ def start_create_scroll(message):
         "розділено між ними.\n\n"
 
         "🦇 <i>І пам'ятай: назви активних сувоїв "
-        "не можуть повторюватися.</i>"
-    )
+        "не можуть повторюватися.</i>\n\n"
 
+        "📚 <b>Можеш надсилати сувої один за одним.</b>\n"
+        "Після кожного успішного створення Марчелло "
+        "чекатиме на наступний."
+    )
 
     msg = bot.send_message(
         message.chat.id,
@@ -94,7 +96,6 @@ def start_create_scroll(message):
         parse_mode="HTML",
         reply_markup=markup
     )
-
 
     bot.register_next_step_handler(
         msg,
@@ -139,7 +140,6 @@ def process_scroll_creation(message):
             for part in message.text.split(";")
         ]
 
-
         if len(parts) != 4:
 
             raise ValueError(
@@ -155,7 +155,6 @@ def process_scroll_creation(message):
         # ==================================================
 
         spheres = []
-
 
         for emoji in spheres_text:
 
@@ -307,6 +306,8 @@ def process_scroll_creation(message):
             )
 
 
+            # Продовжуємо чекати наступний сувій
+
             bot.register_next_step_handler(
                 message,
                 process_scroll_creation
@@ -330,11 +331,21 @@ def process_scroll_creation(message):
                 "❌ Не вдалося запечатати сувій "
                 "у бібліотеці Грінвуду.\n\n"
 
-                "Спробуй ще раз трохи пізніше.",
+                "Спробуй ще раз.",
 
                 parse_mode="HTML",
 
-                reply_markup=get_scrolls_menu()
+                reply_markup=types.ReplyKeyboardMarkup(
+                    resize_keyboard=True
+                )
+            )
+
+            # Навіть після помилки продовжуємо чекати
+            # наступну спробу
+
+            bot.register_next_step_handler(
+                message,
+                process_scroll_creation
             )
 
             return
@@ -359,6 +370,19 @@ def process_scroll_creation(message):
         )
 
 
+        # ==================================================
+        # КНОПКА СКАСУВАННЯ
+        # ==================================================
+
+        markup = types.ReplyKeyboardMarkup(
+            resize_keyboard=True
+        )
+
+        markup.row(
+            types.KeyboardButton("🔙 Скасувати")
+        )
+
+
         bot.send_message(
 
             message.chat.id,
@@ -380,12 +404,26 @@ def process_scroll_creation(message):
             f"📚 <b>Активних сувоїв: "
             f"{active_count}</b>\n\n"
 
-            "🦇 <i>Тепер цей квест офіційно "
-            "записаний у хроніки Грінвуду.</i>",
+            "✨ <b>Сувій запечатано.</b>\n\n"
+
+            "🦇 <i>Марчелло вже розгортає наступний "
+            "чистий аркуш...</i>\n\n"
+
+            "📜 Надсилай наступний сувій.",
 
             parse_mode="HTML",
 
-            reply_markup=get_scrolls_menu()
+            reply_markup=markup
+        )
+
+
+        # ==================================================
+        # ЧЕКАЄМО НАСТУПНИЙ СУВІЙ
+        # ==================================================
+
+        bot.register_next_step_handler(
+            message,
+            process_scroll_creation
         )
 
 
@@ -424,6 +462,9 @@ def process_scroll_creation(message):
             reply_markup=markup
         )
 
+
+        # Після помилки також одразу чекаємо
+        # новий ввід
 
         bot.register_next_step_handler(
             message,
