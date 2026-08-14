@@ -8,9 +8,9 @@ from keyboards import get_quests_menu
 print("⚙️ Реєструємо меню 'Мої квести'...")
 
 
-# ==================================================
+# =========================================================
 # ДНІ ТИЖНЯ
-# ==================================================
+# =========================================================
 
 WEEKDAYS = {
     0: "пн",
@@ -23,58 +23,74 @@ WEEKDAYS = {
 }
 
 
-# ==================================================
-# ПЕРЕВІРКА: ЧИ РИТУАЛ ВИКОНАНИЙ СЬОГОДНІ
-# ==================================================
+# =========================================================
+# СФЕРИ
+# =========================================================
 
-def ritual_completed_today(ritual, today):
+SPHERE_EMOJIS = {
+    "health": "💪",
+    "wisdom": "🧠",
+    "art": "🎨",
+    "finance": "💵",
+    "relations": "🤝"
+}
+
+
+# =========================================================
+# ОТРИМАТИ СФЕРИ У ВИГЛЯДІ ЕМОДЗІ
+# =========================================================
+
+def get_sphere_emojis(quest):
     """
-    Перевіряє, чи був ритуал виконаний сьогодні.
+    Перетворює список сфер квесту
+    на рядок з відповідними емодзі.
 
-    Підтримує кілька можливих форматів збереження,
-    щоб не ламати вже існуючі ритуали.
+    Наприклад:
+    ["health", "wisdom"] → "💪🧠"
     """
 
-    # --------------------------------------------------
-    # Варіант 1: completed_today
-    # --------------------------------------------------
+    spheres = quest.get("spheres") or []
 
-    completed_today = ritual.get("completed_today")
+    if not isinstance(spheres, list):
+        return ""
 
-    if completed_today is True:
-        return True
-
-    # --------------------------------------------------
-    # Варіант 2: last_completed_date
-    # --------------------------------------------------
-
-    last_completed_date = ritual.get(
-        "last_completed_date"
+    return "".join(
+        SPHERE_EMOJIS.get(
+            str(sphere),
+            ""
+        )
+        for sphere in spheres
     )
 
-    if last_completed_date:
 
-        if isinstance(
-            last_completed_date,
-            str
-        ):
+# =========================================================
+# ПЕРЕВІРКА ВИКОНАННЯ РИТУАЛУ СЬОГОДНІ
+# =========================================================
 
-            if last_completed_date == today.isoformat():
-                return True
+def is_ritual_completed_today(ritual):
+    """
+    Перевіряє, чи був цей ритуал виконаний сьогодні.
 
-            if last_completed_date == today.strftime(
-                "%d.%m.%Y"
-            ):
-                return True
+    Підтримуються різні варіанти збереження
+    історії виконання.
+    """
 
-            if last_completed_date == today.strftime(
-                "%d.%m.%y"
-            ):
-                return True
+    today = datetime.now().date()
+    today_iso = today.isoformat()
+    today_text = today.strftime("%d.%m.%Y")
 
-    # --------------------------------------------------
-    # Варіант 3: last_completed
-    # --------------------------------------------------
+    # -----------------------------------------------------
+    # Варіант 1:
+    # completed_today = True
+    # -----------------------------------------------------
+
+    if ritual.get("completed_today") is True:
+        return True
+
+    # -----------------------------------------------------
+    # Варіант 2:
+    # last_completed
+    # -----------------------------------------------------
 
     last_completed = ritual.get(
         "last_completed"
@@ -82,76 +98,75 @@ def ritual_completed_today(ritual, today):
 
     if last_completed:
 
-        if isinstance(
-            last_completed,
-            str
-        ):
+        if isinstance(last_completed, str):
 
-            # ISO дата / datetime
-            try:
-
-                parsed_date = datetime.fromisoformat(
-                    last_completed.replace(
-                        "Z",
-                        "+00:00"
-                    )
-                ).date()
-
-                if parsed_date == today:
-                    return True
-
-            except (
-                ValueError,
-                TypeError
+            if (
+                last_completed == today_iso
+                or last_completed == today_text
+                or last_completed.startswith(today_iso)
             ):
+                return True
 
-                pass
+    # -----------------------------------------------------
+    # Варіант 3:
+    # completed_dates
+    # -----------------------------------------------------
 
-            # DD.MM.YYYY
-            try:
+    completed_dates = ritual.get(
+        "completed_dates"
+    )
 
-                parsed_date = datetime.strptime(
-                    last_completed,
-                    "%d.%m.%Y"
-                ).date()
+    if isinstance(completed_dates, list):
 
-                if parsed_date == today:
-                    return True
+        for date_value in completed_dates:
 
-            except (
-                ValueError,
-                TypeError
+            if not isinstance(date_value, str):
+                continue
+
+            if (
+                date_value == today_iso
+                or date_value == today_text
+                or date_value.startswith(today_iso)
             ):
+                return True
 
-                pass
+    # -----------------------------------------------------
+    # Варіант 4:
+    # completion_dates
+    # -----------------------------------------------------
 
-            # DD.MM.YY
-            try:
+    completion_dates = ritual.get(
+        "completion_dates"
+    )
 
-                parsed_date = datetime.strptime(
-                    last_completed,
-                    "%d.%m.%y"
-                ).date()
+    if isinstance(completion_dates, list):
 
-                if parsed_date == today:
-                    return True
+        for date_value in completion_dates:
 
-            except (
-                ValueError,
-                TypeError
+            if not isinstance(date_value, str):
+                continue
+
+            if (
+                date_value == today_iso
+                or date_value == today_text
+                or date_value.startswith(today_iso)
             ):
+                return True
 
-                pass
+    # -----------------------------------------------------
+    # Нічого не знайдено
+    # -----------------------------------------------------
 
     return False
 
 
-# ==================================================
+# =========================================================
 # МОЇ КВЕСТИ
-# ==================================================
+# =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "📝 Мої квести"
+    func=lambda message:
+    message.text == "📝 Мої квести"
 )
 def open_my_quests(message):
 
@@ -181,6 +196,10 @@ def open_my_quests(message):
         today.weekday()
     ]
 
+    # =====================================================
+    # ЗАГОЛОВОК
+    # =====================================================
+
     text = (
         "📝 <b>Твої активні квести Грінвуду</b>\n\n"
 
@@ -193,9 +212,9 @@ def open_my_quests(message):
     )
 
 
-    # ==================================================
-    # СУВОЇ
-    # ==================================================
+    # =====================================================
+    # 📜 СУВОЇ
+    # =====================================================
 
     text += (
         "📜 <b>Сувої</b>\n\n"
@@ -204,6 +223,12 @@ def open_my_quests(message):
     if scrolls:
 
         for scroll in scrolls:
+
+            if not isinstance(
+                scroll,
+                dict
+            ):
+                continue
 
             title = scroll.get(
                 "title",
@@ -223,9 +248,9 @@ def open_my_quests(message):
                 ""
             )
 
-            # --------------------------------------------------
-            # ВОГНИК ТІЛЬКИ ЯКЩО ДЕДЛАЙН СЬОГОДНІ
-            # --------------------------------------------------
+            # -------------------------------------------------
+            # 🔥 Тільки якщо дедлайн сьогодні
+            # -------------------------------------------------
 
             marker = ""
 
@@ -247,8 +272,29 @@ def open_my_quests(message):
 
                 pass
 
+            # -------------------------------------------------
+            # СФЕРИ
+            # -------------------------------------------------
+
+            sphere_emojis = get_sphere_emojis(
+                scroll
+            )
+
+            sphere_prefix = ""
+
+            if sphere_emojis:
+
+                sphere_prefix = (
+                    f"{sphere_emojis} "
+                )
+
+            # -------------------------------------------------
+            # ВИВІД
+            # -------------------------------------------------
+
             text += (
                 f"{marker}"
+                f"{sphere_prefix}"
                 f"<b>{title}</b> "
                 f"({float(xp):.1f} XP)\n"
 
@@ -259,13 +305,14 @@ def open_my_quests(message):
     else:
 
         text += (
-            "    Поки що немає активних сувоїв.\n\n"
+            "    Поки що немає "
+            "активних сувоїв.\n\n"
         )
 
 
-    # ==================================================
-    # РИТУАЛИ
-    # ==================================================
+    # =====================================================
+    # 🔄 РИТУАЛИ
+    # =====================================================
 
     text += (
         "🔄 <b>Ритуали</b>\n\n"
@@ -274,6 +321,12 @@ def open_my_quests(message):
     if rituals:
 
         for ritual in rituals:
+
+            if not isinstance(
+                ritual,
+                dict
+            ):
+                continue
 
             title = ritual.get(
                 "title",
@@ -293,9 +346,9 @@ def open_my_quests(message):
                 []
             )
 
-            # --------------------------------------------------
-            # ОБРОБКА ДНІВ
-            # --------------------------------------------------
+            # -------------------------------------------------
+            # НОРМАЛІЗАЦІЯ ДНІВ
+            # -------------------------------------------------
 
             if isinstance(
                 days,
@@ -337,31 +390,58 @@ def open_my_quests(message):
 
                 ritual_days = []
 
-            # --------------------------------------------------
-            # ВИЗНАЧАЄМО СТАТУС
-            # --------------------------------------------------
 
-            if ritual_completed_today(
-                ritual,
-                today
+            # -------------------------------------------------
+            # СТАТУС РИТУАЛУ
+            # -------------------------------------------------
+
+            if today_weekday not in ritual_days:
+
+                marker = "💤"
+
+            elif is_ritual_completed_today(
+                ritual
             ):
 
                 marker = "✅"
 
-            elif today_weekday in ritual_days:
+            else:
 
                 marker = "🔥"
 
-            else:
 
-                marker = "💤"
+            # -------------------------------------------------
+            # СФЕРИ
+            # -------------------------------------------------
+
+            sphere_emojis = get_sphere_emojis(
+                ritual
+            )
+
+            sphere_prefix = ""
+
+            if sphere_emojis:
+
+                sphere_prefix = (
+                    f"{sphere_emojis} "
+                )
+
+            # -------------------------------------------------
+            # ДНІ
+            # -------------------------------------------------
 
             days_display = ", ".join(
                 ritual_days
             )
 
+            # -------------------------------------------------
+            # ВИВІД
+            # -------------------------------------------------
+
             text += (
-                f"{marker} <b>{title}</b> "
+                f"{marker} "
+                f"{sphere_prefix}"
+                f"<b>{title}</b> "
                 f"({float(xp):.1f} XP)\n"
 
                 f"    └── 📅 Дні: "
@@ -371,13 +451,14 @@ def open_my_quests(message):
     else:
 
         text += (
-            "    Поки що немає активних ритуалів.\n\n"
+            "    Поки що немає "
+            "активних ритуалів.\n\n"
         )
 
 
-    # ==================================================
-    # ТЕПЛИЦЯ
-    # ==================================================
+    # =====================================================
+    # 🌱 ТЕПЛИЦЯ
+    # =====================================================
 
     text += (
         "🌱 <b>Теплиця</b>\n\n"
@@ -386,6 +467,12 @@ def open_my_quests(message):
     if plants:
 
         for plant in plants:
+
+            if not isinstance(
+                plant,
+                dict
+            ):
+                continue
 
             title = plant.get(
                 "title",
@@ -405,7 +492,15 @@ def open_my_quests(message):
                 ""
             )
 
+            # -------------------------------------------------
+            # МАРКЕР РОСЛИНИ
+            # -------------------------------------------------
+
             marker = "🌱"
+
+            # -------------------------------------------------
+            # ДЕДЛАЙН СЬОГОДНІ
+            # -------------------------------------------------
 
             try:
 
@@ -425,8 +520,30 @@ def open_my_quests(message):
 
                 pass
 
+            # -------------------------------------------------
+            # СФЕРИ
+            # -------------------------------------------------
+
+            sphere_emojis = get_sphere_emojis(
+                plant
+            )
+
+            sphere_prefix = ""
+
+            if sphere_emojis:
+
+                sphere_prefix = (
+                    f"{sphere_emojis} "
+                )
+
+            # -------------------------------------------------
+            # ВИВІД
+            # -------------------------------------------------
+
             text += (
-                f"{marker} <b>{title}</b> "
+                f"{marker} "
+                f"{sphere_prefix}"
+                f"<b>{title}</b> "
                 f"({float(xp):.1f} XP)\n"
 
                 f"    └── 📅 Дедлайн: "
@@ -436,28 +553,33 @@ def open_my_quests(message):
     else:
 
         text += (
-            "    У теплиці поки нічого не росте.\n\n"
+            "    У теплиці поки "
+            "нічого не росте.\n\n"
         )
 
 
-    # ==================================================
+    # =====================================================
     # ВІДПРАВКА
-    # ==================================================
+    # =====================================================
 
     bot.send_message(
         message.chat.id,
+
         text,
+
         parse_mode="HTML",
+
         reply_markup=get_quests_menu()
     )
 
 
-# ==================================================
-# НАЗАД
-# ==================================================
+# =========================================================
+# 🔙 НАЗАД
+# =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "🔙 Назад"
+    func=lambda message:
+    message.text == "🔙 Назад"
 )
 def back_from_quests(message):
 
@@ -465,7 +587,11 @@ def back_from_quests(message):
 
     bot.send_message(
         message.chat.id,
-        "🌲 <b>Повертаємось до головної галявини.</b>",
+
+        "🌲 <b>Повертаємось "
+        "до головної галявини.</b>",
+
         parse_mode="HTML",
+
         reply_markup=get_main_menu()
     )
