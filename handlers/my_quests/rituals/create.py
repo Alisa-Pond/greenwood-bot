@@ -84,7 +84,11 @@ def start_create_ritual(message):
         "або просто <b>щодня</b>\n\n"
 
         "⚖️ Якщо вказано кілька сфер, XP за виконання "
-        "буде розділено між ними."
+        "буде розділено між ними.\n\n"
+
+        "📚 <b>Можеш створювати ритуали один за одним.</b>\n"
+        "Після кожного успішного створення Марчелло "
+        "чекатиме на наступний."
     )
 
     msg = bot.send_message(
@@ -115,7 +119,7 @@ def process_ritual_creation(message):
         bot.send_message(
             message.chat.id,
             "🦇 Марчелло згортає чистий аркуш.\n\n"
-            "Ритуал не було створено.",
+            "Режим створення ритуалів завершено.",
             parse_mode="HTML",
             reply_markup=get_rituals_menu()
         )
@@ -191,7 +195,7 @@ def process_ritual_creation(message):
         if xp < 4 or xp > 14:
 
             raise ValueError(
-                "Для ритуалу кількість балів має бути від 1 до 14."
+                "Для ритуалу кількість балів має бути від 4 до 14."
             )
 
 
@@ -347,6 +351,18 @@ def process_ritual_creation(message):
         )
 
 
+        # Кнопка скасування залишається,
+        # бо ми продовжуємо чекати наступний ритуал.
+
+        markup = types.ReplyKeyboardMarkup(
+            resize_keyboard=True
+        )
+
+        markup.row(
+            types.KeyboardButton("🔙 Скасувати")
+        )
+
+
         bot.send_message(
             message.chat.id,
 
@@ -363,10 +379,22 @@ def process_ritual_creation(message):
             f"<b>{ritual_count}</b> активних ритуалів.\n\n"
 
             "🔥 Марчелло заносить його до магічного розкладу "
-            "Грінвуду.",
+            "Грінвуду.\n\n"
+
+            "✨ <b>Надсилай наступний ритуал.</b>",
 
             parse_mode="HTML",
-            reply_markup=get_rituals_menu()
+            reply_markup=markup
+        )
+
+
+        # -------------------------------------------------
+        # ЧЕКАЄМО НАСТУПНИЙ РИТУАЛ
+        # -------------------------------------------------
+
+        bot.register_next_step_handler(
+            message,
+            process_ritual_creation
         )
 
 
@@ -404,6 +432,9 @@ def process_ritual_creation(message):
             reply_markup=markup
         )
 
+
+        # Після помилки також залишаєтьсямося
+        # у режимі створення ритуалів.
 
         bot.register_next_step_handler(
             message,
