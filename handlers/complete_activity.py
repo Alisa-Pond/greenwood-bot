@@ -2,12 +2,6 @@ from telebot import types
 
 from services.config import bot
 
-# Імпортуємо модулі, щоб завантажити їхні функції.
-from handlers import complete_scroll
-from handlers import complete_ritual
-from handlers import complete_plant
-from handlers import complete_unplanned
-
 
 print("⚙️ Завантажено систему виконання справ...")
 
@@ -17,7 +11,8 @@ print("⚙️ Завантажено систему виконання спра�
 # =========================================================
 
 @bot.message_handler(
-    func=lambda message: message.text == "✅ Виконати справу"
+    func=lambda message:
+        message.text == "✅ Виконати справу"
 )
 def start_complete(message):
 
