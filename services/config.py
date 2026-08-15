@@ -43,11 +43,3 @@ except Exception as e:
     raise e
 
 bot = telebot.TeleBot(BOT_TOKEN)
-
-LOOT_CHANCE = 0.003
-POSSIBLE_LOOT = [
-    "🧪 Настій Бадьорості",
-    "📜 Стародавній Сувій",
-    "💎 Кристал Натхнення",
-    "🔑 Мідний Ключ"
-]
