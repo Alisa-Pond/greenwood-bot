@@ -1,7 +1,5 @@
 import random
 
-from services.database import update_player
-
 
 # =========================================================
 # НАЛАШТУВАННЯ ЛУТУ
@@ -23,10 +21,14 @@ POSSIBLE_LOOT = [
 
 def try_get_loot(player):
     """
-    Перевіряє, чи випаде випадковий лут.
+    Перевіряє шанс випадіння луту.
 
-    Повертає назву предмета, якщо лут випав.
-    Якщо не випав — повертає None.
+    Якщо лут випав:
+        додає його до інвентарю
+        повертає назву предмета.
+
+    Якщо не випав:
+        повертає None.
     """
 
     if random.random() > LOOT_CHANCE:
@@ -47,20 +49,3 @@ def try_get_loot(player):
     player["inventory"] = inventory
 
     return loot
-
-
-# =========================================================
-# ЗБЕРЕЖЕННЯ ЛУТУ
-# =========================================================
-
-def save_loot(user_id, player):
-    """
-    Зберігає інвентар гравця в Supabase.
-    """
-
-    update_player(
-        str(user_id),
-        {
-            "inventory": player.get("inventory") or []
-        }
-    )
