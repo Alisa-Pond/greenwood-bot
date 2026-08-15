@@ -49,22 +49,41 @@ def _days_text(item):
     return "не вказано"
 
 
-def _format_activity(item, activity_type, xp_prefix="⭐"):
+def _reward_text(item):
+    reward = (
+        item.get("reward")
+        or item.get("harvest_reward")
+        or item.get("reward_text")
+    )
+
+    if reward is None or str(reward).strip() == "":
+        return "без нагороди"
+
+    return escape(str(reward).strip())
+
+
+def _format_activity(item, activity_type):
     sphere_prefix = _sphere_prefix(item)
-    title = _safe_title(item)
     xp = get_xp(item)
+    title = _safe_title(item)
+
+    spheres_text = sphere_prefix or "—"
 
     if activity_type == "ritual":
-        extra = f"📅 Дні: {_days_text(item)}"
+        schedule_text = _days_text(item)
     else:
-        extra = f"📅 Дедлайн: {_deadline_text(item)}"
+        schedule_text = _deadline_text(item)
 
-    prefix = f"{sphere_prefix} " if sphere_prefix else ""
+    if activity_type == "plant":
+        return (
+            f"{spheres_text} ; {xp:.1f} XP ; "
+            f"{schedule_text} ; <b>{title}</b> ; "
+            f"{_reward_text(item)}"
+        )
 
     return (
-        f"{prefix}<b>{title}</b>\n"
-        f"{xp_prefix} {xp:.1f} XP\n"
-        f"{extra}\n"
+        f"{spheres_text} ; {xp:.1f} XP ; "
+        f"{schedule_text} ; <b>{title}</b>"
     )
 
 
@@ -305,4 +324,3 @@ def build_full_report(
     ]
 
     return "\n\n".join(sections)
-
