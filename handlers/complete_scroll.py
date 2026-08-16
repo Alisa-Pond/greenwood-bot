@@ -9,11 +9,11 @@ from services.activity_utils import (
     get_spheres,
     get_today,
     is_overdue,
-    add_level_xp,
+    add_xp_to_character,
     add_xp_to_spheres,
     update_statistics,
     build_back_button,
-    build_level_up_messages,
+    send_level_up_notifications,
 )
 
 from services.activity_loot import try_activity_loot
@@ -160,7 +160,7 @@ def complete_scroll(message):
     # XP ПЕРСОНАЖА
     # -----------------------------------------------------
 
-    character_level_ups = add_level_xp(
+    character_level_ups = add_xp_to_character(
         player,
         xp
     )
@@ -191,9 +191,7 @@ def complete_scroll(message):
         player.get("scroll_archive") or []
     )
 
-    completed_scroll = dict(
-        scroll
-    )
+    completed_scroll = dict(scroll)
 
     completed_scroll["completed"] = True
 
@@ -215,9 +213,7 @@ def complete_scroll(message):
 
     player["scrolls"] = scrolls
 
-    player["scroll_archive"] = (
-        scroll_archive
-    )
+    player["scroll_archive"] = scroll_archive
 
     # -----------------------------------------------------
     # СТАТИСТИКА
@@ -229,7 +225,7 @@ def complete_scroll(message):
     )
 
     # -----------------------------------------------------
-    # ЗБЕРІГАЄМО В SUPABASE
+    # SUPABASE
     # -----------------------------------------------------
 
     update_player(
@@ -238,22 +234,27 @@ def complete_scroll(message):
             "level": player["level"],
             "level_xp": player["level_xp"],
             "level_max_xp": player["level_max_xp"],
-
             "spheres": player["spheres"],
-
             "scrolls": player["scrolls"],
             "scroll_archive": player["scroll_archive"],
-
             "statistics": player["statistics"],
-
-            "inventory": player.get(
-                "inventory"
-            ) or [],
+            "inventory": player.get("inventory") or [],
         }
     )
 
     # -----------------------------------------------------
-    # ОСНОВНЕ ПОВІДОМЛЕННЯ
+    # ПОВІДОМЛЕННЯ ПРО ПІДВИЩЕННЯ РІВНЯ
+    # -----------------------------------------------------
+
+    send_level_up_notifications(
+        bot,
+        message.chat.id,
+        character_level_ups,
+        sphere_level_ups
+    )
+
+    # -----------------------------------------------------
+    # ДОДАТКОВИЙ ТЕКСТ
     # -----------------------------------------------------
 
     loot_text = ""
@@ -298,20 +299,3 @@ def complete_scroll(message):
 
         reply_markup=build_back_button(),
     )
-
-    # -----------------------------------------------------
-    # ПОВІДОМЛЕННЯ ПРО ПІДВИЩЕННЯ РІВНЯ
-    # -----------------------------------------------------
-
-    level_up_messages = build_level_up_messages(
-        character_level_ups,
-        sphere_level_ups
-    )
-
-    for level_up_message in level_up_messages:
-
-        bot.send_message(
-            message.chat.id,
-            level_up_message,
-            parse_mode="HTML"
-        )
