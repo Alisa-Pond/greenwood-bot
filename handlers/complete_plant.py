@@ -9,10 +9,11 @@ from services.activity_utils import (
     get_spheres,
     get_today,
     is_overdue,
-    add_total_xp,
+    add_xp_to_character,
     add_xp_to_spheres,
     update_statistics,
     build_back_button,
+    send_level_up_notifications,
 )
 
 from services.activity_loot import try_activity_loot
@@ -168,6 +169,10 @@ def complete_plant(message):
 
         return
 
+    # -----------------------------------------------------
+    # ОТРИМУЄМО РОСЛИНУ
+    # -----------------------------------------------------
+
     plant = plants[
         selected_index
     ]
@@ -189,22 +194,19 @@ def complete_plant(message):
     )
 
     # -----------------------------------------------------
-    # XP
+    # XP ПЕРСОНАЖА
     # -----------------------------------------------------
-    #
-    # Штраф за прострочення обробляється
-    # окремо.
-    #
-    # При виконанні рослини користувач
-    # отримує прописаний XP.
-    #
 
-    add_total_xp(
+    character_level_ups = add_xp_to_character(
         player,
         xp
     )
 
-    add_xp_to_spheres(
+    # -----------------------------------------------------
+    # XP СФЕР
+    # -----------------------------------------------------
+
+    sphere_level_ups = add_xp_to_spheres(
         player,
         spheres,
         xp
@@ -276,7 +278,9 @@ def complete_plant(message):
     update_player(
         user_id,
         {
-            "xp_total": player["xp_total"],
+            "level": player["level"],
+            "level_xp": player["level_xp"],
+            "level_max_xp": player["level_max_xp"],
             "spheres": player["spheres"],
             "plants": player["plants"],
             "plant_archive": player[
@@ -289,6 +293,17 @@ def complete_plant(message):
                 "inventory"
             ) or [],
         }
+    )
+
+    # -----------------------------------------------------
+    # ПОВІДОМЛЕННЯ ПРО ПІДВИЩЕННЯ
+    # -----------------------------------------------------
+
+    send_level_up_notifications(
+        bot,
+        message.chat.id,
+        character_level_ups,
+        sphere_level_ups
     )
 
     # -----------------------------------------------------
