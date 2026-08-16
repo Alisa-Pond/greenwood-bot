@@ -10,7 +10,6 @@ from services.activity_utils import (
     get_today,
     is_overdue,
     add_xp_to_character,
-    add_xp_to_spheres,
     update_statistics,
     build_back_button,
     send_level_up_notifications,
@@ -55,7 +54,11 @@ def choose_scroll(message):
 
     for index, scroll in enumerate(scrolls):
 
-        overdue = "⚠️ " if is_overdue(scroll) else ""
+        overdue = (
+            "⚠️ "
+            if is_overdue(scroll)
+            else ""
+        )
 
         markup.row(
             types.KeyboardButton(
@@ -97,15 +100,21 @@ def complete_scroll(message):
 
         return
 
-    user_id = str(message.from_user.id)
+    user_id = str(
+        message.from_user.id
+    )
 
-    player = get_player(user_id)
+    player = get_player(
+        user_id
+    )
 
-    scrolls = player.get("scrolls") or []
+    scrolls = player.get(
+        "scrolls"
+    ) or []
 
-    # -----------------------------------------------------
+    # =====================================================
     # ВИЗНАЧАЄМО НОМЕР СУВОЮ
-    # -----------------------------------------------------
+    # =====================================================
 
     try:
 
@@ -119,13 +128,16 @@ def complete_scroll(message):
 
         selected_index = number - 1
 
-    except (ValueError, IndexError):
+    except (
+        ValueError,
+        IndexError
+    ):
 
         selected_index = None
 
-    # -----------------------------------------------------
+    # =====================================================
     # ПЕРЕВІРКА ВИБОРУ
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         selected_index is None
@@ -142,120 +154,165 @@ def complete_scroll(message):
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # ОТРИМУЄМО СУВІЙ
-    # -----------------------------------------------------
+    # =====================================================
 
-    scroll = scrolls[selected_index]
+    scroll = scrolls[
+        selected_index
+    ]
 
-    title = get_title(scroll)
-
-    xp = get_xp(scroll)
-
-    spheres = get_spheres(scroll)
-
-    overdue = is_overdue(scroll)
-
-    # -----------------------------------------------------
-    # XP ПЕРСОНАЖА
-    # -----------------------------------------------------
-
-    character_level_ups = add_xp_to_character(
-        player,
-        xp
+    title = get_title(
+        scroll
     )
 
-    # -----------------------------------------------------
-    # XP СФЕР
-    # -----------------------------------------------------
+    xp = get_xp(
+        scroll
+    )
 
-    sphere_level_ups = add_xp_to_spheres(
+    spheres = get_spheres(
+        scroll
+    )
+
+    overdue = is_overdue(
+        scroll
+    )
+
+    # =====================================================
+    # XP
+    # =====================================================
+    #
+    # Одна центральна функція:
+    #
+    # - додає XP персонажу
+    # - перевіряє level up персонажа
+    # - ділить XP між сферами
+    # - перевіряє level up сфер
+    #
+    # =====================================================
+
+    level_up_data = add_xp_to_character(
         player,
         spheres,
         xp
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # ЛУТ
-    # -----------------------------------------------------
+    # =====================================================
 
     loot = try_activity_loot(
         player
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # АРХІВ
-    # -----------------------------------------------------
+    # =====================================================
 
     scroll_archive = (
-        player.get("scroll_archive") or []
+        player.get(
+            "scroll_archive"
+        )
+        or []
     )
 
-    completed_scroll = dict(scroll)
-
-    completed_scroll["completed"] = True
-
-    completed_scroll["completed_date"] = (
-        get_today()
+    completed_scroll = dict(
+        scroll
     )
+
+    completed_scroll[
+        "completed"
+    ] = True
+
+    completed_scroll[
+        "completed_date"
+    ] = get_today()
 
     scroll_archive.append(
         completed_scroll
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # ВИДАЛЯЄМО З АКТИВНИХ
-    # -----------------------------------------------------
+    # =====================================================
 
     scrolls.pop(
         selected_index
     )
 
-    player["scrolls"] = scrolls
+    player[
+        "scrolls"
+    ] = scrolls
 
-    player["scroll_archive"] = scroll_archive
+    player[
+        "scroll_archive"
+    ] = scroll_archive
 
-    # -----------------------------------------------------
+    # =====================================================
     # СТАТИСТИКА
-    # -----------------------------------------------------
+    # =====================================================
 
     update_statistics(
         player,
         completed_scrolls=1
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # SUPABASE
-    # -----------------------------------------------------
+    # =====================================================
 
     update_player(
         user_id,
         {
-            "level": player["level"],
-            "level_xp": player["level_xp"],
-            "level_max_xp": player["level_max_xp"],
-            "spheres": player["spheres"],
-            "scrolls": player["scrolls"],
-            "scroll_archive": player["scroll_archive"],
-            "statistics": player["statistics"],
-            "inventory": player.get("inventory") or [],
+            "level": player.get(
+                "level",
+                1
+            ),
+
+            "level_xp": player.get(
+                "level_xp",
+                0.0
+            ),
+
+            "level_max_xp": player.get(
+                "level_max_xp",
+                10.0
+            ),
+
+            "spheres": player.get(
+                "spheres"
+            ) or {},
+
+            "scrolls": player.get(
+                "scrolls"
+            ) or [],
+
+            "scroll_archive": player.get(
+                "scroll_archive"
+            ) or [],
+
+            "statistics": player.get(
+                "statistics"
+            ) or {},
+
+            "inventory": player.get(
+                "inventory"
+            ) or [],
         }
     )
 
-    # -----------------------------------------------------
-    # ПОВІДОМЛЕННЯ ПРО ПІДВИЩЕННЯ РІВНЯ
-    # -----------------------------------------------------
+    # =====================================================
+    # ПОВІДОМЛЕННЯ ПРО LEVEL UP
+    # =====================================================
 
     send_level_up_notifications(
-        bot,
         message.chat.id,
-        character_level_ups,
-        sphere_level_ups
+        level_up_data
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # ДОДАТКОВИЙ ТЕКСТ
-    # -----------------------------------------------------
+    # =====================================================
 
     loot_text = ""
 
@@ -278,6 +335,10 @@ def complete_scroll(message):
     spheres_text = " ".join(
         spheres
     )
+
+    # =====================================================
+    # РЕЗУЛЬТАТ
+    # =====================================================
 
     bot.send_message(
         message.chat.id,
