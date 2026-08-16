@@ -5,9 +5,10 @@ from services.database import get_player, update_player
 
 from services.activity_utils import (
     SPHERE_NAMES,
-    add_total_xp,
+    add_xp_to_character,
     add_xp_to_spheres,
     build_back_button,
+    send_level_up_notifications,
 )
 
 from services.activity_loot import try_activity_loot
@@ -165,15 +166,19 @@ def process_unplanned(message):
         )
 
         # -------------------------------------------------
-        # XP
+        # XP ПЕРСОНАЖА
         # -------------------------------------------------
 
-        add_total_xp(
+        character_level_ups = add_xp_to_character(
             player,
             float(xp)
         )
 
-        add_xp_to_spheres(
+        # -------------------------------------------------
+        # XP СФЕР
+        # -------------------------------------------------
+
+        sphere_level_ups = add_xp_to_spheres(
             player,
             spheres,
             float(xp)
@@ -194,16 +199,25 @@ def process_unplanned(message):
         update_player(
             user_id,
             {
-                "xp_total": player[
-                    "xp_total"
-                ],
-                "spheres": player[
-                    "spheres"
-                ],
+                "level": player["level"],
+                "level_xp": player["level_xp"],
+                "level_max_xp": player["level_max_xp"],
+                "spheres": player["spheres"],
                 "inventory": player.get(
                     "inventory"
                 ) or [],
             }
+        )
+
+        # -------------------------------------------------
+        # ПОВІДОМЛЕННЯ ПРО ПІДВИЩЕННЯ
+        # -------------------------------------------------
+
+        send_level_up_notifications(
+            bot,
+            message.chat.id,
+            character_level_ups,
+            sphere_level_ups
         )
 
         # -------------------------------------------------
