@@ -61,13 +61,16 @@ def get_sphere_name(sphere):
 
 def get_spheres(item):
 
-    spheres = item.get("spheres") or item.get("sphere")
+    spheres = (
+        item.get("spheres")
+        or item.get("sphere")
+    )
 
     if not spheres:
         return []
 
     # -----------------------------------------------------
-    # Одна сфера
+    # Одна сфера як рядок
     # -----------------------------------------------------
 
     if isinstance(spheres, str):
@@ -100,9 +103,11 @@ def get_spheres(item):
                 emoji = sphere.get("emoji")
 
                 if emoji:
+
                     result.append(emoji)
 
                 elif sphere.get("name"):
+
                     result.append(
                         sphere["name"]
                     )
@@ -149,7 +154,10 @@ def get_xp(item):
             or 0
         )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError
+    ):
 
         return 0.0
 
@@ -174,7 +182,9 @@ def parse_deadline(deadline):
     if not deadline:
         return None
 
-    value = str(deadline).strip()
+    value = str(
+        deadline
+    ).strip()
 
     for fmt in (
         "%d.%m.%y",
@@ -230,7 +240,9 @@ def get_penalty_xp(item):
         "overdue_penalty"
     ):
 
-        value = item.get(field)
+        value = item.get(
+            field
+        )
 
         if value is not None:
 
@@ -271,24 +283,28 @@ def _get_sphere_key(sphere):
 # ДОДАТИ XP ДО СФЕР
 # =========================================================
 #
-# Наприклад:
+# Приклад:
 #
-# 🎨🧠 + 9 XP
+# Активність:
+# 🧠🎨
+# 9 XP
 #
-# 🎨 + 4.5 XP
-# 🧠 + 4.5 XP
+# Отримаємо:
 #
-# Якщо активність має одну сферу:
+# 🧠 +4.5 XP
+# 🎨 +4.5 XP
 #
-# 💪 + 9 XP
+# Якщо:
 #
-# Після досягнення max_xp:
+# 🧠
+# 9 XP
 #
-# lvl + 1
-# xp залишок переноситься
-# max_xp × 1.5
+# Отримаємо:
+#
+# 🧠 +9 XP
 #
 # Функція повертає список level up.
+#
 # =========================================================
 
 def add_xp_to_spheres(
@@ -303,19 +319,29 @@ def add_xp_to_spheres(
         return level_ups
 
     try:
-        total_xp = float(total_xp)
-    except (TypeError, ValueError):
+
+        total_xp = float(
+            total_xp
+        )
+
+    except (
+        TypeError,
+        ValueError
+    ):
+
         return level_ups
 
     if total_xp <= 0:
         return level_ups
 
     player_spheres = (
-        player.get("spheres") or {}
+        player.get("spheres")
+        or {}
     )
 
     share = (
-        total_xp / len(spheres)
+        total_xp
+        / len(spheres)
     )
 
     for sphere in spheres:
@@ -335,16 +361,24 @@ def add_xp_to_spheres(
         ]
 
         old_level = int(
-            data.get("lvl", 1)
+            data.get(
+                "lvl",
+                1
+            )
         )
 
         data["xp"] = (
-            float(data.get("xp", 0))
+            float(
+                data.get(
+                    "xp",
+                    0
+                )
+            )
             + share
         )
 
         # -------------------------------------------------
-        # LEVEL UP СФЕРИ
+        # LEVEL UP
         # -------------------------------------------------
 
         while (
@@ -352,7 +386,7 @@ def add_xp_to_spheres(
             >= float(
                 data.get(
                     "max_xp",
-                    10.0
+                    10
                 )
             )
         ):
@@ -360,7 +394,7 @@ def add_xp_to_spheres(
             max_xp = float(
                 data.get(
                     "max_xp",
-                    10.0
+                    10
                 )
             )
 
@@ -376,27 +410,43 @@ def add_xp_to_spheres(
                 + 1
             )
 
+            # Наступний рівень потребує
+            # у 1.5 раза більше XP.
+
             data["max_xp"] = (
                 max_xp * 1.5
             )
 
         new_level = int(
-            data.get("lvl", 1)
+            data.get(
+                "lvl",
+                1
+            )
         )
 
         if new_level > old_level:
 
             level_ups.append({
+
                 "key": sphere_key,
+
                 "emoji": SPHERE_NAMES[
                     sphere_key
                 ],
+
                 "name": SPHERE_DISPLAY_NAMES[
                     sphere_key
                 ],
+
                 "old_level": old_level,
+
                 "new_level": new_level,
+
             })
+
+    player["spheres"] = (
+        player_spheres
+    )
 
     return level_ups
 
@@ -405,117 +455,24 @@ def add_xp_to_spheres(
 # ДОДАТИ XP ДО РІВНЯ ПЕРСОНАЖА
 # =========================================================
 #
-# Система:
+# Використовуються поля:
 #
-# level       → поточний рівень
-# level_xp    → XP всередині поточного рівня
-# level_max_xp → XP, необхідний для наступного рівня
+# level
+# level_xp
+# level_max_xp
 #
-# Початок:
+# Приклад:
 #
-# level = 1
-# level_xp = 0
-# level_max_xp = 10
+# Рівень 1
+# 8 / 10 XP
 #
-# Після level up:
+# +5 XP
 #
-# max_xp × 1.5
+# стає:
 #
-# Надлишковий XP НЕ губиться.
+# Рівень 2
+# 3 / 15 XP
 #
-# =========================================================
-
-def add_xp_to_character(
-    player,
-    xp
-):
-
-    level_ups = []
-
-    try:
-        xp = float(xp)
-    except (TypeError, ValueError):
-        return level_ups
-
-    if xp <= 0:
-        return level_ups
-
-    # -----------------------------------------------------
-    # Захист від відсутніх полів
-    # -----------------------------------------------------
-
-    if player.get("level") is None:
-        player["level"] = 1
-
-    if player.get("level_xp") is None:
-        player["level_xp"] = 0.0
-
-    if player.get("level_max_xp") is None:
-        player["level_max_xp"] = 10.0
-
-    # -----------------------------------------------------
-    # Додаємо XP
-    # -----------------------------------------------------
-
-    player["level_xp"] = (
-        float(player.get("level_xp", 0))
-        + xp
-    )
-
-    # -----------------------------------------------------
-    # ПЕРЕВІРЯЄМО LEVEL UP
-    # -----------------------------------------------------
-
-    while (
-        player["level_xp"]
-        >= float(
-            player["level_max_xp"]
-        )
-    ):
-
-        old_level = int(
-            player["level"]
-        )
-
-        max_xp = float(
-            player["level_max_xp"]
-        )
-
-        # Забираємо XP,
-        # необхідний для поточного level up
-
-        player["level_xp"] -= max_xp
-
-        # Підвищуємо рівень
-
-        player["level"] = (
-            old_level + 1
-        )
-
-        # Наступний рівень
-        # потребує ×1.5 XP
-
-        player["level_max_xp"] = (
-            max_xp * 1.5
-        )
-
-        level_ups.append({
-            "old_level": old_level,
-            "new_level": player["level"],
-        })
-
-    return level_ups
-
-
-# =========================================================
-# АЛЬТЕРНАТИВНА НАЗВА
-# =========================================================
-#
-# Деякі handlers можуть використовувати:
-#
-# add_xp_to_player(...)
-#
-# Залишаємо її як сумісну назву.
 # =========================================================
 
 def add_xp_to_player(
@@ -523,22 +480,117 @@ def add_xp_to_player(
     xp
 ):
 
-    return add_xp_to_character(
-        player,
-        xp
+    level_ups = []
+
+    try:
+
+        xp = float(xp)
+
+    except (
+        TypeError,
+        ValueError
+    ):
+
+        return level_ups
+
+    if xp <= 0:
+        return level_ups
+
+    # -----------------------------------------------------
+    # ЗАХИСТ ВІД ВІДСУТНІХ ПОЛІВ
+    # -----------------------------------------------------
+
+    if player.get("level") is None:
+
+        player["level"] = 1
+
+    if player.get("level_xp") is None:
+
+        player["level_xp"] = 0.0
+
+    if player.get("level_max_xp") is None:
+
+        player["level_max_xp"] = 10.0
+
+    # -----------------------------------------------------
+    # ДОДАЄМО XP
+    # -----------------------------------------------------
+
+    player["level_xp"] = (
+        float(
+            player.get(
+                "level_xp",
+                0
+            )
+        )
+        + xp
     )
 
+    # -----------------------------------------------------
+    # LEVEL UP
+    # -----------------------------------------------------
+
+    while (
+        player["level_xp"]
+        >= float(
+            player.get(
+                "level_max_xp",
+                10
+            )
+        )
+    ):
+
+        old_level = int(
+            player.get(
+                "level",
+                1
+            )
+        )
+
+        max_xp = float(
+            player.get(
+                "level_max_xp",
+                10
+            )
+        )
+
+        player["level_xp"] -= max_xp
+
+        player["level"] = (
+            old_level + 1
+        )
+
+        # Наступний рівень =
+        # попередня вимога × 1.5
+
+        player["level_max_xp"] = (
+            max_xp * 1.5
+        )
+
+        level_ups.append({
+
+            "old_level": old_level,
+
+            "new_level": player[
+                "level"
+            ]
+
+        })
+
+    return level_ups
+
 
 # =========================================================
-# СТАРА НАЗВА
+# СТАРА НАЗВА ДЛЯ СУМІСНОСТІ
 # =========================================================
 #
-# Старі handlers могли використовувати:
+# Старі handlers можуть викликати:
 #
 # add_total_xp(...)
 #
-# Тепер вона працює з новою системою
-# level / level_xp / level_max_xp.
+# Тепер це просто додавання XP
+# до поточного рівня персонажа.
+#
 # =========================================================
 
 def add_total_xp(
@@ -546,10 +598,55 @@ def add_total_xp(
     xp
 ):
 
-    return add_xp_to_character(
+    return add_xp_to_player(
         player,
         xp
     )
+
+
+# =========================================================
+# ДОДАТИ XP ДО ПЕРСОНАЖА + СФЕР
+# =========================================================
+#
+# ЦЕ ОСНОВНА ФУНКЦІЯ ДЛЯ АКТИВНОСТЕЙ.
+#
+# Вона одразу:
+#
+# 1. Додає XP до персонажа.
+# 2. Перевіряє level up персонажа.
+# 3. Додає XP до сфер.
+# 4. Перевіряє level up сфер.
+#
+# Повертає:
+#
+# {
+#     "player": [...],
+#     "spheres": [...]
+# }
+#
+# =========================================================
+
+def add_xp_to_character(
+    player,
+    spheres,
+    xp
+):
+
+    player_level_ups = add_xp_to_player(
+        player,
+        xp
+    )
+
+    sphere_level_ups = add_xp_to_spheres(
+        player,
+        spheres,
+        xp
+    )
+
+    return {
+        "player": player_level_ups,
+        "spheres": sphere_level_ups
+    }
 
 
 # =========================================================
@@ -680,3 +777,79 @@ def format_player_level_up(
         "робити вигляд, що знаєш, "
         "що робиш.»"
     )
+
+
+# =========================================================
+# ВІДПРАВИТИ ПОВІДОМЛЕННЯ ПРО LEVEL UP
+# =========================================================
+#
+# Використання в handler:
+#
+# result = add_xp_to_character(
+#     player,
+#     spheres,
+#     xp
+# )
+#
+# send_level_up_notifications(
+#     message.chat.id,
+#     result
+# )
+#
+# =========================================================
+
+def send_level_up_notifications(
+    chat_id,
+    level_up_data
+):
+
+    from services.config import bot
+
+    if not level_up_data:
+        return
+
+    # -----------------------------------------------------
+    # LEVEL UP ПЕРСОНАЖА
+    # -----------------------------------------------------
+
+    player_level_ups = (
+        level_up_data.get(
+            "player",
+            []
+        )
+    )
+
+    for level_up in player_level_ups:
+
+        bot.send_message(
+            chat_id,
+
+            format_player_level_up(
+                level_up
+            ),
+
+            parse_mode="HTML"
+        )
+
+    # -----------------------------------------------------
+    # LEVEL UP СФЕР
+    # -----------------------------------------------------
+
+    sphere_level_ups = (
+        level_up_data.get(
+            "spheres",
+            []
+        )
+    )
+
+    for level_up in sphere_level_ups:
+
+        bot.send_message(
+            chat_id,
+
+            format_sphere_level_up(
+                level_up
+            ),
+
+            parse_mode="HTML"
+        )
