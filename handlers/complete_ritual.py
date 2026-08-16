@@ -9,11 +9,11 @@ from services.activity_utils import (
     get_xp,
     get_spheres,
     get_today,
-    add_level_xp,
+    add_xp_to_character,
     add_xp_to_spheres,
     update_statistics,
     build_back_button,
-    build_level_up_messages,
+    send_level_up_notifications,
 )
 
 from services.activity_loot import try_activity_loot
@@ -244,27 +244,6 @@ def complete_ritual(message):
     today = get_today()
 
     # -----------------------------------------------------
-    # ПЕРЕВІРКА ДНЯ
-    # -----------------------------------------------------
-
-    if not ritual_is_for_today(
-        ritual
-    ):
-
-        bot.send_message(
-            message.chat.id,
-
-            "🌙 <b>Сьогодні цей ритуал "
-            "не можна провести.</b>\n\n"
-            "Його день ще не настав.",
-
-            parse_mode="HTML",
-            reply_markup=build_back_button(),
-        )
-
-        return
-
-    # -----------------------------------------------------
     # ПЕРЕВІРКА ПОВТОРНОГО ВИКОНАННЯ
     # -----------------------------------------------------
 
@@ -288,7 +267,7 @@ def complete_ritual(message):
     # XP ПЕРСОНАЖА
     # -----------------------------------------------------
 
-    character_level_ups = add_level_xp(
+    character_level_ups = add_xp_to_character(
         player,
         xp
     )
@@ -372,22 +351,23 @@ def complete_ritual(message):
             "level": player["level"],
             "level_xp": player["level_xp"],
             "level_max_xp": player["level_max_xp"],
-
             "spheres": player["spheres"],
-
             "rituals": player["rituals"],
-            "ritual_archive": player[
-                "ritual_archive"
-            ],
-
-            "statistics": player[
-                "statistics"
-            ],
-
-            "inventory": player.get(
-                "inventory"
-            ) or [],
+            "ritual_archive": player["ritual_archive"],
+            "statistics": player["statistics"],
+            "inventory": player.get("inventory") or [],
         }
+    )
+
+    # -----------------------------------------------------
+    # ПОВІДОМЛЕННЯ ПРО ПІДВИЩЕННЯ РІВНЯ
+    # -----------------------------------------------------
+
+    send_level_up_notifications(
+        bot,
+        message.chat.id,
+        character_level_ups,
+        sphere_level_ups
     )
 
     # -----------------------------------------------------
@@ -425,20 +405,3 @@ def complete_ritual(message):
 
         reply_markup=build_back_button(),
     )
-
-    # -----------------------------------------------------
-    # ПОВІДОМЛЕННЯ ПРО ПІДВИЩЕННЯ РІВНЯ
-    # -----------------------------------------------------
-
-    level_up_messages = build_level_up_messages(
-        character_level_ups,
-        sphere_level_ups
-    )
-
-    for level_up_message in level_up_messages:
-
-        bot.send_message(
-            message.chat.id,
-            level_up_message,
-            parse_mode="HTML"
-        )
