@@ -78,15 +78,6 @@ DEFAULT_MAIN_QUEST = {
 # =========================================================
 # СТАТИСТИКА
 # =========================================================
-#
-# Тут НЕ зберігаємо completed_history.
-#
-# Історія виконання живе в окремих архівах:
-# scroll_archive
-# ritual_archive
-# plant_archive
-#
-# =========================================================
 
 DEFAULT_STATISTICS = {
     "completed_scrolls": 0,
@@ -106,35 +97,72 @@ def default_player(user_id):
     return {
         "user_id": str(user_id),
 
+        # -------------------------------------------------
+        # РІВЕНЬ ПЕРСОНАЖА
+        # -------------------------------------------------
+        #
+        # Поточний рівень:
         "level": 1,
-        "xp_total": 0.0,
+
+        # XP, накопичений у поточному рівні:
+        "level_xp": 0.0,
+
+        # XP, необхідний для наступного рівня:
+        "level_max_xp": 10.0,
+
+        # -------------------------------------------------
+        # ІНВЕНТАР
+        # -------------------------------------------------
 
         "inventory": [],
+
+        # -------------------------------------------------
+        # СФЕРИ
+        # -------------------------------------------------
 
         "spheres": copy.deepcopy(
             DEFAULT_SPHERES
         ),
 
-        # Активні квести
+        # -------------------------------------------------
+        # АКТИВНІ КВЕСТИ
+        # -------------------------------------------------
+
         "scrolls": [],
         "rituals": [],
         "plants": [],
         "expeditions": [],
 
-        # Архіви
+        # -------------------------------------------------
+        # АРХІВИ
+        # -------------------------------------------------
+
         "scroll_archive": [],
         "ritual_archive": [],
         "plant_archive": [],
 
-        # Старе поле quests залишаємо,
-        # щоб не ламати існуючий бот
+        # -------------------------------------------------
+        # СТАРЕ ПОЛЕ QUESTS
+        # -------------------------------------------------
+        #
+        # Залишаємо для сумісності зі старим кодом.
+        #
+
         "quests": copy.deepcopy(
             DEFAULT_QUESTS
         ),
 
+        # -------------------------------------------------
+        # ОСНОВНИЙ КВЕСТ
+        # -------------------------------------------------
+
         "main_quest": copy.deepcopy(
             DEFAULT_MAIN_QUEST
         ),
+
+        # -------------------------------------------------
+        # СТАТИСТИКА
+        # -------------------------------------------------
 
         "statistics": copy.deepcopy(
             DEFAULT_STATISTICS
@@ -155,6 +183,11 @@ def update_player(user_id, player_data):
         # Не оновлюємо ідентифікатори
         data.pop("user_id", None)
         data.pop("id", None)
+
+        # Старе поле загального XP більше не використовується.
+        # Якщо якийсь старий handler випадково передасть його,
+        # не дозволяємо йому потрапити в Supabase.
+        data.pop("xp_total", None)
 
         (
             supabase
@@ -216,21 +249,48 @@ def get_player(user_id):
             changed = False
 
             # -------------------------------------------------
-            # Основні поля
+            # РІВЕНЬ ПЕРСОНАЖА
+            # -------------------------------------------------
+
+            if player.get("level") is None:
+
+                player["level"] = 1
+                changed = True
+
+            if player.get("level_xp") is None:
+
+                player["level_xp"] = 0.0
+                changed = True
+
+            if player.get("level_max_xp") is None:
+
+                player["level_max_xp"] = 10.0
+                changed = True
+
+            # -------------------------------------------------
+            # ІНВЕНТАР
             # -------------------------------------------------
 
             if player.get("inventory") is None:
-                player["inventory"] = []
-                changed = True
 
-            if player.get("spheres") is None:
-                player["spheres"] = copy.deepcopy(
-                    DEFAULT_SPHERES
-                )
+                player["inventory"] = []
+
                 changed = True
 
             # -------------------------------------------------
-            # Активні квести
+            # СФЕРИ
+            # -------------------------------------------------
+
+            if player.get("spheres") is None:
+
+                player["spheres"] = copy.deepcopy(
+                    DEFAULT_SPHERES
+                )
+
+                changed = True
+
+            # -------------------------------------------------
+            # АКТИВНІ КВЕСТИ
             # -------------------------------------------------
 
             for column in (
@@ -247,7 +307,7 @@ def get_player(user_id):
                     changed = True
 
             # -------------------------------------------------
-            # Архіви
+            # АРХІВИ
             # -------------------------------------------------
 
             for column in (
@@ -263,7 +323,7 @@ def get_player(user_id):
                     changed = True
 
             # -------------------------------------------------
-            # Старий quests
+            # СТАРИЙ QUESTS
             # -------------------------------------------------
 
             if player.get("quests") is None:
@@ -275,7 +335,7 @@ def get_player(user_id):
                 changed = True
 
             # -------------------------------------------------
-            # Main quest
+            # MAIN QUEST
             # -------------------------------------------------
 
             if player.get("main_quest") is None:
@@ -287,7 +347,7 @@ def get_player(user_id):
                 changed = True
 
             # -------------------------------------------------
-            # Statistics
+            # STATISTICS
             # -------------------------------------------------
 
             if player.get("statistics") is None:
@@ -306,6 +366,7 @@ def get_player(user_id):
                     statistics,
                     dict
                 ):
+
                     statistics = {}
 
                 statistics_changed = False
@@ -329,7 +390,7 @@ def get_player(user_id):
                     changed = True
 
             # -------------------------------------------------
-            # Якщо щось потрібно було додати
+            # ЗБЕРІГАЄМО ДОДАНІ ПОЛЯ
             # -------------------------------------------------
 
             if changed:
@@ -337,7 +398,12 @@ def get_player(user_id):
                 update_player(
                     user_id,
                     {
+                        "level": player["level"],
+                        "level_xp": player["level_xp"],
+                        "level_max_xp": player["level_max_xp"],
+
                         "inventory": player["inventory"],
+
                         "spheres": player["spheres"],
 
                         "scrolls": player["scrolls"],
@@ -358,6 +424,7 @@ def get_player(user_id):
                         ],
 
                         "quests": player["quests"],
+
                         "main_quest": player[
                             "main_quest"
                         ],
@@ -416,13 +483,6 @@ def get_player(user_id):
 
 # =========================================================
 # ОТРИМАТИ ВСІХ ГРАВЦІВ
-# =========================================================
-#
-# Потрібно scheduler/summary.
-#
-# Кожен гравець обробляється окремо
-# за його user_id.
-#
 # =========================================================
 
 def get_all_players():
@@ -571,6 +631,7 @@ def save_ritual(user_id, ritual):
         )
 
         if not success:
+
             return 0
 
         return len(rituals)
