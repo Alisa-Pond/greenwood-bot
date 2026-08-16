@@ -33,10 +33,7 @@ def welcome(message):
 
     try:
 
-        user_id = str(message.from_user.id)
-        player = get_player(user_id)
-
-                msg_1 = (
+        msg_1 = (
             "🌲 <b>Грінвуд помітив тебе.</b>\n\n"
             "Ти не знаєш, як саме опинився тут.\n"
             "Лише пам'ятаєш стежку між деревами, "
@@ -132,10 +129,12 @@ def welcome(message):
             parse_mode="HTML",
             reply_markup=get_main_menu()
         )
+
     except Exception:
 
         print("❌ ПОМИЛКА START:")
         print(traceback.format_exc())
+        
 # =========================
 # ПЕРСОНАЖ
 # =========================
