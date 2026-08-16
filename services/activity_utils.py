@@ -1,5 +1,10 @@
 from datetime import datetime
 
+
+# =========================================================
+# СФЕРИ
+# =========================================================
+
 SPHERE_NAMES = {
     "health": "💪",
     "wisdom": "🧠",
@@ -9,8 +14,17 @@ SPHERE_NAMES = {
 }
 
 
+SPHERE_DISPLAY_NAMES = {
+    "health": "Здоров'я",
+    "wisdom": "Мудрість",
+    "art": "Творчість",
+    "finance": "Фінанси",
+    "relations": "Зв'язки",
+}
+
+
 # =========================================================
-# СФЕРИ
+# СФЕРА → EMOJI
 # =========================================================
 
 def get_sphere_emoji(sphere):
@@ -24,6 +38,29 @@ def get_sphere_emoji(sphere):
     return sphere
 
 
+# =========================================================
+# НАЗВА СФЕРИ
+# =========================================================
+
+def get_sphere_name(sphere):
+
+    # Якщо передали ключ
+    if sphere in SPHERE_DISPLAY_NAMES:
+        return SPHERE_DISPLAY_NAMES[sphere]
+
+    # Якщо передали emoji
+    for key, emoji in SPHERE_NAMES.items():
+
+        if sphere == emoji:
+            return SPHERE_DISPLAY_NAMES[key]
+
+    return str(sphere)
+
+
+# =========================================================
+# ОТРИМАТИ СФЕРИ З АКТИВНОСТІ
+# =========================================================
+
 def get_spheres(item):
 
     spheres = item.get("spheres") or item.get("sphere")
@@ -32,7 +69,7 @@ def get_spheres(item):
         return []
 
     # -----------------------------------------------------
-    # Якщо сфера записана як рядок
+    # Якщо одна сфера збережена як рядок
     # -----------------------------------------------------
 
     if isinstance(spheres, str):
@@ -45,12 +82,13 @@ def get_spheres(item):
                 sphere_key == spheres
                 or emoji in spheres
             ):
+
                 result.append(emoji)
 
         return result or [spheres]
 
     # -----------------------------------------------------
-    # Якщо сфери записані як список
+    # Якщо декілька сфер
     # -----------------------------------------------------
 
     if isinstance(spheres, list):
@@ -85,7 +123,7 @@ def get_spheres(item):
 
 
 # =========================================================
-# ЗАГАЛЬНІ ДАНІ АКТИВНОСТІ
+# НАЗВА АКТИВНОСТІ
 # =========================================================
 
 def get_title(item):
@@ -98,6 +136,10 @@ def get_title(item):
     )
 
 
+# =========================================================
+# XP АКТИВНОСТІ
+# =========================================================
+
 def get_xp(item):
 
     try:
@@ -109,13 +151,14 @@ def get_xp(item):
             or 0
         )
 
-    except (
-        TypeError,
-        ValueError
-    ):
+    except (TypeError, ValueError):
 
         return 0.0
 
+
+# =========================================================
+# СЬОГОДНІШНЯ ДАТА
+# =========================================================
 
 def get_today():
 
@@ -125,7 +168,7 @@ def get_today():
 
 
 # =========================================================
-# ДЕДЛАЙНИ
+# ПАРСИНГ ДЕДЛАЙНУ
 # =========================================================
 
 def parse_deadline(deadline):
@@ -148,10 +191,15 @@ def parse_deadline(deadline):
             )
 
         except ValueError:
+
             continue
 
     return None
 
+
+# =========================================================
+# ПЕРЕВІРКА ПРОСТРОЧЕННЯ
+# =========================================================
 
 def is_overdue(item):
 
@@ -171,6 +219,10 @@ def is_overdue(item):
 
     return today > deadline
 
+
+# =========================================================
+# ШТРАФ ЗА ПРОСТРОЧЕННЯ
+# =========================================================
 
 def get_penalty_xp(item):
 
@@ -201,25 +253,53 @@ def get_penalty_xp(item):
 
 
 # =========================================================
-# XP СФЕР
+# ВИЗНАЧИТИ КЛЮЧ СФЕРИ
+# =========================================================
+
+def _get_sphere_key(sphere):
+
+    # Наприклад:
+    #
+    # "health" → health
+    # "💪" → health
+    #
+
+    if sphere in SPHERE_NAMES:
+        return sphere
+
+    for key, emoji in SPHERE_NAMES.items():
+
+        if sphere == emoji:
+            return key
+
+    return None
+
+
+# =========================================================
+# ДОДАТИ XP ДО СФЕР
 # =========================================================
 #
-# XP активності ділиться між усіма вибраними сферами.
+# Якщо активність має:
 #
-# Наприклад:
+# 💪🧠
+# 10 XP
 #
-# 9 XP + 🧠🎨
+# отримаємо:
 #
-# 9 / 2 = 4.5 XP
+# 💪 +5 XP
+# 🧠 +5 XP
 #
-# 🧠 +4.5
-# 🎨 +4.5
+# Якщо сфера одна:
 #
-# Після додавання XP перевіряється підвищення рівня.
+# 💪
+# 10 XP
 #
-# При підвищенні:
+# отримає:
 #
-# старий max_xp × 1.5 = новий max_xp
+# 💪 +10 XP
+#
+# Функція повертає список сфер,
+# які підвищили рівень.
 #
 # =========================================================
 
@@ -229,80 +309,50 @@ def add_xp_to_spheres(
     total_xp
 ):
 
-    if (
-        not spheres
-        or total_xp <= 0
-    ):
-        return []
+    level_ups = []
+
+    if not spheres:
+        return level_ups
+
+    if total_xp <= 0:
+        return level_ups
 
     player_spheres = (
-        player.get("spheres")
-        or {}
+        player.get("spheres") or {}
     )
-
-    # -----------------------------------------------------
-    # Нормалізуємо список сфер
-    # -----------------------------------------------------
-
-    normalized_spheres = []
-
-    for sphere in spheres:
-
-        sphere_key = None
-
-        for key, emoji in SPHERE_NAMES.items():
-
-            if (
-                sphere == key
-                or sphere == emoji
-            ):
-
-                sphere_key = key
-                break
-
-        if (
-            sphere_key
-            and sphere_key in player_spheres
-            and sphere_key not in normalized_spheres
-        ):
-
-            normalized_spheres.append(
-                sphere_key
-            )
-
-    if not normalized_spheres:
-        return []
-
-    # -----------------------------------------------------
-    # Ділимо XP між сферами
-    # -----------------------------------------------------
 
     share = (
         float(total_xp)
-        / len(normalized_spheres)
+        / len(spheres)
     )
 
-    level_ups = []
+    for sphere in spheres:
 
-    # -----------------------------------------------------
-    # Додаємо XP та перевіряємо рівні
-    # -----------------------------------------------------
+        sphere_key = _get_sphere_key(
+            sphere
+        )
 
-    for sphere_key in normalized_spheres:
+        if not sphere_key:
+            continue
+
+        if sphere_key not in player_spheres:
+            continue
 
         data = player_spheres[
             sphere_key
         ]
 
+        old_level = int(
+            data.get("lvl", 1)
+        )
+
         data["xp"] = (
-            float(
-                data.get("xp", 0)
-            )
+            float(data.get("xp", 0))
             + share
         )
 
         # -------------------------------------------------
-        # Перевіряємо можливі підвищення
+        # ПЕРЕВІРКА LEVEL UP
         # -------------------------------------------------
 
         while (
@@ -315,52 +365,82 @@ def add_xp_to_spheres(
             )
         ):
 
-            old_max_xp = float(
+            max_xp = float(
                 data.get(
                     "max_xp",
                     10
                 )
             )
 
-            data["xp"] -= old_max_xp
+            data["xp"] -= max_xp
 
-            old_level = int(
-                data.get(
-                    "lvl",
-                    1
+            data["lvl"] = (
+                int(
+                    data.get(
+                        "lvl",
+                        1
+                    )
                 )
+                + 1
             )
 
-            new_level = (
-                old_level + 1
+            # Наступний рівень потребує
+            # у 1.5 раза більше XP.
+            data["max_xp"] = (
+                max_xp * 1.5
             )
 
-            new_max_xp = (
-                old_max_xp * 1.5
-            )
+        new_level = int(
+            data.get("lvl", 1)
+        )
 
-            data["lvl"] = new_level
-            data["max_xp"] = new_max_xp
+        if new_level > old_level:
 
-            level_ups.append(
-                {
-                    "type": "sphere",
-                    "sphere": sphere_key,
-                    "emoji": SPHERE_NAMES[
-                        sphere_key
-                    ],
-                    "level": new_level,
-                }
-            )
+            level_ups.append({
+                "key": sphere_key,
+                "emoji": SPHERE_NAMES[
+                    sphere_key
+                ],
+                "name": SPHERE_DISPLAY_NAMES[
+                    sphere_key
+                ],
+                "old_level": old_level,
+                "new_level": new_level,
+            })
 
     return level_ups
 
 
 # =========================================================
-# ЗАГАЛЬНИЙ XP
+# ДОДАТИ XP ДО ЗАГАЛЬНОГО РІВНЯ ПЕРСОНАЖА
+# =========================================================
+#
+# Загальний XP більше НЕ накопичується
+# в окремому xp_total.
+#
+# Замість цього:
+#
+# level
+# level_xp
+# level_max_xp
+#
+# Наприклад:
+#
+# Рівень 1
+# 8 / 10 XP
+#
+# +5 XP
+#
+# Рівень 2
+# 3 / 15 XP
+#
+# ---------------------------------------------------------
+#
+# Функція повертає інформацію про level up.
+#
 # =========================================================
 
-def add_total_xp(
+def add_xp_to_player(
     player,
     xp
 ):
@@ -368,157 +448,94 @@ def add_total_xp(
     if xp <= 0:
         return []
 
-    current_xp = float(
-        player.get(
-            "xp_total",
-            0
-        )
-    )
-
-    current_level = int(
-        player.get(
-            "level",
-            1
-        )
-    )
-
-    # -----------------------------------------------------
-    # Для загального рівня використовуємо таку ж систему:
-    #
-    # стартовий поріг = 10 XP
-    #
-    # після кожного рівня:
-    #
-    # max_xp × 1.5
-    #
-    # -----------------------------------------------------
-
-    max_xp = float(
-        player.get(
-            "max_xp",
-            10
-        )
-    )
-
-    current_xp += float(xp)
-
     level_ups = []
 
     # -----------------------------------------------------
-    # Перевіряємо підвищення рівня
+    # Захист від відсутніх / старих полів
     # -----------------------------------------------------
 
-    while current_xp >= max_xp:
+    if player.get("level") is None:
+        player["level"] = 1
 
-        current_xp -= max_xp
+    if player.get("level_xp") is None:
+        player["level_xp"] = 0.0
 
-        current_level += 1
+    if player.get("level_max_xp") is None:
+        player["level_max_xp"] = 10.0
 
-        max_xp *= 1.5
+    # -----------------------------------------------------
+    # Додаємо XP
+    # -----------------------------------------------------
 
-        level_ups.append(
-            {
-                "type": "player",
-                "level": current_level,
-            }
+    player["level_xp"] = (
+        float(player.get("level_xp", 0))
+        + float(xp)
+    )
+
+    # -----------------------------------------------------
+    # LEVEL UP
+    # -----------------------------------------------------
+
+    while (
+        player["level_xp"]
+        >= float(
+            player["level_max_xp"]
+        )
+    ):
+
+        old_level = int(
+            player["level"]
         )
 
-    player["xp_total"] = current_xp
-    player["level"] = current_level
-    player["max_xp"] = max_xp
+        max_xp = float(
+            player["level_max_xp"]
+        )
+
+        player["level_xp"] -= max_xp
+
+        player["level"] = (
+            old_level + 1
+        )
+
+        # Наступний рівень =
+        # попередня вимога × 1.5
+        player["level_max_xp"] = (
+            max_xp * 1.5
+        )
+
+        level_ups.append({
+            "old_level": old_level,
+            "new_level": player["level"]
+        })
 
     return level_ups
 
 
 # =========================================================
-# ПОВІДОМЛЕННЯ ПРО ПІДВИЩЕННЯ РІВНЯ
+# СТАРА НАЗВА ДЛЯ СУМІСНОСТІ
+# =========================================================
+#
+# Якщо якийсь старий handler ще викликає:
+#
+# add_total_xp(...)
+#
+# він не повинен ламатися.
+#
+# Тепер ця функція просто додає XP
+# до поточного рівня персонажа.
+#
 # =========================================================
 
-def build_level_up_messages(
-    level_ups
-):
+def add_total_xp(player, xp):
 
-    if not level_ups:
-        return []
-
-    messages = []
-
-    # -----------------------------------------------------
-    # Повідомлення про сфери
-    # -----------------------------------------------------
-
-    for event in level_ups:
-
-        if event.get("type") != "sphere":
-            continue
-
-        emoji = event.get(
-            "emoji",
-            ""
-        )
-
-        sphere_names = {
-            "health": "Здоров'я",
-            "wisdom": "Мудрість",
-            "art": "Творчість",
-            "finance": "Фінанси",
-            "relations": "Зв'язки",
-        }
-
-        sphere_name = sphere_names.get(
-            event.get("sphere"),
-            "Сфера"
-        )
-
-        level = event.get(
-            "level"
-        )
-
-        messages.append(
-            "✨ <b>На мить тебе огортає сяйво.</b>\n\n"
-
-            "🦇 <b>Марчелло</b> 🦇:\n"
-            "«Схоже, твої зусилля не минули "
-            "безслідно.»\n\n"
-
-            f"{emoji} <b>{sphere_name}: "
-            f"рівень {level}!</b>"
-        )
-
-    # -----------------------------------------------------
-    # Повідомлення про загальний рівень
-    # -----------------------------------------------------
-
-    for event in level_ups:
-
-        if event.get("type") != "player":
-            continue
-
-        level = event.get(
-            "level"
-        )
-
-        messages.append(
-            "✨ <b>Твого героя на мить "
-            "огортає яскраве світло.</b>\n\n"
-
-            "🦇 <b>Марчелло</b> 🦇:\n"
-            "«А ось це вже не просто "
-            "маленький прогрес.»\n\n"
-
-            f"🧙‍♂️ <b>Твій герой досяг "
-            f"рівня {level}!</b>\n\n"
-
-            "«Тепер можеш із гордістю "
-            "робити вигляд, що знаєш, "
-            "що робиш.»"
-        )
-
-    return messages
+    return add_xp_to_player(
+        player,
+        xp
+    )
 
 
 # =========================================================
-# СТАТИСТИКА
+# ОНОВИТИ СТАТИСТИКУ
 # =========================================================
 
 def update_statistics(
@@ -572,7 +589,9 @@ def update_statistics(
         None
     )
 
-    player["statistics"] = statistics
+    player["statistics"] = (
+        statistics
+    )
 
 
 # =========================================================
@@ -596,3 +615,46 @@ def build_back_button():
     )
 
     return markup
+
+
+# =========================================================
+# ПОВІДОМЛЕННЯ ПРО LEVEL UP СФЕРИ
+# =========================================================
+
+def format_sphere_level_up(level_up):
+
+    return (
+        "✨ <b>На мить тебе огортає сяйво.</b>\n\n"
+
+        "🦇 <b>Марчелло</b> 🦇:\n"
+        "«Схоже, твої зусилля "
+        "не минули безслідно.»\n\n"
+
+        f"{level_up['emoji']} "
+        f"<b>{level_up['name']}</b> "
+        f"досягла рівня "
+        f"<b>{level_up['new_level']}</b>!"
+    )
+
+
+# =========================================================
+# ПОВІДОМЛЕННЯ ПРО LEVEL UP ПЕРСОНАЖА
+# =========================================================
+
+def format_player_level_up(level_up):
+
+    return (
+        "✨ <b>Твого героя на мить "
+        "огортає яскраве світло.</b>\n\n"
+
+        "🦇 <b>Марчелло</b> 🦇:\n"
+        "«А ось це вже не просто "
+        "маленький прогрес.»\n\n"
+
+        f"🧙‍♂️ <b>Твій герой досяг "
+        f"рівня {level_up['new_level']}!</b>\n\n"
+
+        "«Тепер можеш із гордістю "
+        "робити вигляд, що знаєш, "
+        "що робиш.»"
+    )
