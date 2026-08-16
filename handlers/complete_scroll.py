@@ -9,10 +9,11 @@ from services.activity_utils import (
     get_spheres,
     get_today,
     is_overdue,
-    add_total_xp,
+    add_level_xp,
     add_xp_to_spheres,
     update_statistics,
     build_back_button,
+    build_level_up_messages,
 )
 
 from services.activity_loot import try_activity_loot
@@ -156,22 +157,19 @@ def complete_scroll(message):
     overdue = is_overdue(scroll)
 
     # -----------------------------------------------------
-    # XP
+    # XP ПЕРСОНАЖА
     # -----------------------------------------------------
-    #
-    # Штраф за прострочення має списуватися
-    # окремо через summary.py.
-    #
-    # Під час виконання сувою користувач
-    # отримує повний XP, прописаний у сувої.
-    #
 
-    add_total_xp(
+    character_level_ups = add_level_xp(
         player,
         xp
     )
 
-    add_xp_to_spheres(
+    # -----------------------------------------------------
+    # XP СФЕР
+    # -----------------------------------------------------
+
+    sphere_level_ups = add_xp_to_spheres(
         player,
         spheres,
         xp
@@ -237,11 +235,17 @@ def complete_scroll(message):
     update_player(
         user_id,
         {
-            "xp_total": player["xp_total"],
+            "level": player["level"],
+            "level_xp": player["level_xp"],
+            "level_max_xp": player["level_max_xp"],
+
             "spheres": player["spheres"],
+
             "scrolls": player["scrolls"],
             "scroll_archive": player["scroll_archive"],
+
             "statistics": player["statistics"],
+
             "inventory": player.get(
                 "inventory"
             ) or [],
@@ -249,7 +253,7 @@ def complete_scroll(message):
     )
 
     # -----------------------------------------------------
-    # ПОВІДОМЛЕННЯ
+    # ОСНОВНЕ ПОВІДОМЛЕННЯ
     # -----------------------------------------------------
 
     loot_text = ""
@@ -294,3 +298,20 @@ def complete_scroll(message):
 
         reply_markup=build_back_button(),
     )
+
+    # -----------------------------------------------------
+    # ПОВІДОМЛЕННЯ ПРО ПІДВИЩЕННЯ РІВНЯ
+    # -----------------------------------------------------
+
+    level_up_messages = build_level_up_messages(
+        character_level_ups,
+        sphere_level_ups
+    )
+
+    for level_up_message in level_up_messages:
+
+        bot.send_message(
+            message.chat.id,
+            level_up_message,
+            parse_mode="HTML"
+        )
