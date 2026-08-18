@@ -65,7 +65,28 @@ def choose_scroll(message):
         "📜 <b>Активні сувої:</b>\n\n"
     )
 
-    for index, scroll in enumerate(scrolls):
+    # =====================================================
+    # ВАЖЛИВО:
+    #
+    # display_number = номер, який бачить користувач
+    # scroll_index = реальний індекс у scrolls
+    #
+    # Тому користувач завжди бачить:
+    #
+    # 1.
+    # 2.
+    # 3.
+    # 4.
+    #
+    # навіть якщо реальні індекси:
+    #
+    # 0, 1, 3, 7
+    # =====================================================
+
+    for display_number, scroll in enumerate(
+        scrolls,
+        start=1
+    ):
 
         # -------------------------------------------------
         # СФЕРИ
@@ -99,16 +120,17 @@ def choose_scroll(message):
         )
 
         # -------------------------------------------------
-        # ВОГНИК, ЯКЩО ДЕДЛАЙН СЬОГОДНІ
+        # ПЕРЕВІРКА ПРОСТРОЧЕННЯ
         # -------------------------------------------------
 
         deadline_overdue = is_overdue(
             scroll
         )
 
-        # Перевіряємо саме дедлайн сьогодні.
-        # is_overdue() повертає True лише після дедлайну,
-        # тому окремо визначаємо дату дедлайну.
+        # -------------------------------------------------
+        # ПЕРЕВІРКА:
+        # ДЕДЛАЙН СЬОГОДНІ
+        # -------------------------------------------------
 
         deadline_today = False
 
@@ -135,11 +157,27 @@ def choose_scroll(message):
                     == today
                 )
 
-        fire = (
-            "🔥 "
-            if deadline_today
-            else ""
-        )
+        # -------------------------------------------------
+        # ВОГНИК
+        # -------------------------------------------------
+        #
+        # 🔥 якщо дедлайн сьогодні
+        #
+        # ⚠️ якщо сувій вже прострочений
+        #
+        # -------------------------------------------------
+
+        if deadline_overdue:
+
+            deadline_icon = "⚠️ "
+
+        elif deadline_today:
+
+            deadline_icon = "🔥 "
+
+        else:
+
+            deadline_icon = ""
 
         # -------------------------------------------------
         # НАЗВА
@@ -154,8 +192,8 @@ def choose_scroll(message):
         # -------------------------------------------------
 
         scroll_text += (
-            f"{index + 1}. "
-            f"{fire}"
+            f"<b>{display_number}.</b> "
+            f"{deadline_icon}"
             f"{spheres_text} ; "
             f"{xp:g} ; "
             f"{deadline} ; "
@@ -169,10 +207,10 @@ def choose_scroll(message):
     scroll_text += (
         "\n"
         "✍️ <b>Напиши номер сувою, який виконано.</b>\n"
-        "Можна виконати одразу кілька:\n\n"
+        "Можна виконати одразу кілька через кому:\n\n"
         "<code>1</code>\n"
         "або\n"
-        "<code>1 3 4</code>"
+        "<code>1, 3, 4</code>"
     )
 
     msg = bot.send_message(
@@ -192,10 +230,66 @@ def choose_scroll(message):
 
 
 # =========================================================
+# ПАРСИНГ НОМЕРІВ СУВОЇВ
+# =========================================================
+
+def parse_scroll_numbers(text):
+
+    if not text:
+        return None
+
+    parts = text.split(",")
+
+    numbers = []
+
+    for part in parts:
+
+        part = part.strip()
+
+        if not part:
+            return None
+
+        try:
+
+            number = int(
+                part
+            )
+
+        except (
+            ValueError,
+            TypeError
+        ):
+
+            return None
+
+        if number <= 0:
+
+            return None
+
+        numbers.append(
+            number
+        )
+
+    # =====================================================
+    # ЗАХИСТ ВІД ДУБЛІВ
+    # =====================================================
+
+    if len(numbers) != len(set(numbers)):
+
+        return None
+
+    return numbers
+
+
+# =========================================================
 # ОБРОБКА ВИБОРУ СУВОЇВ
 # =========================================================
 
 def complete_scroll(message):
+
+    # =====================================================
+    # НАЗАД
+    # =====================================================
 
     if message.text == "🔙 Назад":
 
@@ -206,6 +300,10 @@ def complete_scroll(message):
         )
 
         return
+
+    # =====================================================
+    # ОТРИМУЄМО ГРАВЦЯ
+    # =====================================================
 
     user_id = str(
         message.from_user.id
@@ -218,6 +316,10 @@ def complete_scroll(message):
     scrolls = player.get(
         "scrolls"
     ) or []
+
+    # =====================================================
+    # НЕМАЄ СУВОЇВ
+    # =====================================================
 
     if not scrolls:
 
@@ -235,62 +337,25 @@ def complete_scroll(message):
     # ОТРИМУЄМО НОМЕРИ
     # =====================================================
 
-    try:
+    selected_numbers = parse_scroll_numbers(
+        message.text.strip()
+    )
 
-        numbers = message.text.split()
+    # =====================================================
+    # НЕВІРНИЙ ФОРМАТ
+    # =====================================================
 
-        if not numbers:
-
-            raise ValueError
-
-        selected_indexes = []
-
-        for number in numbers:
-
-            if not number.isdigit():
-
-                raise ValueError
-
-            index = int(
-                number
-            ) - 1
-
-            if not 0 <= index < len(scrolls):
-
-                raise ValueError
-
-            selected_indexes.append(
-                index
-            )
-
-        # -------------------------------------------------
-        # ЗАХИСТ ВІД ПОВТОРІВ
-        # -------------------------------------------------
-
-        if len(
-            selected_indexes
-        ) != len(
-            set(selected_indexes)
-        ):
-
-            raise ValueError
-
-    except (
-        ValueError,
-        AttributeError
-    ):
+    if not selected_numbers:
 
         bot.send_message(
             message.chat.id,
 
             "🦇 <b>Марчелло піднімає брову.</b>\n\n"
-
             "Я не зміг зрозуміти номери сувоїв.\n\n"
-
             "Напиши, наприклад:\n"
             "<code>1</code>\n"
             "або\n"
-            "<code>1 3 4</code>",
+            "<code>1, 3, 4</code>",
 
             parse_mode="HTML",
 
@@ -305,6 +370,48 @@ def complete_scroll(message):
         return
 
     # =====================================================
+    # ПЕРЕВІРКА НОМЕРІВ
+    # =====================================================
+
+    invalid_numbers = [
+        number
+        for number in selected_numbers
+        if not 1 <= number <= len(scrolls)
+    ]
+
+    if invalid_numbers:
+
+        bot.send_message(
+            message.chat.id,
+
+            "🦇 <b>Марчелло хитає головою.</b>\n\n"
+            f"Такого номера немає.\n"
+            f"Доступні номери: "
+            f"<b>1–{len(scrolls)}</b>.",
+
+            parse_mode="HTML",
+
+            reply_markup=build_back_button(),
+        )
+
+        bot.register_next_step_handler(
+            message,
+            complete_scroll
+        )
+
+        return
+
+    # =====================================================
+    # ПЕРЕТВОРЮЄМО НОМЕРИ КОРИСТУВАЧА
+    # НА РЕАЛЬНІ ІНДЕКСИ
+    # =====================================================
+
+    selected_indexes = [
+        number - 1
+        for number in selected_numbers
+    ]
+
+    # =====================================================
     # ОБРОБКА СУВОЇВ
     # =====================================================
 
@@ -313,8 +420,6 @@ def complete_scroll(message):
     completed_titles = []
 
     completed_count = 0
-
-    all_sphere_level_ups = []
 
     all_character_level_ups = []
 
@@ -327,11 +432,13 @@ def complete_scroll(message):
         or []
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # ОБРОБЛЯЄМО ВІД БІЛЬШОГО ІНДЕКСУ ДО МЕНШОГО
     #
-    # Щоб pop() не зміщував інші індекси.
-    # -----------------------------------------------------
+    # Це потрібно, тому що після pop()
+    # індекси елементів, які залишилися,
+    # змінюються.
+    # =====================================================
 
     for selected_index in sorted(
         selected_indexes,
@@ -341,6 +448,10 @@ def complete_scroll(message):
         scroll = scrolls[
             selected_index
         ]
+
+        # -------------------------------------------------
+        # ДАНІ СУВОЮ
+        # -------------------------------------------------
 
         title = get_title(
             scroll
@@ -355,7 +466,7 @@ def complete_scroll(message):
         )
 
         # -------------------------------------------------
-        # XP ПЕРСОНАЖА
+        # XP ПЕРСОНАЖА + СФЕР
         # -------------------------------------------------
 
         level_up_data = add_xp_to_character(
@@ -365,7 +476,7 @@ def complete_scroll(message):
         )
 
         # -------------------------------------------------
-        # ЗБЕРІГАЄМО LEVEL UP
+        # LEVEL UP
         # -------------------------------------------------
 
         if level_up_data:
@@ -432,7 +543,7 @@ def complete_scroll(message):
         )
 
         # -------------------------------------------------
-        # ЗБЕРІГАЄМО ДАНІ
+        # СТАТИСТИКА
         # -------------------------------------------------
 
         total_xp += xp
@@ -510,15 +621,6 @@ def complete_scroll(message):
 
     # =====================================================
     # LEVEL UP
-    # =====================================================
-    #
-    # ВАЖЛИВО:
-    # send_level_up_notifications()
-    # приймає ТІЛЬКИ:
-    #
-    # chat_id
-    # level_up_data
-    #
     # =====================================================
 
     if all_character_level_ups:
