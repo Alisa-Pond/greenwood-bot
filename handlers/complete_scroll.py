@@ -1,3 +1,4 @@
+from datetime import datetime
 from telebot import types
 
 from services.config import bot
@@ -9,13 +10,100 @@ from services.activity_utils import (
     get_spheres,
     get_today,
     is_overdue,
-    add_xp_to_character,
+    add_xp_to_player,
+    add_xp_to_spheres,
     update_statistics,
     build_back_button,
     send_level_up_notifications,
 )
 
 from services.activity_loot import try_activity_loot
+
+
+# =========================================================
+# ДЕДЛАЙН ЗАКІНЧУЄТЬСЯ СЬОГОДНІ
+# =========================================================
+
+def deadline_is_today(scroll):
+
+    deadline = scroll.get("deadline")
+
+    if not deadline:
+        return False
+
+    value = str(deadline).strip()
+
+    for fmt in (
+        "%d.%m.%y",
+        "%d.%m.%Y",
+    ):
+
+        try:
+
+            deadline_date = datetime.strptime(
+                value,
+                fmt
+            ).date()
+
+            return (
+                deadline_date
+                == datetime.now().date()
+            )
+
+        except ValueError:
+
+            continue
+
+    return False
+
+
+# =========================================================
+# ФОРМАТУВАННЯ СУВОЮ
+# =========================================================
+#
+# Формат:
+#
+# [Сфери] ; [Бали] ; [Дедлайн] ; [Назва справи]
+#
+# Наприклад:
+#
+# 💪🧠 ; 10 ; 18.08.26 ; Вивчити тему
+#
+# Якщо дедлайн сьогодні:
+#
+# 🔥💪🧠 ; 10 ; 18.08.26 ; Вивчити тему
+#
+# =========================================================
+
+def format_scroll(scroll):
+
+    spheres = get_spheres(scroll)
+
+    spheres_text = "".join(
+        spheres
+    )
+
+    if deadline_is_today(scroll):
+
+        spheres_text = (
+            "🔥" + spheres_text
+        )
+
+    xp = get_xp(scroll)
+
+    deadline = (
+        scroll.get("deadline")
+        or "без дедлайну"
+    )
+
+    title = get_title(scroll)
+
+    return (
+        f"{spheres_text} ; "
+        f"{xp:g} ; "
+        f"{deadline} ; "
+        f"{title}"
+    )
 
 
 # =========================================================
@@ -28,11 +116,22 @@ from services.activity_loot import try_activity_loot
 )
 def choose_scroll(message):
 
-    user_id = str(message.from_user.id)
+    user_id = str(
+        message.from_user.id
+    )
 
-    player = get_player(user_id)
+    player = get_player(
+        user_id
+    )
 
-    scrolls = player.get("scrolls") or []
+    scrolls = (
+        player.get("scrolls")
+        or []
+    )
+
+    # =====================================================
+    # НЕМАЄ СУВОЇВ
+    # =====================================================
 
     if not scrolls:
 
@@ -43,40 +142,59 @@ def choose_scroll(message):
             "Марчелло поки не має чим тебе завантажити. 🦇",
 
             parse_mode="HTML",
+
             reply_markup=build_back_button(),
         )
 
         return
 
+    # =====================================================
+    # СПИСОК СУВОЇВ
+    # =====================================================
+
+    text = (
+        "📜 <b>Активні сувої</b>\n\n"
+    )
+
+    for index, scroll in enumerate(
+        scrolls,
+        start=1
+    ):
+
+        text += (
+            f"<b>{index}.</b> "
+            f"<code>{format_scroll(scroll)}</code>\n"
+        )
+
+    text += (
+        "\n🦇 <b>Марчелло:</b>\n"
+        "«Назви номер сувою, який виконано.»\n\n"
+        "Якщо виконано кілька одразу, "
+        "вкажи їх через кому:\n"
+        "<code>1, 3, 4</code>"
+    )
+
+    # =====================================================
+    # КНОПКА НАЗАД
+    # =====================================================
+
     markup = types.ReplyKeyboardMarkup(
         resize_keyboard=True
     )
 
-    for index, scroll in enumerate(scrolls):
-
-        overdue = (
-            "⚠️ "
-            if is_overdue(scroll)
-            else ""
-        )
-
-        markup.row(
-            types.KeyboardButton(
-                f"📜 {overdue}{index + 1}. "
-                f"{get_title(scroll)}"
-            )
-        )
-
     markup.row(
-        types.KeyboardButton("🔙 Назад")
+        types.KeyboardButton(
+            "🔙 Назад"
+        )
     )
 
     msg = bot.send_message(
         message.chat.id,
 
-        "📜 <b>Обери сувій:</b>",
+        text,
 
         parse_mode="HTML",
+
         reply_markup=markup,
     )
 
@@ -87,10 +205,69 @@ def choose_scroll(message):
 
 
 # =========================================================
-# ВИКОНАННЯ СУВОЮ
+# ПАРСИНГ НОМЕРІВ
+# =========================================================
+
+def parse_scroll_numbers(text):
+
+    # -----------------------------------------------------
+    # Підтримуємо:
+    #
+    # 1
+    # 1, 3, 4
+    # 1 3 4
+    # -----------------------------------------------------
+
+    normalized = (
+        text
+        .replace(",", " ")
+        .replace(";", " ")
+    )
+
+    parts = normalized.split()
+
+    if not parts:
+
+        raise ValueError(
+            "Вкажи номер хоча б одного сувою."
+        )
+
+    numbers = []
+
+    for part in parts:
+
+        try:
+
+            number = int(part)
+
+        except ValueError:
+
+            raise ValueError(
+                "Номер сувою має бути цілим числом."
+            )
+
+        if number <= 0:
+
+            raise ValueError(
+                "Номер сувою має бути більшим за нуль."
+            )
+
+        if number not in numbers:
+
+            numbers.append(number)
+
+    return numbers
+
+
+# =========================================================
+# ВИКОНАННЯ СУВОЇВ
 # =========================================================
 
 def complete_scroll(message):
+
+    # =====================================================
+    # НАЗАД
+    # =====================================================
 
     if message.text == "🔙 Назад":
 
@@ -108,145 +285,276 @@ def complete_scroll(message):
         user_id
     )
 
-    scrolls = player.get(
-        "scrolls"
-    ) or []
+    scrolls = (
+        player.get("scrolls")
+        or []
+    )
 
     # =====================================================
-    # ВИЗНАЧАЄМО НОМЕР СУВОЮ
+    # ПЕРЕВІРКА НАЯВНОСТІ
     # =====================================================
 
-    try:
-
-        number = int(
-            message.text
-            .split(".")[0]
-            .replace("📜", "")
-            .replace("⚠️", "")
-            .strip()
-        )
-
-        selected_index = number - 1
-
-    except (
-        ValueError,
-        IndexError
-    ):
-
-        selected_index = None
-
-    # =====================================================
-    # ПЕРЕВІРКА ВИБОРУ
-    # =====================================================
-
-    if (
-        selected_index is None
-        or not 0 <= selected_index < len(scrolls)
-    ):
+    if not scrolls:
 
         bot.send_message(
             message.chat.id,
 
-            "🦇 Не вдалося знайти цей сувій."
-        )
+            "📜 Активних сувоїв більше немає.",
 
-        choose_scroll(message)
+            reply_markup=build_back_button(),
+        )
 
         return
 
     # =====================================================
-    # ОТРИМУЄМО СУВІЙ
+    # ОТРИМУЄМО НОМЕРИ
     # =====================================================
 
-    scroll = scrolls[
-        selected_index
+    try:
+
+        numbers = parse_scroll_numbers(
+            message.text
+        )
+
+    except ValueError as error:
+
+        bot.send_message(
+            message.chat.id,
+
+            "🦇 <b>Марчелло постукує пером "
+            "по столу.</b>\n\n"
+
+            f"❌ {error}\n\n"
+
+            "Напиши номер сувою або кілька "
+            "номерів через кому:\n\n"
+
+            "<code>1</code>\n"
+            "<code>1, 3, 4</code>",
+
+            parse_mode="HTML",
+
+            reply_markup=build_back_button(),
+        )
+
+        bot.register_next_step_handler(
+            message,
+            complete_scroll
+        )
+
+        return
+
+    # =====================================================
+    # ПЕРЕВІРЯЄМО НОМЕРИ
+    # =====================================================
+
+    invalid_numbers = [
+        number
+        for number in numbers
+        if number > len(scrolls)
     ]
 
-    title = get_title(
-        scroll
-    )
+    if invalid_numbers:
 
-    xp = get_xp(
-        scroll
-    )
-
-    spheres = get_spheres(
-        scroll
-    )
-
-    overdue = is_overdue(
-        scroll
-    )
-
-    # =====================================================
-    # XP
-    # =====================================================
-    #
-    # Одна центральна функція:
-    #
-    # - додає XP персонажу
-    # - перевіряє level up персонажа
-    # - ділить XP між сферами
-    # - перевіряє level up сфер
-    #
-    # =====================================================
-
-    level_up_data = add_xp_to_character(
-        player,
-        spheres,
-        xp
-    )
-
-    # =====================================================
-    # ЛУТ
-    # =====================================================
-
-    loot = try_activity_loot(
-        player
-    )
-
-    # =====================================================
-    # АРХІВ
-    # =====================================================
-
-    scroll_archive = (
-        player.get(
-            "scroll_archive"
+        invalid_text = ", ".join(
+            str(number)
+            for number in invalid_numbers
         )
-        or []
-    )
 
-    completed_scroll = dict(
-        scroll
-    )
+        bot.send_message(
+            message.chat.id,
 
-    completed_scroll[
-        "completed"
-    ] = True
+            "🦇 <b>Марчелло хмуриться.</b>\n\n"
 
-    completed_scroll[
-        "completed_date"
-    ] = get_today()
+            f"❌ Сувоїв з такими номерами немає: "
+            f"<b>{invalid_text}</b>\n\n"
 
-    scroll_archive.append(
-        completed_scroll
+            f"Доступні номери: "
+            f"<b>1–{len(scrolls)}</b>.",
+
+            parse_mode="HTML",
+
+            reply_markup=build_back_button(),
+        )
+
+        bot.register_next_step_handler(
+            message,
+            complete_scroll
+        )
+
+        return
+
+    # =====================================================
+    # СОРТУЄМО ІНДЕКСИ У ЗВОРОТНОМУ ПОРЯДКУ
+    # =====================================================
+    #
+    # Це дуже важливо.
+    #
+    # Якщо видаляти:
+    #
+    # 1, 3
+    #
+    # спочатку номер 1,
+    # індекси інших елементів зміняться.
+    #
+    # Тому видаляємо від найбільшого
+    # індексу до найменшого.
+    #
+    # =====================================================
+
+    selected_indices = sorted(
+        [number - 1 for number in numbers],
+        reverse=True
     )
 
     # =====================================================
-    # ВИДАЛЯЄМО З АКТИВНИХ
+    # РЕЗУЛЬТАТИ
     # =====================================================
 
-    scrolls.pop(
-        selected_index
-    )
+    completed_scrolls = []
+
+    total_xp = 0.0
+
+    all_level_ups = []
+
+    all_sphere_level_ups = []
+
+    all_loot = []
+
+    # =====================================================
+    # ОБРОБЛЯЄМО КОЖЕН СУВІЙ
+    # =====================================================
+
+    for selected_index in selected_indices:
+
+        scroll = scrolls[
+            selected_index
+        ]
+
+        title = get_title(
+            scroll
+        )
+
+        xp = get_xp(
+            scroll
+        )
+
+        spheres = get_spheres(
+            scroll
+        )
+
+        overdue = is_overdue(
+            scroll
+        )
+
+        # -------------------------------------------------
+        # XP ПЕРСОНАЖА
+        # -------------------------------------------------
+
+        character_level_ups = (
+            add_xp_to_player(
+                player,
+                xp
+            )
+        )
+
+        all_level_ups.extend(
+            character_level_ups
+        )
+
+        # -------------------------------------------------
+        # XP СФЕР
+        # -------------------------------------------------
+
+        sphere_level_ups = (
+            add_xp_to_spheres(
+                player,
+                spheres,
+                xp
+            )
+        )
+
+        all_sphere_level_ups.extend(
+            sphere_level_ups
+        )
+
+        # -------------------------------------------------
+        # ЛУТ
+        # -------------------------------------------------
+
+        loot = try_activity_loot(
+            player
+        )
+
+        if loot:
+
+            all_loot.append(
+                loot
+            )
+
+        # -------------------------------------------------
+        # АРХІВ
+        # -------------------------------------------------
+
+        scroll_archive = (
+            player.get(
+                "scroll_archive"
+            )
+            or []
+        )
+
+        completed_scroll = dict(
+            scroll
+        )
+
+        completed_scroll[
+            "completed"
+        ] = True
+
+        completed_scroll[
+            "completed_date"
+        ] = get_today()
+
+        completed_scroll[
+            "earned_xp"
+        ] = xp
+
+        scroll_archive.append(
+            completed_scroll
+        )
+
+        player[
+            "scroll_archive"
+        ] = scroll_archive
+
+        # -------------------------------------------------
+        # ЗБЕРІГАЄМО ДЛЯ ПОВІДОМЛЕННЯ
+        # -------------------------------------------------
+
+        completed_scrolls.append({
+            "title": title,
+            "xp": xp,
+            "spheres": spheres,
+            "overdue": overdue,
+        })
+
+        total_xp += xp
+
+        # -------------------------------------------------
+        # ВИДАЛЯЄМО СУВІЙ
+        # -------------------------------------------------
+
+        scrolls.pop(
+            selected_index
+        )
+
+    # =====================================================
+    # ОНОВЛЮЄМО АКТИВНІ СУВОЇ
+    # =====================================================
 
     player[
         "scrolls"
     ] = scrolls
-
-    player[
-        "scroll_archive"
-    ] = scroll_archive
 
     # =====================================================
     # СТАТИСТИКА
@@ -254,7 +562,9 @@ def complete_scroll(message):
 
     update_statistics(
         player,
-        completed_scrolls=1
+        completed_scrolls=len(
+            completed_scrolls
+        )
     )
 
     # =====================================================
@@ -302,59 +612,124 @@ def complete_scroll(message):
     )
 
     # =====================================================
-    # ПОВІДОМЛЕННЯ ПРО LEVEL UP
+    # LEVEL UP
     # =====================================================
 
     send_level_up_notifications(
+        bot,
         message.chat.id,
-        level_up_data
+        all_level_ups,
+        all_sphere_level_ups
     )
 
     # =====================================================
-    # ДОДАТКОВИЙ ТЕКСТ
+    # ФОРМУЄМО РЕЗУЛЬТАТ
     # =====================================================
 
-    loot_text = ""
+    result_text = (
+        "🦇 <b>Марчелло ставить останню печатку.</b>\n\n"
+    )
 
-    if loot:
+    if len(completed_scrolls) == 1:
 
-        loot_text = (
-            f"\n🎁 Знайдено: "
-            f"<b>{loot}</b>"
+        result_text += (
+            "✨ <b>Сувій виконано!</b>\n\n"
         )
 
-    overdue_text = ""
+    else:
 
-    if overdue:
-
-        overdue_text = (
-            "\n⚠️ Сувій був прострочений, "
-            "але повна нагорода за виконання повернута."
+        result_text += (
+            f"✨ <b>Виконано сувоїв: "
+            f"{len(completed_scrolls)}</b>\n\n"
         )
 
-    spheres_text = " ".join(
-        spheres
+    # =====================================================
+    # СПИСОК ВИКОНАНИХ
+    # =====================================================
+
+    for scroll_data in reversed(
+        completed_scrolls
+    ):
+
+        title = scroll_data[
+            "title"
+        ]
+
+        xp = scroll_data[
+            "xp"
+        ]
+
+        spheres = scroll_data[
+            "spheres"
+        ]
+
+        overdue = scroll_data[
+            "overdue"
+        ]
+
+        spheres_text = "".join(
+            spheres
+        )
+
+        result_text += (
+            f"📜 <b>{title}</b>\n"
+            f"⭐ +<b>{xp:.1f} XP</b>\n"
+            f"🎯 {spheres_text}\n"
+        )
+
+        if overdue:
+
+            result_text += (
+                "⚠️ Прострочений сувій\n"
+            )
+
+        result_text += "\n"
+
+    # =====================================================
+    # ЗАГАЛЬНИЙ XP
+    # =====================================================
+
+    if len(completed_scrolls) > 1:
+
+        result_text += (
+            f"⭐ <b>Разом: +{total_xp:.1f} XP</b>\n\n"
+        )
+
+    # =====================================================
+    # ЛУТ
+    # =====================================================
+
+    if all_loot:
+
+        result_text += (
+            "🎁 <b>Знайдено:</b>\n"
+        )
+
+        for loot in all_loot:
+
+            result_text += (
+                f"• {loot}\n"
+            )
+
+        result_text += "\n"
+
+    # =====================================================
+    # АРХІВ
+    # =====================================================
+
+    result_text += (
+        "📚 Виконані сувої переміщено "
+        "до <b>Архіву Грінвуду</b>."
     )
 
     # =====================================================
-    # РЕЗУЛЬТАТ
+    # ПОВІДОМЛЕННЯ
     # =====================================================
 
     bot.send_message(
         message.chat.id,
 
-        "🦇 <b>Марчелло ставить останню печатку.</b>\n\n"
-
-        f"📜 <b>{title}</b>\n"
-        f"⭐ Отримано: <b>{xp:.1f} XP</b>\n"
-        f"🎯 Сфери: {spheres_text}"
-
-        f"{overdue_text}"
-
-        f"{loot_text}\n\n"
-
-        "✨ Сувій виконано й відправлено "
-        "до <b>Архіву Грінвуду</b>.",
+        result_text,
 
         parse_mode="HTML",
 
