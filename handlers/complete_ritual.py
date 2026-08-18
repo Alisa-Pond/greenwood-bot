@@ -209,7 +209,7 @@ def choose_ritual(message):
         return
 
     # =====================================================
-    # ПОКАЗУЄМО РИТУАЛИ ЗВИЧАЙНИМ ТЕКСТОМ
+    # ПОКАЗУЄМО РИТУАЛИ
     # =====================================================
 
     text = (
@@ -224,8 +224,9 @@ def choose_ritual(message):
         )
 
     text += (
-        "\n✏️ Напиши номер ритуалу, "
-        "який ти виконала."
+        "\n✏️ Напиши номер ритуалу "
+        "або декілька номерів через кому.\n\n"
+        "Наприклад: <b>1, 2</b>"
     )
 
     # =====================================================
@@ -259,7 +260,60 @@ def choose_ritual(message):
 
 
 # =========================================================
-# ВИКОНАННЯ РИТУАЛУ
+# ПАРСИНГ НОМЕРІВ РИТУАЛІВ
+# =========================================================
+
+def parse_ritual_numbers(text):
+
+    if not text:
+        return None
+
+    parts = text.split(",")
+
+    numbers = []
+
+    for part in parts:
+
+        part = part.strip()
+
+        if not part:
+            return None
+
+        try:
+
+            number = int(part)
+
+        except (
+            ValueError,
+            TypeError
+        ):
+
+            return None
+
+        if number <= 0:
+            return None
+
+        numbers.append(
+            number
+        )
+
+    # Прибираємо дублікати,
+    # але зберігаємо порядок вибору
+    unique_numbers = []
+
+    for number in numbers:
+
+        if number not in unique_numbers:
+
+            unique_numbers.append(
+                number
+            )
+
+    return unique_numbers
+
+
+# =========================================================
+# ВИКОНАННЯ РИТУАЛУ / РИТУАЛІВ
 # =========================================================
 
 def complete_ritual(message):
@@ -295,42 +349,57 @@ def complete_ritual(message):
     ) or []
 
     # =====================================================
-    # ВИБІР НОМЕРА
+    # ОТРИМУЄМО НОМЕРИ РИТУАЛІВ
     # =====================================================
 
-    try:
-
-        selected_index = (
-            int(
-                message.text.strip()
-            )
-            - 1
-        )
-
-    except (
-        ValueError,
-        TypeError
-    ):
-
-        selected_index = None
+    selected_numbers = parse_ritual_numbers(
+        message.text.strip()
+    )
 
     # =====================================================
-    # ПЕРЕВІРКА НОМЕРА
+    # ПЕРЕВІРКА НОМЕРІВ
     # =====================================================
 
-    if (
-        selected_index is None
-        or not 0 <= selected_index < len(
-            rituals
-        )
-    ):
+    if not selected_numbers:
 
         bot.send_message(
             message.chat.id,
 
-            "🔄 <b>Не вдалося знайти "
-            "цей ритуал.</b>\n\n"
-            "Напиши номер ритуалу ще раз.",
+            "🔄 <b>Не вдалося розпізнати номери.</b>\n\n"
+            "Напиши один номер або декілька через кому.\n"
+            "Наприклад: <b>1, 2</b>",
+
+            parse_mode="HTML",
+        )
+
+        choose_ritual(
+            message
+        )
+
+        return
+
+    # Перетворюємо номери користувача
+    # на індекси списку rituals
+    selected_indices = [
+        number - 1
+        for number in selected_numbers
+    ]
+
+    # Перевіряємо, чи всі номери існують
+    invalid_indices = [
+        index
+        for index in selected_indices
+        if not 0 <= index < len(rituals)
+    ]
+
+    if invalid_indices:
+
+        bot.send_message(
+            message.chat.id,
+
+            "🔄 <b>Не вдалося знайти один "
+            "або декілька ритуалів.</b>\n\n"
+            "Перевір номери та спробуй ще раз.",
 
             parse_mode="HTML",
         )
@@ -342,105 +411,10 @@ def complete_ritual(message):
         return
 
     # =====================================================
-    # ОТРИМУЄМО РИТУАЛ
+    # ДАНІ
     # =====================================================
-
-    ritual = rituals[
-        selected_index
-    ]
-
-    # =====================================================
-    # ПЕРЕВІРКА, ЧИ РИТУАЛ МОЖНА ВИКОНУВАТИ СЬОГОДНІ
-    # =====================================================
-
-    if not ritual_is_for_today(
-        ritual
-    ):
-
-        bot.send_message(
-            message.chat.id,
-
-            "🌙 <b>Цей ритуал сьогодні "
-            "не запланований.</b>\n\n"
-            "Його день ще не настав.",
-
-            parse_mode="HTML",
-
-            reply_markup=build_back_button(),
-        )
-
-        return
-
-    # =====================================================
-    # ДАНІ РИТУАЛУ
-    # =====================================================
-
-    title = get_title(
-        ritual
-    )
-
-    xp = get_xp(
-        ritual
-    )
-
-    spheres = get_spheres(
-        ritual
-    )
 
     today = get_today()
-
-    # =====================================================
-    # ПЕРЕВІРКА ПОВТОРНОГО ВИКОНАННЯ
-    # =====================================================
-
-    if ritual.get(
-        "last_completed"
-    ) == today:
-
-        bot.send_message(
-            message.chat.id,
-
-            "🌙 <b>Цей ритуал уже "
-            "виконано сьогодні.</b>\n\n"
-            "Завтра він знову чекатиме на тебе.",
-
-            parse_mode="HTML",
-
-            reply_markup=build_back_button(),
-        )
-
-        return
-
-    # =====================================================
-    # XP ГЕРОЯ + XP СФЕР
-    # =====================================================
-    #
-    # ОДНА функція робить усе:
-    #
-    # 🧙‍♂️ XP героя
-    # 🎯 XP сфер
-    # ✨ level up героя
-    # ✨ level up сфер
-    #
-    # =====================================================
-
-    level_up_data = add_xp_to_character(
-        player,
-        spheres,
-        xp
-    )
-
-    # =====================================================
-    # ЛУТ
-    # =====================================================
-
-    loot = try_activity_loot(
-        player
-    )
-
-    # =====================================================
-    # АРХІВ РИТУАЛІВ
-    # =====================================================
 
     ritual_archive = (
         player.get(
@@ -449,33 +423,195 @@ def complete_ritual(message):
         or []
     )
 
-    completed_ritual = dict(
-        ritual
-    )
+    completed_rituals = []
 
-    completed_ritual[
-        "completed_date"
-    ] = today
+    total_xp = 0.0
 
-    completed_ritual[
-        "earned_xp"
-    ] = xp
+    total_completed = 0
 
-    ritual_archive.append(
-        completed_ritual
-    )
+    level_up_data_list = []
+
+    loot_items = []
 
     # =====================================================
-    # ОНОВЛЮЄМО РИТУАЛ
+    # ОБРОБКА КОЖНОГО ВИБРАНОГО РИТУАЛУ
     # =====================================================
 
-    ritual[
-        "last_completed"
-    ] = today
+    for selected_index in selected_indices:
 
-    rituals[
-        selected_index
-    ] = ritual
+        ritual = rituals[
+            selected_index
+        ]
+
+        # -------------------------------------------------
+        # ПЕРЕВІРКА ДНЯ
+        # -------------------------------------------------
+
+        if not ritual_is_for_today(
+            ritual
+        ):
+
+            bot.send_message(
+                message.chat.id,
+
+                f"🌙 <b>Ритуал №{selected_index + 1}</b>\n\n"
+                "Цей ритуал сьогодні не запланований.\n"
+                "Його день ще не настав.",
+
+                parse_mode="HTML",
+            )
+
+            continue
+
+        # -------------------------------------------------
+        # ПЕРЕВІРКА ПОВТОРНОГО ВИКОНАННЯ
+        # -------------------------------------------------
+
+        if ritual.get(
+            "last_completed"
+        ) == today:
+
+            bot.send_message(
+                message.chat.id,
+
+                f"🌙 <b>Ритуал №{selected_index + 1}</b>\n\n"
+                "Цей ритуал уже виконано сьогодні.",
+
+                parse_mode="HTML",
+            )
+
+            continue
+
+        # -------------------------------------------------
+        # ДАНІ РИТУАЛУ
+        # -------------------------------------------------
+
+        title = get_title(
+            ritual
+        )
+
+        xp = get_xp(
+            ritual
+        )
+
+        spheres = get_spheres(
+            ritual
+        )
+
+        # -------------------------------------------------
+        # XP ГЕРОЯ + XP СФЕР
+        # -------------------------------------------------
+        #
+        # add_xp_to_character()
+        # використовує актуальну систему рівнів.
+        #
+        # Вона відповідає за:
+        #
+        # 🧙‍♂️ XP героя
+        # 🎯 XP сфер
+        # ✨ level up героя
+        # ✨ level up сфер
+        #
+        # -------------------------------------------------
+
+        level_up_data = add_xp_to_character(
+            player,
+            spheres,
+            xp
+        )
+
+        level_up_data_list.append(
+            level_up_data
+        )
+
+        # -------------------------------------------------
+        # ЛУТ
+        # -------------------------------------------------
+
+        loot = try_activity_loot(
+            player
+        )
+
+        if loot:
+
+            loot_items.append(
+                loot
+            )
+
+        # -------------------------------------------------
+        # АРХІВ РИТУАЛІВ
+        # -------------------------------------------------
+
+        completed_ritual = dict(
+            ritual
+        )
+
+        completed_ritual[
+            "completed_date"
+        ] = today
+
+        completed_ritual[
+            "earned_xp"
+        ] = xp
+
+        ritual_archive.append(
+            completed_ritual
+        )
+
+        # -------------------------------------------------
+        # ОНОВЛЮЄМО РИТУАЛ
+        # -------------------------------------------------
+
+        ritual[
+            "last_completed"
+        ] = today
+
+        rituals[
+            selected_index
+        ] = ritual
+
+        # -------------------------------------------------
+        # ЗБИРАЄМО РЕЗУЛЬТАТ
+        # -------------------------------------------------
+
+        completed_rituals.append(
+            {
+                "title": title,
+                "xp": xp,
+                "spheres": spheres,
+            }
+        )
+
+        total_xp += xp
+
+        total_completed += 1
+
+    # =====================================================
+    # ЯКЩО ЖОДЕН РИТУАЛ НЕ БУВ ВИКОНАНИЙ
+    # =====================================================
+
+    if total_completed == 0:
+
+        bot.send_message(
+            message.chat.id,
+
+            "🔄 <b>Жоден із вибраних ритуалів "
+            "не вдалося провести.</b>\n\n"
+            "Перевір, чи вони доступні сьогодні "
+            "та чи не були вже виконані.",
+
+            parse_mode="HTML",
+        )
+
+        choose_ritual(
+            message
+        )
+
+        return
+
+    # =====================================================
+    # ЗБЕРІГАЄМО ЗМІНИ
+    # =====================================================
 
     player[
         "rituals"
@@ -491,7 +627,7 @@ def complete_ritual(message):
 
     update_statistics(
         player,
-        completed_rituals=1
+        completed_rituals=total_completed
     )
 
     # =====================================================
@@ -542,30 +678,59 @@ def complete_ritual(message):
     # ПОВІДОМЛЕННЯ ПРО LEVEL UP
     # =====================================================
 
-    send_level_up_notifications(
-        message.chat.id,
-        level_up_data
-    )
+    for level_up_data in level_up_data_list:
 
-    # =====================================================
-    # ТЕКСТ ЛУТУ
-    # =====================================================
-
-    loot_text = ""
-
-    if loot:
-
-        loot_text = (
-            f"\n🎁 Знайдено: "
-            f"<b>{loot}</b>"
+        send_level_up_notifications(
+            message.chat.id,
+            level_up_data
         )
 
     # =====================================================
-    # ТЕКСТ СФЕР
+    # ТЕКСТ УСПІШНОГО ВИКОНАННЯ
     # =====================================================
 
-    spheres_text = " ".join(
-        spheres
+    result_text = (
+        "🔥 <b>Ритуал"
+        + ("и проведено!" if total_completed > 1 else " проведено!")
+        + "</b>\n\n"
+    )
+
+    for completed in completed_rituals:
+
+        spheres_text = " ".join(
+            completed["spheres"]
+        )
+
+        result_text += (
+            f"🔄 <b>{completed['title']}</b>\n"
+            f"⭐ Отримано: <b>{completed['xp']:.1f} XP</b>\n"
+            f"🎯 Сфери: {spheres_text}\n\n"
+        )
+
+    # =====================================================
+    # ЛУТ
+    # =====================================================
+
+    if loot_items:
+
+        result_text += "🎁 <b>Знайдено:</b>\n"
+
+        for loot in loot_items:
+
+            result_text += (
+                f"• <b>{loot}</b>\n"
+            )
+
+        result_text += "\n"
+
+    # =====================================================
+    # АРХІВ
+    # =====================================================
+
+    result_text += (
+        "🕯️ Запис"
+        + ("и збережено" if total_completed > 1 else " збережено")
+        + " в <b>Архіві ритуалів</b>."
     )
 
     # =====================================================
@@ -575,18 +740,17 @@ def complete_ritual(message):
     bot.send_message(
         message.chat.id,
 
-        "🔥 <b>Ритуал проведено!</b>\n\n"
-
-        f"🔄 <b>{title}</b>\n"
-        f"⭐ Отримано: <b>{xp:.1f} XP</b>\n"
-        f"🎯 Сфери: {spheres_text}"
-
-        f"{loot_text}\n\n"
-
-        "🕯️ Запис збережено в "
-        "<b>Архіві ритуалів</b>.",
+        result_text,
 
         parse_mode="HTML",
+    )
 
-        reply_markup=build_back_button(),
+    # =====================================================
+    # ПОВЕРТАЄМОСЯ В МЕНЮ «ВИКОНАТИ СПРАВУ»
+    # =====================================================
+
+    from handlers.complete_activity import start_complete
+
+    start_complete(
+        message
     )
