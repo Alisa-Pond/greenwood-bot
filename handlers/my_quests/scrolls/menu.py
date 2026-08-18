@@ -9,12 +9,14 @@ print("⚙️ Реєструємо меню сувоїв...")
 def open_scrolls(message):
 
     bot.send_message(
-        message.chat.id,
-        "📜 <b>Сувої</b>\n\n"
-        "Тут зберігаються всі твої одноразові справи та завдання.",
-        parse_mode="HTML",
-        reply_markup=get_scrolls_menu()
-    )
+    message.chat.id,
+    "📜 <b>Сувої</b>\n\n"
+    "🦇 <b>Марчелло🦇:</b> Ось і вони. "
+    "Усі справи, які ти урочисто вирішила виконати, "
+    "записані тут. Тепер залишилося лише виконати їх. ",
+    parse_mode="HTML",
+    reply_markup=get_scrolls_menu()
+)
 
 @bot.message_handler(func=lambda m: m.text == "🔙 Назад до квестів")
 def back_from_scrolls(message):
