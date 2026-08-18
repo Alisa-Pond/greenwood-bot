@@ -375,7 +375,7 @@ def process_scroll_creation(message):
 
             message.chat.id,
 
-           "🦇 <b>Марчелло🦇:.</b>\n”
+           "🦇 <b>Марчелло🦇:.</b>\n"
 
             "🗯 Сувій успішно перевірено "
             "та запечатано!\n\n"
@@ -393,7 +393,7 @@ def process_scroll_creation(message):
 
             "✨ <b>Сувій запечатано.</b>\n\n"
 
-            "🦇 <b>Марчелло🦇:.</b>\n”
+            "🦇 <b>Марчелло🦇:.</b>\n"
             "Готовий до запису настпного сувою",
 
             parse_mode="HTML",
@@ -431,7 +431,7 @@ def process_scroll_creation(message):
 
             message.chat.id,
 
-            "🦇 <b>Марчелло🦇:.</b>\n”
+            "🦇 <b>Марчелло🦇:.</b>\n"
 
             f"❕ {error}\n"
 
