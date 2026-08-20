@@ -101,7 +101,7 @@ def process_scroll_creation(message):
         bot.send_message(
             message.chat.id,
 
-            "🦇 <b>Марчелло🦇:.</b>\n"
+            "🦇 <b>Марчелло🦇:</b>\n"
             "Повертаємось",
 
             parse_mode="HTML",
@@ -126,7 +126,7 @@ def process_scroll_creation(message):
         if len(parts) != 4:
 
             raise ValueError(
-                "🦇 <b>Марчелло🦇:.</b>\n"
+                "🦇 <b>Марчелло🦇:</b>\n"
                 "Слідуй формулі запису аби я міг записати сувій в бібліотеку\n"
                  "<code>Сфери ; Бали ; Дедлайн ; Назва справи</code>\n",
             )
@@ -153,7 +153,7 @@ def process_scroll_creation(message):
         if not spheres:
 
             raise ValueError(
-                "🦇 <b>Марчелло🦇:.</b>\n"
+                "🦇 <b>Марчелло🦇:</b>\n"
                 "Бібліотека вимагає сферу\n",
             )
 
@@ -176,7 +176,7 @@ def process_scroll_creation(message):
         except ValueError:
 
             raise ValueError(
-                "🦇 <b>Марчелло🦇:.</b>\n"
+                "🦇 <b>Марчелло🦇:</b>\n"
                 "Бали мають бути цілим числом від 4 до 14."
             )
 
@@ -184,7 +184,7 @@ def process_scroll_creation(message):
         if xp < 4 or xp > 14:
 
             raise ValueError(
-                "🦇 <b>Марчелло🦇:.</b>\n"
+                "🦇 <b>Марчелло🦇:</b>\n"
                 "Я не знаю таких цисел. Кількість балів має бути від 4 до 14."
             )
 
@@ -221,7 +221,7 @@ def process_scroll_creation(message):
         if len(title) < 3:
 
             raise ValueError(
-                "🦇 <b>Марчелло🦇:.</b>\n"
+                "🦇 <b>Марчелло🦇:</b>\n"
                 "Назва сувою має містити щонайменше 3 символи."
             )
 
@@ -278,7 +278,7 @@ def process_scroll_creation(message):
 
                 message.chat.id,
 
-                "🦇 <b>Марчелло🦇:.</b>\n"
+                "🦇 <b>Марчелло🦇:</b>\n"
 
                 f"❕Сувій "
                 f"<b>«{safe_title}»</b> "
@@ -313,7 +313,7 @@ def process_scroll_creation(message):
 
                 message.chat.id,
 
-                "🦇 <b>Марчелло🦇:.</b>\n"
+                "🦇 <b>Марчелло🦇:</b>\n"
                 "❕ Не вдалося запечатати сувій "
                 "у бібліотеці Грінвуду.\n\n"
 
@@ -373,7 +373,7 @@ def process_scroll_creation(message):
 
             message.chat.id,
 
-           "🦇 <b>Марчелло🦇:.</b>\n"
+           "🦇 <b>Марчелло🦇</b>\n"
 
             "🗯 Сувій успішно перевірено "
             "та запечатано!\n\n"
@@ -389,7 +389,7 @@ def process_scroll_creation(message):
             f"📚 <b>Активних сувоїв: "
             f"{active_count}</b>\n\n"
 
-            "🦇 <b>Марчелло🦇:.</b>\n"
+            "🦇 <b>Марчелло🦇:</b>\n"
             "Готовий до запису настпного сувою",
 
             parse_mode="HTML",
@@ -427,7 +427,7 @@ def process_scroll_creation(message):
 
             message.chat.id,
 
-            "🦇 <b>Марчелло🦇:.</b>\n"
+            "🦇 <b>Марчелло🦇:</b>\n"
 
             f"❕ {error}\n"
 
