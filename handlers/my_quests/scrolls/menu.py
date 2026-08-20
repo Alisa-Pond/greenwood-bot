@@ -2,11 +2,7 @@ from datetime import datetime
 
 from services.config import bot
 from services.database import get_player
-
-from keyboards import (
-    get_quests_menu,
-    get_scrolls_menu,
-)
+from keyboards import get_quests_menu, get_scrolls_menu
 
 from services.activity_utils import (
     get_title,
@@ -20,116 +16,11 @@ print("⚙️ Реєструємо меню сувоїв...")
 
 
 # =========================================================
-# ДНІ ТИЖНЯ
-# =========================================================
-
-WEEKDAYS = [
-    "пн",
-    "вт",
-    "ср",
-    "чт",
-    "пт",
-    "сб",
-    "нд",
-]
-
-
-# =========================================================
-# ПОТОЧНА ДАТА
-# =========================================================
-
-def get_today_text():
-
-    today = datetime.now()
-
-    weekday = WEEKDAYS[
-        today.weekday()
-    ]
-
-    return (
-        f"{today.strftime('%d.%m.%Y')}, "
-        f"{weekday}"
-    )
-
-
-# =========================================================
-# ПЕРЕВІРКА: ДЕДЛАЙН СЬОГОДНІ
-# =========================================================
-
-def deadline_is_today(scroll):
-
-    deadline = scroll.get(
-        "deadline"
-    )
-
-    if not deadline:
-        return False
-
-    deadline_date = parse_deadline(
-        deadline
-    )
-
-    if not deadline_date:
-        return False
-
-    return (
-        deadline_date.date()
-        == datetime.now().date()
-    )
-
-
-# =========================================================
-# ФОРМАТУВАННЯ СУВОЮ
-# =========================================================
-
-def format_scroll(scroll):
-
-    title = get_title(
-        scroll
-    )
-
-    xp = get_xp(
-        scroll
-    )
-
-    spheres = get_spheres(
-        scroll
-    )
-
-    spheres_text = "".join(
-        spheres
-    )
-
-    deadline = (
-        scroll.get(
-            "deadline"
-        )
-        or "без дедлайну"
-    )
-
-    fire = (
-        "🔥 "
-        if deadline_is_today(scroll)
-        else ""
-    )
-
-    return (
-        f"{fire}"
-        f"{spheres_text} "
-        f"<b>{title}</b> "
-        f"({xp:.1f} XP)\n"
-        f"    └── 📅 Дедлайн: "
-        f"{deadline}"
-    )
-
-
-# =========================================================
-# 📜 СУВОЇ
+# 📜 МЕНЮ СУВОЇВ
 # =========================================================
 
 @bot.message_handler(
-    func=lambda message:
-        message.text == "📜 Сувої"
+    func=lambda message: message.text == "📜 Сувої"
 )
 def open_scrolls(message):
 
@@ -141,12 +32,9 @@ def open_scrolls(message):
         user_id
     )
 
-    scrolls = (
-        player.get(
-            "scrolls"
-        )
-        or []
-    )
+    scrolls = player.get(
+        "scrolls"
+    ) or []
 
     # =====================================================
     # НЕМАЄ АКТИВНИХ СУВОЇВ
@@ -159,8 +47,11 @@ def open_scrolls(message):
 
             "📜 <b>Сувої Грінвуду</b>\n\n"
 
-            "🦇 <b>Марчелло🦇:</b> "
-            "Схоже, бібліотека порожня 📜",
+            "🦇 <b>Марчелло🦇:</b>\n"
+            "Схоже, цього разу моя книга порожня. "
+            "Жодного активного сувою. "
+            "Або ти вже встигла виконати все, "
+            "що на себе записала. Непогано. 🦇",
 
             parse_mode="HTML",
 
@@ -170,12 +61,33 @@ def open_scrolls(message):
         return
 
     # =====================================================
+    # ДАТА СЬОГОДНІ
+    # =====================================================
+
+    today = datetime.now().date()
+
+    weekday_names = [
+        "пн",
+        "вт",
+        "ср",
+        "чт",
+        "пт",
+        "сб",
+        "нд",
+    ]
+
+    today_text = (
+        f"{today.strftime('%d.%m.%Y')}, "
+        f"{weekday_names[today.weekday()]}"
+    )
+
+    # =====================================================
     # ЗАГОЛОВОК
     # =====================================================
 
     text = (
         "📜 <b>Твої сувої Грінвуду</b>\n"
-        f"📅 Сьогодні: <b>{get_today_text()}</b>\n"
+        f"📅 Сьогодні: <b>{today_text}</b>\n"
         "────────────────────\n\n"
     )
 
@@ -183,23 +95,144 @@ def open_scrolls(message):
     # СПИСОК СУВОЇВ
     # =====================================================
 
-    for scroll in scrolls:
+    for index, scroll in enumerate(
+        scrolls,
+        start=1
+    ):
+
+        # -------------------------------------------------
+        # СФЕРИ
+        # -------------------------------------------------
+
+        spheres = get_spheres(
+            scroll
+        )
+
+        spheres_text = "".join(
+            spheres
+        )
+
+        # -------------------------------------------------
+        # XP
+        # -------------------------------------------------
+
+        xp = get_xp(
+            scroll
+        )
+
+        # -------------------------------------------------
+        # НАЗВА
+        # -------------------------------------------------
+
+        title = get_title(
+            scroll
+        )
+
+        # -------------------------------------------------
+        # ДЕДЛАЙН
+        # -------------------------------------------------
+
+        deadline = scroll.get(
+            "deadline"
+        )
+
+        status_icon = ""
+
+        deadline_text = (
+            deadline
+            if deadline
+            else "без дедлайну"
+        )
+
+        if deadline:
+
+            deadline_date = parse_deadline(
+                deadline
+            )
+
+            if deadline_date:
+
+                deadline_day = (
+                    deadline_date.date()
+                )
+
+                # -----------------------------------------
+                # 🔥 ДЕДЛАЙН СЬОГОДНІ
+                # -----------------------------------------
+
+                if deadline_day == today:
+
+                    status_icon = "🔥"
+
+                # -----------------------------------------
+                # ⚠️ ПРОСТРОЧЕНИЙ
+                # -----------------------------------------
+
+                elif deadline_day < today:
+
+                    status_icon = "⚠️"
+
+        # =================================================
+        # РЯДОК СУВОЮ
+        # =================================================
 
         text += (
-            format_scroll(
-                scroll
-            )
-            + "\n\n"
+            f"{status_icon} "
+            f"📜 <b>{index}. {title}</b> "
+            f"({xp:.1f} XP)\n"
+            f"    └── 📅 Дедлайн: {deadline_text}\n\n"
         )
 
     # =====================================================
-    # ПОЯСНЕННЯ
+    # ПОЯСНЕННЯ СТАТУСІВ
     # =====================================================
 
-    text += (
-        "────────────────────\n"
-        "🔥 — сувій має бути виконаний сьогодні"
-    )
+    has_today = False
+    has_overdue = False
+
+    for scroll in scrolls:
+
+        deadline = scroll.get(
+            "deadline"
+        )
+
+        if not deadline:
+            continue
+
+        deadline_date = parse_deadline(
+            deadline
+        )
+
+        if not deadline_date:
+            continue
+
+        deadline_day = deadline_date.date()
+
+        if deadline_day == today:
+
+            has_today = True
+
+        elif deadline_day < today:
+
+            has_overdue = True
+
+    if has_today or has_overdue:
+
+        text += (
+            "────────────────────\n"
+        )
+
+        if has_today:
+
+            text += (
+                "🔥 — дедлайн сьогодні\n"
+            )
+
+        if has_overdue:
+
+            text += (
+                "⚠️ — сувій прострочений\n"
+            )
 
     # =====================================================
     # ВІДПРАВЛЯЄМО
@@ -229,7 +262,9 @@ def back_from_scrolls(message):
     bot.send_message(
         message.chat.id,
 
-        "📝 Меню квестів",
+        "📝 <b>Меню квестів</b>",
+
+        parse_mode="HTML",
 
         reply_markup=get_quests_menu()
     )
