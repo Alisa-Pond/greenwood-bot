@@ -24,10 +24,10 @@ def open_plant_archive(message):
 
         bot.send_message(
             message.chat.id,
+            "🌲<b>Олівер:🌲</b>\n"
             "🌿 <b>Архів теплиці порожній.</b>\n\n"
-            "Олівер уважно оглядає полиці й бурмоче:\n\n"
             "«Поки що тут нічого згадувати.\n"
-            "Посади щось варте пам'яті, садівнице.» 🌱",
+            "Посади щось варте пам'яті, садівнику.» 🌱",
             parse_mode="HTML",
             reply_markup=get_greenhouse_menu()
         )
