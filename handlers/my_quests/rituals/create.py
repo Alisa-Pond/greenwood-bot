@@ -54,11 +54,10 @@ def start_create_ritual(message):
     )
 
     text = (
-        "🦇 <b>Марчелло🦇:.</b>\n"
+        "🦇 <b>Марчелло🦇:</b>\n"
         "Деякі справи не зникають після одного виконання. "
         "Вони стають частиною ритму Грінвуду й повертаються "
-        "у свій час, наче стежка, якою ліс пропонує пройти знову. 🌿\n\n"
-
+        "у свій час, наче стежка, якою ліс пропонує пройти знову. 🌿\n"
         "Запиши його у такому форматі, і я передам твій запис на сторінки бібліотеки Грінвуду.\n\n"
 
         "<code>Сфери ; Бали ; Дні ; Назва справи</code>\n\n"
@@ -105,7 +104,7 @@ def process_ritual_creation(message):
 
         bot.send_message(
             message.chat.id,
-            "🦇 Марчелло згортає чистий аркуш.\n\n"
+            "🦇 <b>Марчелло🦇:</b>\n\n\n"
             "Режим створення ритуалів завершено.",
             parse_mode="HTML",
             reply_markup=get_rituals_menu()
@@ -128,6 +127,7 @@ def process_ritual_creation(message):
         if len(parts) != 4:
 
             raise ValueError(
+                "🦇 <b>Марчелло🦇:</b>\n"
                 "Потрібно заповнити всі 4 частини формули."
             )
 
@@ -153,14 +153,16 @@ def process_ritual_creation(message):
         if not spheres:
 
             raise ValueError(
-                "Не знайдено жодної правильної сфери."
+                "🦇 <b>Марчелло🦇:</b>\n"
+                "В якій же сфері ти вирішив себе вдоскконалювати?"
             )
 
 
         if len(spheres) != len(set(spheres)):
 
             raise ValueError(
-                "Одна й та сама сфера вказана двічі."
+                "🦇 <b>Марчелло🦇:</b>\n"
+                "Схоже, що одна й та сама сфера вказана двічі."
             )
 
 
@@ -175,13 +177,15 @@ def process_ritual_creation(message):
         except ValueError:
 
             raise ValueError(
-                "Бали мають бути цілим числом."
+                "🦇 <b>Марчелло🦇:</b>\n"
+                "Бали мають бути цілим числом від 4 до 14"
             )
 
 
         if xp < 4 or xp > 14:
 
             raise ValueError(
+                "🦇 <b>Марчелло🦇:</b>\n"
                 "Для ритуалу кількість балів має бути від 4 до 14."
             )
 
@@ -219,6 +223,7 @@ def process_ritual_creation(message):
             if not days:
 
                 raise ValueError(
+                    "🦇 <b>Марчелло🦇:</b>\n"
                     "Потрібно вказати хоча б один день."
                 )
 
@@ -237,7 +242,8 @@ def process_ritual_creation(message):
             if invalid_days:
 
                 raise ValueError(
-                    "Невідомий день: "
+                    "🦇 <b>Марчелло🦇:</b>\n"
+                    "Я не розумію в який день тизбираєшся виконувати цей ритуал "
                     + ", ".join(invalid_days)
                     + ". Використовуй пн, вт, ср, чт, пт, сб або нд."
                 )
@@ -250,7 +256,8 @@ def process_ritual_creation(message):
             if len(days) != len(set(days)):
 
                 raise ValueError(
-                    "Один із днів вказано двічі."
+                    "🦇 <b>Марчелло🦇:</b>\n"
+                    "Схоже,що один із днів вказано двічі."
                 )
 
 
@@ -264,7 +271,8 @@ def process_ritual_creation(message):
         if len(title) < 3:
 
             raise ValueError(
-                "Назва ритуалу занадто коротка."
+                "🦇 <b>Марчелло🦇:</b>\n"
+                "Твоя назва занадто лаконічна"
             )
 
 
@@ -293,7 +301,8 @@ def process_ritual_creation(message):
             if existing_title.strip().lower() == title.strip().lower():
 
                 raise ValueError(
-                    "Ритуал із такою назвою вже існує."
+                    "🦇 <b>Марчелло🦇:</b>\n"
+                    "Ритуал із такою назвою вже існує. Бібліотеці це не сподобається"
                 )
 
 
@@ -353,7 +362,7 @@ def process_ritual_creation(message):
         bot.send_message(
             message.chat.id,
 
-            "🦇 <b>Марчелло ставить останню печатку...</b>\n\n"
+            "🦇 <b>Марчелло🦇:</b>\n\n\n"
 
             "✨ <b>Ритуал успішно запечатано!</b>\n\n"
 
@@ -365,8 +374,7 @@ def process_ritual_creation(message):
             f"📚 Тепер у тебе "
             f"<b>{ritual_count}</b> активних ритуалів.\n\n"
 
-            "🔥 Марчелло заносить його до магічного розкладу "
-            "Грінвуду.\n\n"
+            "🔥 Ткпер він є частиною магічного розкладу Грінвуду\n\n"
 
             "✨ <b>Надсилай наступний ритуал.</b>",
 
@@ -403,7 +411,7 @@ def process_ritual_creation(message):
         bot.send_message(
             message.chat.id,
 
-            "🦇 <b>Марчелло насупився над сувоєм...</b>\n\n"
+            "🦇 <b>Марчелло🦇:</b>\n\n\n"
 
             f"❌ {error}\n\n"
 
