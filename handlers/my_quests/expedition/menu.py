@@ -57,7 +57,11 @@ def format_active_time(active_seconds):
         active_seconds = int(
             active_seconds or 0
         )
-    except (TypeError, ValueError):
+
+    except (
+        TypeError,
+        ValueError
+    ):
         active_seconds = 0
 
     hours = active_seconds // 3600
@@ -147,7 +151,7 @@ def show_expeditions(message):
                 "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n\n"
 
                 "Експедиція триває.\n\n"
-            
+
                 f"⏱️ Активний час: "
                 f"<b>{time_text}</b>\n\n"
 
@@ -167,7 +171,7 @@ def show_expeditions(message):
         return
 
     # =====================================================
-    # НОВА ЕКСПЕДИЦІЯ
+    # НЕМАЄ АКТИВНОЇ ЕКСПЕДИЦІЇ
     # =====================================================
 
     text = (
@@ -180,7 +184,7 @@ def show_expeditions(message):
         "у старих дуплах з'являються нові таємниці, "
         "а під корінням іноді знаходиться те, "
         "чого там учора ще не було.\n\n"
-        
+
         "🐜 Загін вирушає в дорогу й досліджує ліс, "
         "поки триває похід. Чим довше мурахи залишаються "
         "в експедиції, тим більше території вони встигають обстежити.\n\n"
@@ -188,7 +192,7 @@ def show_expeditions(message):
         "🎒 Повернувшись, розвідники принесуть усе, "
         "що вдалося знайти серед лісових хащів.\n\n"
 
-        " <i>Загін споряджений. Чекаємо наказу на висування.</i>"
+        "<i>Загін споряджений. Чекаємо наказу на висування.</i>"
     )
 
     bot.send_message(
@@ -196,4 +200,16 @@ def show_expeditions(message):
         text,
         parse_mode="HTML",
         reply_markup=get_expedition_menu()
+    )
+
+    # =====================================================
+    # ОДРАЗУ ПЕРЕХОДИМО ДО ВИБОРУ СФЕР
+    # =====================================================
+
+    from handlers.my_quests.expedition.start import (
+        start_expedition
+    )
+
+    start_expedition(
+        message
     )
