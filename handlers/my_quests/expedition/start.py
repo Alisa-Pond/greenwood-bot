@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from telebot import types
+
 from services.config import bot
 from services.database import get_player, update_player
 
@@ -63,10 +65,20 @@ SPHERE_NAMES = {
 # =========================================================
 # КНОПКА СТАРТУ
 # =========================================================
+#
+# Експедиція тепер запускається одразу з меню:
+#
+# 🧭 Експедиції
+#        ↓
+#      Сфери
+#        ↓
+#   Експедиція
+#
+# =========================================================
 
 @bot.message_handler(
     func=lambda message:
-        message.text == "🐜 Відправити мурах в експедицію"
+        message.text == "🧭 Експедиції"
 )
 def start_expedition(message):
 
@@ -107,6 +119,28 @@ def start_expedition(message):
         return
 
     # =====================================================
+    # КЛАВІАТУРА ДЛЯ ВИБОРУ СФЕР
+    # =====================================================
+    #
+    # ВАЖЛИВО:
+    # Тут НЕ показуємо меню експедиції з кнопкою
+    # "🐜 Відправити мурах в експедицію".
+    #
+    # Залишається тільки кнопка "🔙 Назад".
+    #
+    # =====================================================
+
+    markup = types.ReplyKeyboardMarkup(
+        resize_keyboard=True
+    )
+
+    markup.row(
+        types.KeyboardButton(
+            "🔙 Назад"
+        )
+    )
+
+    # =====================================================
     # ЗАПИТ СФЕР
     # =====================================================
 
@@ -121,7 +155,8 @@ def start_expedition(message):
         "Напиши їхні назви або просто використай емодзі.\n\n"
 
         "<b>Наприклад:</b>\n"
-        "🧠 🎨\n\n"
+        "🧠 🎨\n"
+        "🧠🎨\n\n"
 
         "<b>Доступні сфери:</b>\n"
         "💪 Здоров'я\n"
@@ -133,14 +168,15 @@ def start_expedition(message):
         "🐜 <i>Генерал чекає на наказ.</i>"
     )
 
-    bot.send_message(
+    msg = bot.send_message(
         message.chat.id,
         text,
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=markup
     )
 
     bot.register_next_step_handler(
-        message,
+        msg,
         process_expedition_spheres
     )
 
@@ -182,6 +218,20 @@ def process_expedition_spheres(message):
     user_text = message.text.strip()
 
     # =====================================================
+    # НАЗАД
+    # =====================================================
+
+    if user_text == "🔙 Назад":
+
+        from handlers.my_quests.menu import open_my_quests
+
+        open_my_quests(
+            message
+        )
+
+        return
+
+    # =====================================================
     # СКАСУВАННЯ
     # =====================================================
 
@@ -191,18 +241,30 @@ def process_expedition_spheres(message):
         "назад"
     ):
 
-        bot.send_message(
-            message.chat.id,
-            (
-                "🐜 Наказ скасовано.\n\n"
-                "Загін залишається в таборі."
-            )
+        from handlers.my_quests.menu import open_my_quests
+
+        open_my_quests(
+            message
         )
 
         return
 
     # =====================================================
     # РОЗБИВАЄМО ТЕКСТ
+    # =====================================================
+    #
+    # Підтримуються всі варіанти:
+    #
+    # 🧠
+    # 🧠 🎨
+    # 🧠🎨
+    # 🧠,🎨
+    # 🧠, 🎨
+    # 🧠;🎨
+    #
+    # Для текстових назв залишаємо звичайне розділення
+    # через пробіл.
+    #
     # =====================================================
 
     normalized_text = (
@@ -212,14 +274,52 @@ def process_expedition_spheres(message):
         .replace("\n", " ")
     )
 
-    parts = normalized_text.split()
+    # -----------------------------------------------------
+    # СПОЧАТКУ ПЕРЕВІРЯЄМО ЗЛИТІ ЕМОДЗІ
+    # -----------------------------------------------------
+
+    emoji_spheres = [
+        ("💪", "health"),
+        ("🧠", "wisdom"),
+        ("🎨", "art"),
+        ("💵", "finance"),
+        ("🤝", "relations")
+    ]
 
     selected_spheres = []
     unknown_parts = []
 
-    # =====================================================
-    # ВИЗНАЧАЄМО СФЕРИ
-    # =====================================================
+    # Якщо повідомлення містить емодзі,
+    # витягуємо їх незалежно від пробілів.
+
+    remaining_text = normalized_text
+
+    found_emoji = False
+
+    for emoji, sphere_key in emoji_spheres:
+
+        if emoji in remaining_text:
+
+            found_emoji = True
+
+            if sphere_key not in selected_spheres:
+
+                selected_spheres.append(
+                    sphere_key
+                )
+
+            remaining_text = (
+                remaining_text.replace(
+                    emoji,
+                    " "
+                )
+            )
+
+    # -----------------------------------------------------
+    # ТЕПЕР ОБРОБЛЯЄМО ТЕКСТОВІ НАЗВИ
+    # -----------------------------------------------------
+
+    parts = remaining_text.split()
 
     for part in parts:
 
@@ -239,7 +339,7 @@ def process_expedition_spheres(message):
                     sphere_key
                 )
 
-        else:
+        elif part.strip():
 
             unknown_parts.append(
                 part
@@ -259,7 +359,8 @@ def process_expedition_spheres(message):
                 "Наказ не розпізнано.\n\n"
 
                 "Спробуй, наприклад:\n"
-                "🧠 🎨\n\n"
+                "🧠 🎨\n"
+                "🧠🎨\n\n"
 
                 "або:\n"
                 "<i>мудрість творчість</i>\n\n"
@@ -447,7 +548,7 @@ def process_expedition_spheres(message):
     )
 
     # =====================================================
-    # ВІДПРАВЛЯЄМО НОВУ КЛАВІАТУРУ
+    # ВІДПРАВЛЯЄМО КЛАВІАТУРУ АКТИВНОЇ ЕКСПЕДИЦІЇ
     # =====================================================
 
     bot.send_message(
