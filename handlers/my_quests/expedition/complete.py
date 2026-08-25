@@ -1,5 +1,4 @@
 import random
-from datetime import datetime, timezone
 
 from services.config import bot
 from services.database import get_player, update_player
@@ -26,21 +25,29 @@ print("🏁 Реєструємо завершення експедицій...")
 # =========================================================
 # XP
 # =========================================================
-
+#
 # За кожні повні 30 хвилин експедиції
 # загін приносить 5 XP.
-XP_PER_28_MINUTES = 5
+#
+# =========================================================
+
+XP_PER_30_MINUTES = 5
 
 
 # =========================================================
-# ЙМОВІРНОСТІ ЛУТУ
+# ПУЛИ ПРЕДМЕТІВ
+# =========================================================
+#
+# Назви пулів повинні збігатися з тими,
+# які використовуються в items.py.
+#
 # =========================================================
 
-LOOT_CHANCES = {
-    "common": 0.45,
-    "rare": 0.15,
-    "very_rare": 0.04
-}
+POOL_MAIN = "Основний пул"
+POOL_NIGHT = "Нічна подорож"
+POOL_MAIN_QUEST = "Основний квест"
+POOL_SPECIAL_EVENTS = "Спешл івентс"
+POOL_CHAPTER_1 = "Глава 1"
 
 
 # =========================================================
@@ -58,64 +65,330 @@ SPHERE_NAMES = {
 
 
 # =========================================================
-# ВИБІР ВИПАДКОВОГО ПРЕДМЕТА
+# АКТИВНІ УМОВИ ЕКСПЕДИЦІЇ
 # =========================================================
 
-def get_random_item():
+def get_expedition_conditions():
 
-    roll = random.random()
+    """
+    Повертає базові умови, які використовуються
+    для визначення доступних пулів.
+
+    Зараз система розрізняє:
+
+    - день
+    - ніч
+
+    Повня, спеціальні події та глава квесту
+    будуть підключені окремо.
+
+    """
+
+    from datetime import datetime
+
+    now = datetime.now()
+
+    hour = now.hour
 
     # -----------------------------------------------------
-    # ДУЖЕ РІДКІСНИЙ
+    # 🌙 НІЧ
     # -----------------------------------------------------
 
-    if roll < LOOT_CHANCES["very_rare"]:
-
-        rarity = "very_rare"
-
-    # -----------------------------------------------------
-    # РІДКІСНИЙ
-    # -----------------------------------------------------
-
-    elif roll < (
-        LOOT_CHANCES["very_rare"]
-        + LOOT_CHANCES["rare"]
+    if (
+        hour >= 21
+        or hour < 9
     ):
 
-        rarity = "rare"
+        is_night = True
 
     # -----------------------------------------------------
-    # ЗВИЧАЙНИЙ
-    # -----------------------------------------------------
-
-    elif roll < (
-        LOOT_CHANCES["very_rare"]
-        + LOOT_CHANCES["rare"]
-        + LOOT_CHANCES["common"]
-    ):
-
-        rarity = "common"
-
-    # -----------------------------------------------------
-    # НІЧОГО
+    # ☀️ ДЕНЬ
     # -----------------------------------------------------
 
     else:
 
-        return None
+        is_night = False
 
-    available_items = [
-        item_id
-        for item_id, item_data
-        in EXPEDITION_ITEMS.items()
-        if item_data.get("rarity") == rarity
+    conditions = {
+
+        "is_night": is_night,
+
+        "is_day": not is_night,
+
+        "is_full_moon": False,
+
+        "special_events": [],
+
+        "chapter": None
+    }
+
+    return conditions
+
+
+# =========================================================
+# ВИЗНАЧЕННЯ ДОСТУПНИХ ПУЛІВ
+# =========================================================
+
+def get_active_pools(player):
+
+    """
+    Визначає, які пули предметів доступні
+    під час завершення конкретної експедиції.
+
+    Основний пул доступний завжди.
+
+    Нічна подорож доступна лише вночі.
+
+    Основний квест, Глава 1 та Спешл івентс
+    підключаються лише тоді, коли відповідна
+    умова активна.
+
+    """
+
+    conditions = get_expedition_conditions()
+
+    active_pools = [
+
+        POOL_MAIN
+
     ]
+
+    # -----------------------------------------------------
+    # 🌙 НІЧ
+    # -----------------------------------------------------
+
+    if conditions.get(
+        "is_night"
+    ):
+
+        active_pools.append(
+            POOL_NIGHT
+        )
+
+    # -----------------------------------------------------
+    # 📖 ОСНОВНИЙ КВЕСТ
+    # -----------------------------------------------------
+
+    chapter = conditions.get(
+        "chapter"
+    )
+
+    if chapter:
+
+        active_pools.append(
+            POOL_MAIN_QUEST
+        )
+
+        # -------------------------------------------------
+        # ГЛАВА
+        # -------------------------------------------------
+
+        if chapter == 1:
+
+            active_pools.append(
+                POOL_CHAPTER_1
+            )
+
+    # -----------------------------------------------------
+    # ✨ СПЕШЛ ІВЕНТС
+    # -----------------------------------------------------
+
+    special_events = conditions.get(
+        "special_events",
+        []
+    )
+
+    if special_events:
+
+        active_pools.append(
+            POOL_SPECIAL_EVENTS
+        )
+
+    return active_pools
+
+
+# =========================================================
+# ДОСТУПНІ ПРЕДМЕТИ
+# =========================================================
+
+def get_available_items(player):
+
+    """
+    Повертає предмети, які можуть випасти
+    за поточних умов експедиції.
+
+    Предмет може належати до кількох пулів.
+
+    Наприклад:
+
+        "pools": [
+            "Основний пул",
+            "Нічна подорож"
+        ]
+
+    Такий предмет буде доступний в обох випадках.
+
+    """
+
+    active_pools = get_active_pools(
+        player
+    )
+
+    available_items = []
+
+    for item_id, item_data in EXPEDITION_ITEMS.items():
+
+        pools = item_data.get(
+            "pools",
+            []
+        )
+
+        if not isinstance(
+            pools,
+            list
+        ):
+
+            continue
+
+        # -------------------------------------------------
+        # Чи належить предмет хоча б до одного
+        # активного пулу?
+        # -------------------------------------------------
+
+        if any(
+            pool in active_pools
+            for pool in pools
+        ):
+
+            available_items.append(
+                item_id
+            )
+
+    return available_items
+
+
+# =========================================================
+# ВИПАДКОВИЙ ВИБІР ЗА ВАГОЮ
+# =========================================================
+
+def choose_weighted_item(
+    available_items
+):
+
+    """
+    Вибирає один предмет за його вагою.
+
+    Вага НЕ є відсотком.
+
+    Наприклад:
+
+        предмет A -> 30
+        предмет B -> 20
+        предмет C -> 10
+
+    Загальна вага = 60.
+
+    Імовірність:
+
+        A = 30 / 60 = 50%
+        B = 20 / 60 = 33.3%
+        C = 10 / 60 = 16.7%
+
+    Тому додавання нових предметів
+    автоматично змінює співвідношення
+    між ними, але не потребує переписування
+    алгоритму.
+
+    """
 
     if not available_items:
 
         return None
 
-    return random.choice(
+    weighted_items = []
+
+    total_weight = 0
+
+    for item_id in available_items:
+
+        item_data = EXPEDITION_ITEMS.get(
+            item_id
+        )
+
+        if not item_data:
+
+            continue
+
+        weight = item_data.get(
+            "weight",
+            0
+        )
+
+        try:
+
+            weight = float(
+                weight
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            continue
+
+        if weight <= 0:
+
+            continue
+
+        weighted_items.append(
+            (
+                item_id,
+                weight
+            )
+        )
+
+        total_weight += weight
+
+    if total_weight <= 0:
+
+        return None
+
+    roll = random.uniform(
+        0,
+        total_weight
+    )
+
+    current_weight = 0
+
+    for item_id, weight in weighted_items:
+
+        current_weight += weight
+
+        if roll <= current_weight:
+
+            return item_id
+
+    return weighted_items[-1][0]
+
+
+# =========================================================
+# ПОШУК ОДНОГО АРТЕФАКТУ
+# =========================================================
+
+def get_random_item(player):
+
+    """
+    Вибирає випадковий предмет із доступних
+    пулів за системою ваг.
+
+    """
+
+    available_items = get_available_items(
+        player
+    )
+
+    return choose_weighted_item(
         available_items
     )
 
@@ -125,8 +398,24 @@ def get_random_item():
 # =========================================================
 
 def find_expedition_items(
+    player,
     active_seconds
 ):
+
+    """
+    За кожні повні 30 хвилин експедиції
+    відбувається одна спроба знайти предмет.
+
+    Важливо:
+
+    30 хвилин = одна СПРОБА.
+
+    Це не означає, що предмет гарантовано
+    буде знайдений.
+
+    Якщо get_random_item() поверне None,
+    ця спроба нічого не приносить.
+    """
 
     completed_periods = (
         int(active_seconds)
@@ -143,7 +432,9 @@ def find_expedition_items(
         completed_periods
     ):
 
-        item_id = get_random_item()
+        item_id = get_random_item(
+            player
+        )
 
         if item_id:
 
@@ -376,6 +667,13 @@ def format_xp_report(
             "для нарахування XP."
         )
 
+    if not spheres:
+
+        return (
+            "✨ <b>Досвід експедиції:</b>\n"
+            f"• +{total_xp:g} XP"
+        )
+
     xp_per_sphere = (
         total_xp
         / len(spheres)
@@ -515,6 +813,7 @@ def complete_expedition(message):
     # =====================================================
 
     found_items = find_expedition_items(
+        player,
         active_seconds
     )
 
