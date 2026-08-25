@@ -211,7 +211,7 @@ def pause_expedition(message):
         bot.send_message(
             message.chat.id,
             (
-                "🏕️ <b>Генерал Мураха:</b>\n\n"
+                "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n"
 
                 "Загін уже відпочиває біля вогнища.\n\n"
 
@@ -264,7 +264,7 @@ def pause_expedition(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 <b>Генерал Мураха:</b>\n\n"
+                "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n"
 
                 "Виникла проблема з журналом "
                 "експедиції.\n\n"
@@ -287,7 +287,7 @@ def pause_expedition(message):
     bot.send_message(
         message.chat.id,
         (
-            "🏕️ <b>Генерал Мураха доповідає:</b>\n\n"
+            "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n\n\n"
 
             "Загін зупинився для привалу.\n"
 
@@ -431,7 +431,7 @@ def resume_expedition(message):
     bot.send_message(
         message.chat.id,
         (
-            "🐜 <b>Генерал Мураха доповідає:</b>\n\n"
+            "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n"
 
             "Загін зібрав спорядження "
             "і знову вирушив у путь.\n\n"
@@ -439,7 +439,6 @@ def resume_expedition(message):
             f"⏱️ Накопичений активний час: "
             f"<b>{time_text}</b>\n\n"
 
-            "🧭 Дослідження Грінвуду продовжується."
         ),
         parse_mode="HTML",
         reply_markup=get_expedition_menu(
