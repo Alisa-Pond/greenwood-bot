@@ -3,7 +3,10 @@ from datetime import datetime, timezone
 from services.config import bot
 from services.database import get_player, update_player
 
-from keyboards import get_expedition_menu
+from keyboards import (
+    get_expedition_menu,
+    get_quests_menu
+)
 
 from handlers.my_quests.expedition.menu import (
     get_active_expedition
@@ -25,7 +28,6 @@ SPHERE_ALIASES = {
     "health": "health",
 
     "🧠": "wisdom",
-    "мудрість": "wisdom",
     "мудрість": "wisdom",
     "wisdom": "wisdom",
 
@@ -61,24 +63,42 @@ SPHERE_NAMES = {
 
 
 # =========================================================
-# КНОПКА СТАРТУ
+# КЛАВІАТУРА ДЛЯ ВИБОРУ СФЕР
+# =========================================================
+
+def get_sphere_selection_keyboard():
+
+    from telebot import types
+
+    markup = types.ReplyKeyboardMarkup(
+        resize_keyboard=True
+    )
+
+    markup.row(
+        types.KeyboardButton("🔙 Назад")
+    )
+
+    return markup
+
+
+# =========================================================
+# ЗАПУСК ЕКСПЕДИЦІЇ
 # =========================================================
 #
-# Цей handler залишаємо для сумісності.
-# Основний шлях тепер:
+# Ця функція викликається з menu.py після натискання:
 #
 # 🧭 Експедиції
+#
+# Якщо активної експедиції немає:
+#
+# опис експедиції
 #       ↓
 # вибір сфер
 #       ↓
-# експедиція
+# старт експедиції
 #
 # =========================================================
 
-@bot.message_handler(
-    func=lambda message:
-        message.text == "🐜 Відправити мурах в експедицію"
-)
 def start_expedition(message):
 
     user_id = str(
@@ -102,11 +122,11 @@ def start_expedition(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 <b>Генерал Мураха доповідає:</b>\n\n"
+                "🐜 <b>Генерал Мураха доповідає!</b>\n\n"
 
                 "Загін уже перебуває в експедиції.\n\n"
 
-                "Не можна відправити новий загін, "
+                "Новий загін не може вирушити, "
                 "поки попередній ще не повернувся."
             ),
             parse_mode="HTML",
@@ -118,43 +138,46 @@ def start_expedition(message):
         return
 
     # =====================================================
-    # ЗАПИТ СФЕР
+    # ОПИС ЕКСПЕДИЦІЇ + ЗАПИТ СФЕР
     # =====================================================
 
     text = (
-        "🐜 <b>Генерал Мураха:</b>\n\n"
+        "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n\n"
+
+        "🧭 <b>Експедиція</b> — це вихід "
+        "розвідувального загону в дикі землі Грінвуду.\n\n"
+
+        "Ліс не лежить без діла. Стежки змінюються, "
+        "у старих дуплах з'являються нові таємниці, "
+        "а під корінням іноді знаходиться те, "
+        "чого там учора ще не було.\n\n"
+
+        "🐜 Загін вирушає в дорогу й досліджує ліс, "
+        "поки триває похід. Чим довше мурахи залишаються "
+        "в експедиції, тим більше території вони "
+        "встигають обстежити.\n\n"
+
+        "🎒 Повернувшись, розвідники принесуть усе, "
+        "що вдалося знайти серед лісових хащів.\n\n"
 
         "Перед відправленням загону потрібно визначити, "
         "яким сферам сьогодні служитиме експедиція.\n\n"
 
         "Можна обрати <b>одну або кілька сфер</b>.\n\n"
 
-        "Напиши їхні назви або використай емодзі.\n\n"
-
-        "<b>Наприклад:</b>\n"
-        "🧠 🎨\n"
-        "🧠🎨\n"
-        "мудрість творчість\n\n"
-
         "<b>Доступні сфери:</b>\n"
         "💪 Здоров'я\n"
         "🧠 Мудрість\n"
         "🎨 Творчість\n"
         "💵 Фінанси\n"
-        "🤝 Зв'язки\n\n"
-
-        "🐜 <i>Генерал чекає на наказ.</i>"
+        "🤝 Зв'язки"
     )
 
     bot.send_message(
         message.chat.id,
         text,
         parse_mode="HTML",
-
-        # ВАЖЛИВО:
-        # тут немає кнопки "Відправити мурах".
-        # Залишається тільки "Назад".
-        reply_markup=get_expedition_menu()
+        reply_markup=get_sphere_selection_keyboard()
     )
 
     bot.register_next_step_handler(
@@ -182,13 +205,15 @@ def process_expedition_spheres(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 Генерал Мураха не зміг розібрати "
-                "цей наказ.\n\n"
+                "🐜 <b>Генерал Мураха:</b>\n\n"
 
-                "Спробуй ще раз, використовуючи "
-                "назви сфер або їхні емодзі."
+                "Наказ не вдалося розібрати.\n\n"
+
+                "Вкажи одну або кілька сфер "
+                "за назвою чи емодзі."
             ),
-            reply_markup=get_expedition_menu()
+            parse_mode="HTML",
+            reply_markup=get_sphere_selection_keyboard()
         )
 
         bot.register_next_step_handler(
@@ -204,18 +229,19 @@ def process_expedition_spheres(message):
     # НАЗАД
     # =====================================================
 
-    if user_text in (
-        "🔙 Назад",
+    if user_text.lower() in (
+        "🔙 назад",
         "назад",
         "скасувати",
         "відміна"
     ):
 
-        from keyboards import get_quests_menu
-
         bot.send_message(
             message.chat.id,
-            "🐜 <i>Наказ скасовано. Загін залишається в таборі.</i>",
+            (
+                "🐜 <i>Наказ скасовано. "
+                "Загін залишається в таборі.</i>"
+            ),
             parse_mode="HTML",
             reply_markup=get_quests_menu()
         )
@@ -245,18 +271,13 @@ def process_expedition_spheres(message):
 
     for part in parts:
 
-        # -------------------------------------------------
-        # СПОЧАТКУ ПЕРЕВІРЯЄМО ЦІЛИЙ ЕЛЕМЕНТ
-        #
-        # Наприклад:
-        # 🧠
-        # мудрість
-        # творчість
-        # -------------------------------------------------
-
         sphere_key = SPHERE_ALIASES.get(
             part
         )
+
+        # -------------------------------------------------
+        # ЦІЛА СФЕРА
+        # -------------------------------------------------
 
         if sphere_key:
 
@@ -269,10 +290,12 @@ def process_expedition_spheres(message):
             continue
 
         # -------------------------------------------------
-        # ЯКЩО ЦЕ НЕ ЦІЛИЙ ЕМОДЗІ,
-        # ПЕРЕВІРЯЄМО ЗЧЕПЛЕНІ ЕМОДЗІ
+        # ЗЧЕПЛЕНІ ЕМОДЗІ
         #
+        # Наприклад:
+        # 🧠🎨
         # 🧠🎨💵
+        # 💪🧠🎨🤝
         # -------------------------------------------------
 
         remaining = part
@@ -302,7 +325,7 @@ def process_expedition_spheres(message):
 
                     if (
                         sphere_key
-                        and sphere_key not in selected_spheres
+                        and sphere_key not in found_spheres
                     ):
 
                         found_spheres.append(
@@ -314,14 +337,13 @@ def process_expedition_spheres(message):
                     ]
 
                     found = True
-
                     break
 
             if not found:
                 break
 
         # -------------------------------------------------
-        # ЯКЩО ВДАЛОСЯ РОЗІБРАТИ ВЕСЬ РЯДОК
+        # ВЕСЬ РЯДОК УСПІШНО РОЗІБРАНИЙ
         # -------------------------------------------------
 
         if (
@@ -364,7 +386,7 @@ def process_expedition_spheres(message):
                 "Обери хоча б одну сферу."
             ),
             parse_mode="HTML",
-            reply_markup=get_expedition_menu()
+            reply_markup=get_sphere_selection_keyboard()
         )
 
         bot.register_next_step_handler(
@@ -401,7 +423,7 @@ def process_expedition_spheres(message):
                 "<code>🧠🎨💵</code>"
             ),
             parse_mode="HTML",
-            reply_markup=get_expedition_menu()
+            reply_markup=get_sphere_selection_keyboard()
         )
 
         bot.register_next_step_handler(
@@ -508,7 +530,7 @@ def process_expedition_spheres(message):
                 "Спробуй ще раз трохи пізніше."
             ),
             parse_mode="HTML",
-            reply_markup=get_expedition_menu()
+            reply_markup=get_sphere_selection_keyboard()
         )
 
         return
@@ -547,10 +569,6 @@ def process_expedition_spheres(message):
         "те, що приховано серед дерев, води "
         "та неба."
     )
-
-    # =====================================================
-    # ВІДПРАВЛЯЄМО НОВУ КЛАВІАТУРУ
-    # =====================================================
 
     bot.send_message(
         message.chat.id,
