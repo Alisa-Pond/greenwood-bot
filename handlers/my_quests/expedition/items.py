@@ -1,40 +1,9 @@
-# =========================================================
-# 🧭 АРТЕФАКТИ ЕКСПЕДИЦІЙ
-# =========================================================
-#
-# Цей файл містить каталог усіх предметів,
-# які мурахи можуть знайти під час експедицій.
-#
-# Логіка таймера та випадіння предметів знаходиться
-# в інших файлах.
-#
-# =========================================================
 
 
 print("🎒 Завантажуємо каталог артефактів експедицій...")
 
 
-# =========================================================
-# КАТАЛОГ ПРЕДМЕТІВ
-# =========================================================
-#
-# id:
-#   Унікальний технічний ідентифікатор предмета.
-#
-# name:
-#   Назва, яку бачить користувач.
-#
-# description:
-#   Короткий опис предмета.
-#
-# rarity:
-#   Рідкість предмета.
-#
-# =========================================================
-
-
 EXPEDITION_ITEMS = {
-
 
     # =====================================================
     # 🌊 СТАВОК
@@ -49,7 +18,9 @@ EXPEDITION_ITEMS = {
             "переливається всіма кольорами ставкової води."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main"]
     },
 
 
@@ -62,7 +33,9 @@ EXPEDITION_ITEMS = {
             "схожим на хвилі."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main"]
     },
 
 
@@ -75,7 +48,9 @@ EXPEDITION_ITEMS = {
             "мерехтить навіть без сонячного світла."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main"]
     },
 
 
@@ -87,7 +62,9 @@ EXPEDITION_ITEMS = {
             "Легке перо, яке чомусь не тоне у воді."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main"]
     },
 
 
@@ -100,7 +77,9 @@ EXPEDITION_ITEMS = {
             "кольору місячного світла."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main"]
     },
 
 
@@ -113,7 +92,9 @@ EXPEDITION_ITEMS = {
             "після заходу сонця."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -126,7 +107,9 @@ EXPEDITION_ITEMS = {
             "згорнутий фрагмент невідомої мапи."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main"]
     },
 
 
@@ -139,7 +122,9 @@ EXPEDITION_ITEMS = {
             "і світиться у темряві."
         ),
 
-        "rarity": "very_rare"
+        "rarity": "very_rare",
+        "weight": 3,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -152,7 +137,9 @@ EXPEDITION_ITEMS = {
             "якого немає на жодній сучасній карті Грінвуду."
         ),
 
-        "rarity": "very_rare"
+        "rarity": "very_rare",
+        "weight": 3,
+        "pools": ["main"]
     },
 
 
@@ -169,7 +156,9 @@ EXPEDITION_ITEMS = {
             "ідеальний візерунок."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main"]
     },
 
 
@@ -182,7 +171,9 @@ EXPEDITION_ITEMS = {
             "підозріло добре лежить у руці."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main"]
     },
 
 
@@ -195,7 +186,9 @@ EXPEDITION_ITEMS = {
             "на поверхні."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main"]
     },
 
 
@@ -208,7 +201,9 @@ EXPEDITION_ITEMS = {
             "рекомендують не куштувати."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main"]
     },
 
 
@@ -220,7 +215,9 @@ EXPEDITION_ITEMS = {
             "Темна пір'їна з тонкою срібною смужкою."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main"]
     },
 
 
@@ -232,7 +229,9 @@ EXPEDITION_ITEMS = {
             "У деревині видно сліди давньої магії."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main"]
     },
 
 
@@ -245,7 +244,9 @@ EXPEDITION_ITEMS = {
             "навіть після того, як його зірвали."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main"]
     },
 
 
@@ -258,7 +259,9 @@ EXPEDITION_ITEMS = {
             "світлом у темряві."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main"]
     },
 
 
@@ -271,7 +274,9 @@ EXPEDITION_ITEMS = {
             "значення якого ще належить розгадати."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main"]
     },
 
 
@@ -284,7 +289,9 @@ EXPEDITION_ITEMS = {
             "місцевих мешканців, пам'ятає більше за людей."
         ),
 
-        "rarity": "very_rare"
+        "rarity": "very_rare",
+        "weight": 3,
+        "pools": ["main"]
     },
 
 
@@ -297,7 +304,9 @@ EXPEDITION_ITEMS = {
             "Здається, він усе ще зберігає частину сили."
         ),
 
-        "rarity": "very_rare"
+        "rarity": "very_rare",
+        "weight": 3,
+        "pools": ["main"]
     },
 
 
@@ -310,7 +319,9 @@ EXPEDITION_ITEMS = {
             "від того, скільки часу минуло."
         ),
 
-        "rarity": "very_rare"
+        "rarity": "very_rare",
+        "weight": 3,
+        "pools": ["main"]
     },
 
 
@@ -327,7 +338,9 @@ EXPEDITION_ITEMS = {
             "серед нічної трави."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -340,7 +353,9 @@ EXPEDITION_ITEMS = {
             "маленькі цяточки, наче далекі зорі."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -353,7 +368,9 @@ EXPEDITION_ITEMS = {
             "який відбиває місячне світло."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -366,7 +383,9 @@ EXPEDITION_ITEMS = {
             "знайдений далеко від будь-яких гір."
         ),
 
-        "rarity": "common"
+        "rarity": "common",
+        "weight": 30,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -379,7 +398,9 @@ EXPEDITION_ITEMS = {
             "який пережив довгу подорож крізь темряву."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -392,7 +413,9 @@ EXPEDITION_ITEMS = {
             "які незрозумілим чином тримаються разом."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -405,7 +428,9 @@ EXPEDITION_ITEMS = {
             "видно слабке срібне сяйво."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -418,7 +443,9 @@ EXPEDITION_ITEMS = {
             "трохи ближчими."
         ),
 
-        "rarity": "rare"
+        "rarity": "rare",
+        "weight": 10,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -431,7 +458,9 @@ EXPEDITION_ITEMS = {
             "що зберігає холод далекої космічної мандрівки."
         ),
 
-        "rarity": "very_rare"
+        "rarity": "very_rare",
+        "weight": 3,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -444,7 +473,9 @@ EXPEDITION_ITEMS = {
             "яка випромінює м'яке світло."
         ),
 
-        "rarity": "very_rare"
+        "rarity": "very_rare",
+        "weight": 3,
+        "pools": ["main", "night_journey"]
     },
 
 
@@ -457,18 +488,76 @@ EXPEDITION_ITEMS = {
             "видно крихітні зорі."
         ),
 
-        "rarity": "very_rare"
+        "rarity": "very_rare",
+        "weight": 3,
+        "pools": ["main", "night_journey"]
+    },
+
+
+    # =====================================================
+    # ❄️ СПЕЦІАЛЬНІ ПРЕДМЕТИ
+    # =====================================================
+
+    "ice_amulet": {
+
+        "name": "❄️ Крижаний амулет",
+
+        "description": (
+            "Невеликий амулет із прозорого льоду, "
+            "який не тане навіть у теплих руках. "
+            "Кажуть, він здатен зупинити хід невиконаного "
+            "наказу на один день."
+        ),
+
+        "rarity": "very_rare",
+        "weight": 3,
+        "pools": ["main"]
+    }
+
+}
+
+
+# =========================================================
+# ПУЛИ
+# =========================================================
+#
+# Пули визначають, у яких типах експедицій предмет
+# може брати участь у loot-roll.
+#
+# Один предмет може належати до кількох пулів.
+#
+# Наприклад:
+#
+# "pools": ["main", "night_journey"]
+#
+# означає, що предмет доступний як у звичайній,
+# так і в нічній експедиції.
+#
+# =========================================================
+
+
+EXPEDITION_POOLS = {
+
+    "main": {
+        "name": "Основний пул"
+    },
+
+    "night_journey": {
+        "name": "Нічна подорож"
+    },
+
+    "special_events": {
+        "name": "Особлива подія"
+    },
+
+    "chapter_1": {
+        "name": "Глава 1"
     }
 }
 
 
 # =========================================================
 # РІДКІСНІСТЬ
-# =========================================================
-#
-# Окремо зберігаємо назви рідкісностей.
-# Це знадобиться для алгоритму випадіння.
-#
 # =========================================================
 
 RARITY_NAMES = {
@@ -477,7 +566,7 @@ RARITY_NAMES = {
 
     "rare": "рідкісний",
 
-    "very_rare": "дуже рідкісний"
+    "very_rare": "надзвичайно рідкісний"
 }
 
 
