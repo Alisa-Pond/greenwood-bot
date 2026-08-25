@@ -1,5 +1,6 @@
 from services.config import bot
 from services.database import get_player
+
 from keyboards import get_expedition_menu
 
 
@@ -23,6 +24,7 @@ def get_active_expedition(player):
     ) or []
 
     if not expeditions:
+
         return None
 
     expedition = expeditions[0]
@@ -31,6 +33,7 @@ def get_active_expedition(player):
         expedition,
         dict
     ):
+
         return None
 
     status = expedition.get(
@@ -42,6 +45,7 @@ def get_active_expedition(player):
         "active",
         "paused"
     ):
+
         return expedition
 
     return None
@@ -51,9 +55,12 @@ def get_active_expedition(player):
 # ФОРМАТУВАННЯ ЧАСУ
 # =========================================================
 
-def format_active_time(active_seconds):
+def format_active_time(
+    active_seconds
+):
 
     try:
+
         active_seconds = int(
             active_seconds or 0
         )
@@ -62,6 +69,7 @@ def format_active_time(active_seconds):
         TypeError,
         ValueError
     ):
+
         active_seconds = 0
 
     hours = active_seconds // 3600
@@ -70,17 +78,28 @@ def format_active_time(active_seconds):
         active_seconds % 3600
     ) // 60
 
+    seconds = active_seconds % 60
+
     if hours > 0:
 
         return (
-            f"{hours} год {minutes} хв"
+            f"{hours} год "
+            f"{minutes} хв"
         )
 
-    return f"{minutes} хв"
+    if minutes > 0:
+
+        return (
+            f"{minutes} хв"
+        )
+
+    return (
+        f"{seconds} сек"
+    )
 
 
 # =========================================================
-# МЕНЮ ЕКСПЕДИЦІЙ
+# 🧭 МЕНЮ ЕКСПЕДИЦІЙ
 # =========================================================
 
 @bot.message_handler(
@@ -112,51 +131,64 @@ def show_expeditions(message):
             "active"
         )
 
-        active_seconds = active_expedition.get(
-            "active_seconds",
-            0
+        # -------------------------------------------------
+        # РОЗРАХОВУЄМО АКТУАЛЬНИЙ ЧАС
+        # -------------------------------------------------
+
+        from handlers.my_quests.expedition.timer import (
+            calculate_active_seconds
+        )
+
+        active_seconds = calculate_active_seconds(
+            active_expedition
         )
 
         time_text = format_active_time(
             active_seconds
         )
 
-        # -------------------------------------------------
+        # =================================================
         # ПРИВАЛ
-        # -------------------------------------------------
+        # =================================================
 
         if status == "paused":
 
             text = (
+
                 "🐜 <b>Генерал Мураха доповідає!</b>\n\n"
 
-                "Експедиція тимчасово зупинена.\n"
-                "Загін на привалі. Наметове містечко розгорнуто, "
-                "вогонь підтримується, юшка в казані кипить. "
-                "Розвідники відновлюють сили.\n\n"
+                "🏕️ <b>Загін на привалі.</b>\n\n"
 
-                f"⏱️ Активний час: "
-                f"<b>{time_text}</b>\n\n"
+                "Наметове містечко розгорнуто, "
+                "вогонь підтримується, а розвідники "
+                "відновлюють сили.\n\n"
 
-                "За наказом вирушимо далі."
+                f"⏱️ <b>Активний час:</b> "
+                f"{time_text}\n\n"
+
+                "Коли будеш готова продовжити, "
+                "наказуй загону вирушати далі."
             )
 
-        # -------------------------------------------------
+        # =================================================
         # ЕКСПЕДИЦІЯ ТРИВАЄ
-        # -------------------------------------------------
+        # =================================================
 
         else:
 
             text = (
+
                 "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n\n"
 
-                "Експедиція триває.\n\n"
+                "🧭 <b>Експедиція триває.</b>\n\n"
 
-                f"⏱️ Активний час: "
-                f"<b>{time_text}</b>\n\n"
+                f"⏱️ <b>Активний час:</b> "
+                f"{time_text}\n\n"
 
-                "Загін продовжує пошуки. "
-                "Очікуємо подальший наказ."
+                "Загін продовжує досліджувати "
+                "стежки Грінвуду.\n\n"
+
+                "Мурахи чекають подальшого наказу."
             )
 
         bot.send_message(
@@ -174,14 +206,15 @@ def show_expeditions(message):
     # НЕМАЄ АКТИВНОЇ ЕКСПЕДИЦІЇ
     # =====================================================
     #
-    # УВАГА:
-    # Тут більше НЕ надсилаємо повідомлення.
+    # Одразу запускаємо start.py.
     #
-    # start.py сформує одне повне повідомлення:
+    # Немає окремого проміжного меню:
     #
-    # опис експедиції
-    # +
+    # 🧭 Експедиції
+    #       ↓
     # вибір сфер
+    #       ↓
+    # експедиція
     #
     # =====================================================
 
