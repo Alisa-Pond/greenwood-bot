@@ -12,15 +12,12 @@ from services.activity_utils import (
     get_today,
     is_overdue,
     add_xp_to_character,
-    add_xp_to_spheres,
     update_statistics,
     build_back_button,
     send_level_up_notifications,
 )
 
-from services.conditions.py import (
-    get_world_conditions,
-)
+from services.conditions import get_world_conditions
 
 from services.loot import (
     roll_loot_many,
@@ -247,19 +244,10 @@ def complete_plant(message):
     )
 
     # =====================================================
-    # XP ПЕРСОНАЖА
+    # XP ПЕРСОНАЖА + XP СФЕР
     # =====================================================
 
-    character_level_ups = add_xp_to_character(
-        player,
-        xp
-    )
-
-    # =====================================================
-    # XP СФЕР
-    # =====================================================
-
-    sphere_level_ups = add_xp_to_spheres(
+    level_up_data = add_xp_to_character(
         player,
         spheres,
         xp
@@ -412,10 +400,8 @@ def complete_plant(message):
     # =====================================================
 
     send_level_up_notifications(
-        bot,
         message.chat.id,
-        character_level_ups,
-        sphere_level_ups
+        level_up_data
     )
 
     # =====================================================
