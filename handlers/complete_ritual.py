@@ -1,4 +1,6 @@
 from datetime import datetime
+import random
+
 from telebot import types
 
 from services.config import bot
@@ -15,7 +17,14 @@ from services.activity_utils import (
     send_level_up_notifications,
 )
 
-from services.activity_loot import try_activity_loot
+from services.conditions import get_world_conditions
+
+from services.loot import (
+    roll_loot_many,
+    add_loot_to_inventory,
+    group_loot,
+    format_loot_text,
+)
 
 
 # =========================================================
@@ -34,18 +43,52 @@ WEEKDAYS = [
 
 
 # =========================================================
+# 🎲 ROLL КІЛЬКОСТІ ЛУТУ ДЛЯ РИТУАЛУ
+# =========================================================
+#
+# КОЖЕН РИТУАЛ МАЄ ВЛАСНИЙ ROLL.
+#
+# 75% → 0 предметів
+# 18% → 1 предмет
+# 7%  → 2 предмети
+#
+# ЦЕ НЕ ROLL КОНКРЕТНОГО ПРЕДМЕТА.
+#
+# Якщо випало:
+#
+# 0 → нічого більше не робимо
+# 1 → один roll предмета через loot.py
+# 2 → два незалежні rolls предмета через loot.py
+#
+# =========================================================
+
+def roll_ritual_loot_amount():
+
+    return random.choices(
+        [0, 1, 2],
+        weights=[75, 18, 7],
+        k=1
+    )[0]
+
+
+# =========================================================
 # ПЕРЕВІРКА ДНЯ РИТУАЛУ
 # =========================================================
 
 def ritual_is_for_today(ritual):
 
-    # Якщо ритуал щоденний
+    # -----------------------------------------------------
+    # ЩОДЕННИЙ РИТУАЛ
+    # -----------------------------------------------------
+
     if ritual.get("daily") is True:
+
         return True
 
     days = ritual.get("days") or []
 
     if not isinstance(days, list):
+
         return False
 
     today = datetime.now().weekday()
@@ -64,23 +107,25 @@ def ritual_is_for_today(ritual):
 #
 # [Сфери] ; [Бали] ; [Дні] ; [Назва справи]
 #
-# Наприклад:
-#
-# 💪🧠 ; 10 ; пн ср пт ; Вивчити нову тему
-#
 # =========================================================
 
 def format_ritual(ritual):
 
-    spheres = get_spheres(ritual)
+    spheres = get_spheres(
+        ritual
+    )
 
     spheres_text = "".join(
         spheres
     )
 
-    xp = get_xp(ritual)
+    xp = get_xp(
+        ritual
+    )
 
-    days = ritual.get("days") or []
+    days = ritual.get(
+        "days"
+    ) or []
 
     # -----------------------------------------------------
     # ДНІ
@@ -115,6 +160,7 @@ def format_ritual(ritual):
         )
 
         if not days_text:
+
             days_text = "—"
 
     else:
@@ -209,22 +255,6 @@ def choose_ritual(message):
     # =====================================================
     # ПОКАЗУЄМО РИТУАЛИ
     # =====================================================
-    #
-    # ВАЖЛИВО:
-    # Номер для користувача = позиція у списку available.
-    #
-    # Тобто буде:
-    #
-    # 1.
-    # 2.
-    # 3.
-    # 4.
-    #
-    # Навіть якщо реальні індекси в rituals:
-    #
-    # 0, 1, 3, 7
-    #
-    # =====================================================
 
     text = (
         "🔄 <b>Сьогоднішні ритуали:</b>\n\n"
@@ -286,6 +316,7 @@ def choose_ritual(message):
 def parse_ritual_numbers(text):
 
     if not text:
+
         return None
 
     parts = text.split(",")
@@ -297,11 +328,14 @@ def parse_ritual_numbers(text):
         part = part.strip()
 
         if not part:
+
             return None
 
         try:
 
-            number = int(part)
+            number = int(
+                part
+            )
 
         except (
             ValueError,
@@ -311,6 +345,7 @@ def parse_ritual_numbers(text):
             return None
 
         if number <= 0:
+
             return None
 
         numbers.append(
@@ -484,7 +519,35 @@ def complete_ritual(message):
 
     level_up_data_list = []
 
-    loot_items = []
+    # -----------------------------------------------------
+    # УСІ ПРЕДМЕТИ, ОТРИМАНІ ЦИМ ВИКОНАННЯМ
+    # -----------------------------------------------------
+
+    loot_item_ids = []
+
+    # =====================================================
+    # 🌲 УМОВИ СВІТУ
+    # =====================================================
+    #
+    # Визначаємо їх один раз на початку виконання.
+    #
+    # Саме ці умови передаємо в loot.py.
+    #
+    # Отже:
+    #
+    # 🌞 день
+    # 🌙 ніч
+    # 🌕 повня
+    # 📖 активний квест
+    # 📚 глава
+    #
+    # враховуються під час roll предмета.
+    #
+    # =====================================================
+
+    world_conditions = get_world_conditions(
+        player
+    )
 
     # =====================================================
     # ОБРОБКА КОЖНОГО РИТУАЛУ
@@ -546,19 +609,57 @@ def complete_ritual(message):
             level_up_data
         )
 
-        # -------------------------------------------------
-        # ЛУТ
-        # -------------------------------------------------
+        # =================================================
+        # 🎲 ПЕРШИЙ ROLL
+        # КІЛЬКІСТЬ ЛУТУ
+        # =================================================
+        #
+        # КОЖЕН РИТУАЛ ОКРЕМО.
+        #
+        # Наприклад:
+        #
+        # Ритуал 1 → 1 предмет
+        # Ритуал 2 → 0 предметів
+        # Ритуал 3 → 2 предмети
+        #
+        # Загалом = 3 предмети.
+        #
+        # Але це були три незалежні rolls.
+        #
+        # =================================================
 
-        loot = try_activity_loot(
-            player
-        )
+        loot_amount = roll_ritual_loot_amount()
 
-        if loot:
+        # =================================================
+        # 🎲 ДРУГИЙ ROLL
+        # ЯКИЙ САМЕ ПРЕДМЕТ
+        # =================================================
+        #
+        # Якщо loot_amount == 2,
+        # loot.py зробить два незалежні rolls.
+        #
+        # Рідкісність тут НЕ робимо окремо.
+        #
+        # roll_loot() всередині loot.py:
+        #
+        # rarity roll
+        # +
+        # item roll по вазі
+        #
+        # =================================================
 
-            loot_items.append(
-                loot
+        if loot_amount > 0:
+
+            rolled_items = roll_loot_many(
+                loot_amount,
+                world_conditions
             )
+
+            if rolled_items:
+
+                loot_item_ids.extend(
+                    rolled_items
+                )
 
         # -------------------------------------------------
         # АРХІВ
@@ -630,6 +731,19 @@ def complete_ritual(message):
         )
 
         return
+
+    # =====================================================
+    # 🎒 ДОДАЄМО ЛУТ ДО ІНВЕНТАРЮ
+    # =====================================================
+
+    player[
+        "inventory"
+    ] = add_loot_to_inventory(
+        player.get(
+            "inventory"
+        ) or [],
+        loot_item_ids
+    )
 
     # =====================================================
     # ЗБЕРІГАЄМО ЗМІНИ
@@ -737,20 +851,18 @@ def complete_ritual(message):
         )
 
     # =====================================================
-    # ЛУТ
+    # 🎁 ЛУТ
     # =====================================================
 
-    if loot_items:
+    grouped_loot = group_loot(
+        loot_item_ids
+    )
 
-        result_text += (
-            "🎁 <b>Знайдено:</b>\n"
+    if grouped_loot:
+
+        result_text += format_loot_text(
+            grouped_loot
         )
-
-        for loot in loot_items:
-
-            result_text += (
-                f"• <b>{loot}</b>\n"
-            )
 
         result_text += "\n"
 
