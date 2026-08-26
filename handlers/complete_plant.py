@@ -18,7 +18,7 @@ from services.activity_utils import (
     send_level_up_notifications,
 )
 
-from services.world_conditions import (
+from services.conditions.py import (
     get_world_conditions,
 )
 
