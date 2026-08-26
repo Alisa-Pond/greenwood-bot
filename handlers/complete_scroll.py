@@ -1,3 +1,5 @@
+import random
+
 from services.config import bot
 from services.database import get_player, update_player
 
@@ -13,7 +15,43 @@ from services.activity_utils import (
     send_level_up_notifications,
 )
 
-from services.activity_loot import try_activity_loot
+from services.conditions import get_world_conditions
+
+from services.loot import (
+    roll_loot_many,
+    add_loot_to_inventory,
+    group_loot,
+    format_loot_text,
+)
+
+
+# =========================================================
+# 🎲 ROLL КІЛЬКОСТІ ЛУТУ ДЛЯ СУВОЮ
+# =========================================================
+#
+# КОЖЕН СУВІЙ МАЄ ВЛАСНИЙ ROLL.
+#
+# 90% → 0 предметів
+# 7%  → 1 предмет
+# 3%  → 2 предмети
+#
+# ЦЕ НЕ ROLL КОНКРЕТНОГО ПРЕДМЕТА.
+#
+# Якщо випало:
+#
+# 0 → нічого більше не робимо
+# 1 → один roll предмета через loot.py
+# 2 → два rolls предмета через loot.py
+#
+# =========================================================
+
+def roll_scroll_loot_amount():
+
+    return random.choices(
+        [0, 1, 2],
+        weights=[90, 7, 3],
+        k=1
+    )[0]
 
 
 # =========================================================
@@ -423,13 +461,21 @@ def complete_scroll(message):
 
     all_character_level_ups = []
 
-    all_loot = []
+    loot_item_ids = []
 
     scroll_archive = (
         player.get(
             "scroll_archive"
         )
         or []
+    )
+
+    # =====================================================
+    # УМОВИ СВІТУ
+    # =====================================================
+
+    world_conditions = get_world_conditions(
+        player
     )
 
     # =====================================================
@@ -496,19 +542,44 @@ def complete_scroll(message):
                     level_up_data
                 )
 
-        # -------------------------------------------------
-        # ЛУТ
-        # -------------------------------------------------
+        # =================================================
+        # 🎲 ROLL КІЛЬКОСТІ ЛУТУ
+        # =================================================
+        #
+        # КОЖЕН СУВІЙ МАЄ ВЛАСНИЙ НЕЗАЛЕЖНИЙ ROLL.
+        #
+        # 90% → 0 предметів
+        # 7%  → 1 предмет
+        # 3%  → 2 предмети
+        #
+        # =================================================
 
-        loot = try_activity_loot(
-            player
-        )
+        loot_amount = roll_scroll_loot_amount()
 
-        if loot:
+        # =================================================
+        # 🎁 ВИБІР КОНКРЕТНИХ ПРЕДМЕТІВ
+        # =================================================
+        #
+        # Якщо випав 1 або 2 предмети,
+        # loot.py визначає конкретні предмети
+        # за їхніми вагами.
+        #
+        # ОКРЕМОЇ СИСТЕМИ RARITY НЕТ.
+        #
+        # =================================================
 
-            all_loot.append(
-                loot
+        if loot_amount > 0:
+
+            rolled_items = roll_loot_many(
+                loot_amount,
+                world_conditions
             )
+
+            if rolled_items:
+
+                loot_item_ids.extend(
+                    rolled_items
+                )
 
         # -------------------------------------------------
         # АРХІВ
@@ -553,6 +624,19 @@ def complete_scroll(message):
         )
 
         completed_count += 1
+
+    # =====================================================
+    # ДОДАЄМО ЛУТ ДО ІНВЕНТАРЮ
+    # =====================================================
+
+    player[
+        "inventory"
+    ] = add_loot_to_inventory(
+        player.get(
+            "inventory"
+        ) or [],
+        loot_item_ids
+    )
 
     # =====================================================
     # ОНОВЛЮЄМО PLAYER
@@ -647,17 +731,13 @@ def complete_scroll(message):
     # ЛУТ
     # =====================================================
 
-    loot_text = ""
+    grouped_loot = group_loot(
+        loot_item_ids
+    )
 
-    if all_loot:
-
-        loot_text = (
-            "\n🎁 <b>Знайдено:</b>\n"
-            + "\n".join(
-                f"• {loot}"
-                for loot in all_loot
-            )
-        )
+    loot_text = format_loot_text(
+        grouped_loot
+    )
 
     # =====================================================
     # РЕЗУЛЬТАТ
