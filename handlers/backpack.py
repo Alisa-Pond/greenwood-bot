@@ -324,7 +324,7 @@ def show_inventory(message):
 
             description = item_data.get(
                 "description",
-                "Опис відсутній."
+                ""
             )
 
             rarity_name = get_rarity_name(
@@ -337,10 +337,7 @@ def show_inventory(message):
 
         else:
 
-            description = (
-                "Інформація про цей предмет "
-                "відсутня в каталозі."
-            )
+            description = ""
 
             rarity_name = (
                 "невідома"
@@ -358,9 +355,23 @@ def show_inventory(message):
             f"<b>{item_name}</b> × {quantity}"
         )
 
-        lines.append(
-            f"- {description}"
-        )
+        # -------------------------------------------------
+        # ОПИС
+        #
+        # Якщо опис є, показуємо його.
+        # Якщо description = "" або None,
+        # рядок взагалі не додається.
+        # -------------------------------------------------
+
+        if description:
+
+            lines.append(
+                f"- {description}"
+            )
+
+        # -------------------------------------------------
+        # РІДКІСНІСТЬ
+        # -------------------------------------------------
 
         lines.append(
             f"- Рідкісність: {rarity_name}"
