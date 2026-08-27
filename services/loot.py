@@ -45,7 +45,7 @@ LOOT_ITEMS = {
             "🍄 Гриб із фіолетовими цятками",
 
         "description":
-            "-",
+            "",
 
         "rarity":
             "common",
