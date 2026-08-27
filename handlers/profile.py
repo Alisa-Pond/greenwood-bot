@@ -127,7 +127,7 @@ def show_profile(message):
 
     status = (
         f"🧙‍♂️ <b>Лист персонажа "
-        f"(Рівень {current_player.get('level', 1)})</b>\n\n"
+        f"(Рівень {current_player.get('level', 1)})</b>\n"
     )
 
     status += "────────────────────\n"
