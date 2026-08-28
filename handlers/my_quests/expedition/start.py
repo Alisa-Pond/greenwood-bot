@@ -109,12 +109,12 @@ def start_expedition(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 <b>Генерал Мураха доповідає!</b>\n\n"
+                "🐜 <b>Генерал Мураха доповідає!🐜</b>\n\n"
 
-                "Загін уже перебуває в експедиції.\n\n"
+                "«Загін уже перебуває в експедиції.\n\n"
 
                 "Новий загін не може вирушити, "
-                "поки попередній ще не повернувся."
+                "поки попередній ще не повернувся.»"
             ),
             parse_mode="HTML",
             reply_markup=get_expedition_menu(
@@ -131,7 +131,7 @@ def start_expedition(message):
     text = (
         "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n\n"
 
-        "🧭 <b>Експедиція</b> — це вихід "
+        "« 🧭 <b>Експедиція</b> — це вихід "
         "розвідувального загону в дикі землі Грінвуду.\n\n"
 
         "Ліс постійно змінюється. Стежки ведуть "
@@ -152,17 +152,13 @@ def start_expedition(message):
 
         "Можна обрати <b>одну або кілька сфер</b>.\n\n"
 
-        "<b>Доступні сфери:</b>\n"
-        "💪 Здоров'я\n"
-        "🧠 Мудрість\n"
-        "🎨 Творчість\n"
-        "💵 Фінанси\n"
-        "🤝 Зв'язки\n\n"
-
-        "Наприклад:\n"
-        "<code>🧠 🎨</code>\n"
-        "<code>🧠🎨</code>\n"
-        "<code>мудрість творчість</code>"
+        "<b>⛳️ Доступні сфери:</b>\n"
+        "<code>💪</code> Здоров'я\n"
+        "<code>🧠</code> Мудрість\n"
+        "<code>🎨</code> Творчість\n"
+        "<code>💵</code> Фінанси\n"
+        "<code>🤝</code> Зв'язки\n\n"
+        "⚖️ Якщо вказано кілька сфер, XP за виконання буде розділено між ними."
     )
 
     bot.send_message(
@@ -197,12 +193,12 @@ def process_expedition_spheres(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 <b>Генерал Мураха:</b>\n\n"
+                "🐜 <b>Генерал Мураха🐜</b>\n\n"
 
-                "Наказ не вдалося розібрати.\n\n"
+                "«Наказ не вдалося розібрати.\n\n"
 
                 "Вкажи одну або кілька сфер "
-                "за назвою чи емодзі."
+                "за назвою чи емодзі.»"
             ),
             parse_mode="HTML",
             reply_markup=get_sphere_selection_keyboard()
@@ -231,8 +227,9 @@ def process_expedition_spheres(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 <i>Наказ скасовано. "
-                "Загін залишається в таборі.</i>"
+                "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n"
+                "<i>Наказ скасовано. "
+                "«Загін залишається в таборі.»"
             ),
             parse_mode="HTML",
             reply_markup=get_quests_menu()
@@ -365,16 +362,10 @@ def process_expedition_spheres(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 <b>Генерал Мураха:</b>\n\n"
+                "🐜 <b>Генерал Мураха🐜</b>\n\n"
 
-                "Наказ не розпізнано.\n\n"
+                "«Наказ не розпізнано. Обери хоча б одну сферу.»\n\n"
 
-                "Спробуй, наприклад:\n"
-                "<code>🧠 🎨</code>\n"
-                "<code>🧠🎨</code>\n"
-                "<code>мудрість творчість</code>\n\n"
-
-                "Обери хоча б одну сферу."
             ),
             parse_mode="HTML",
             reply_markup=get_sphere_selection_keyboard()
@@ -400,18 +391,14 @@ def process_expedition_spheres(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 <b>Генерал Мураха:</b>\n\n"
+                "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n\n"
 
-                f"Я розпізнав не всі частини наказу: "
+                f"«Я розпізнав не всі частини наказу: "
                 f"<b>{unknown_text}</b>\n\n"
 
                 "Щоб не відправити загін "
-                "не в той бік, введи сфери ще раз.\n\n"
+                "не в той бік, введи сфери ще раз.»\n\n"
 
-                "Наприклад:\n"
-                "<code>🧠 🎨 💵</code>\n"
-                "або\n"
-                "<code>🧠🎨💵</code>"
             ),
             parse_mode="HTML",
             reply_markup=get_sphere_selection_keyboard()
@@ -441,12 +428,9 @@ def process_expedition_spheres(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 <b>Генерал Мураха:</b>\n\n"
+                "🐜 <b>Генерал Мураха🐜</b>\n\n"
 
-                "Стоп!\n\n"
-
-                "Загін уже вирушив у експедицію. "
-                "Новий наказ більше не потрібен."
+                "«Загін уже вирушив у експедицію.» "
             ),
             parse_mode="HTML",
             reply_markup=get_expedition_menu(
@@ -501,12 +485,12 @@ def process_expedition_spheres(message):
         bot.send_message(
             message.chat.id,
             (
-                "🐜 <b>Генерал Мураха:</b>\n\n"
+                "🐜 <b>Генерал Мураха доповідає! 🐜</b>\n"
 
-                "Виникла проблема з картою експедиції. "
+                "«Виникла проблема з картою експедиції. "
                 "Я не можу безпечно відправити загін.\n\n"
 
-                "Спробуй ще раз трохи пізніше."
+                "Спробуй ще раз трохи пізніше.»"
             ),
             parse_mode="HTML",
             reply_markup=get_quests_menu()
