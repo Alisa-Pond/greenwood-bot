@@ -23,9 +23,9 @@ def start_delete_plant(message):
     if not plants:
         bot.send_message(
             message.chat.id,
-            "🌲<b>Олівер:🌲</b>\n"
-            " Тут нічого виривати. "
-            "Спочатку посадити щось треба.",
+            "🌲<b>Олівер🌲</b>\n"
+            " «Тут нічого виривати. "
+            "Спочатку треба щось посадити.»",
             parse_mode="HTML",
             reply_markup=get_greenhouse_menu()
         )
@@ -33,9 +33,6 @@ def start_delete_plant(message):
 
 
     text = (
-        "🪓 <b>Олівер заходить до теплиці з лопатою.</b>\n\n"
-        "🌲<b>Олівер:🌲</b>\n"
-        " Ну добре. Що цього разу вириваємо з корінням?\n\n"
         "🌿 <b>Твої рослини:</b>\n\n"
     )
 
@@ -50,13 +47,14 @@ def start_delete_plant(message):
             f"<b>{index}.</b> 🌱 {title}\n"
             f"    └── ⭐ {xp} XP\n"
             f"    └── 📅 Дедлайн: {deadline}\n\n"
+        
         )
 
 
     text += (
-        "🌲<b>Олівер:🌲</b>\n"
-        "Під яким номером баоба? \n\n"
-        "Або натисни <b>🔙 Назад</b>, якщо передумав."
+        "🌲<b>Олівер🌲</b>\n"
+        "«Під яким номером баоба? \n\n"
+        "Або натисни <b>🔙 Назад</b>, якщо передумав.»"
     )
 
 
@@ -82,8 +80,8 @@ def process_delete_plant(message):
 
         bot.send_message(
             message.chat.id,
-            "🌲<b>Олівер:🌲</b>\n"
-            "Гаразд. Нехай росте.",
+            "🌲<b>Олівер🌲</b>\n"
+            "«Гаразд. Нехай росте.»",
             parse_mode="HTML",
             reply_markup=get_greenhouse_menu()
         )
@@ -100,7 +98,7 @@ def process_delete_plant(message):
         bot.send_message(
             message.chat.id,
             "🌲<b>Олівер:🌲</b>\n"
-            " Номер, кажу. Не заклинання.\n\n",
+            "«Номер, кажу. Не заклинання.»\n\n",
             parse_mode="HTML"
         )
 
@@ -122,8 +120,8 @@ def process_delete_plant(message):
 
         bot.send_message(
             message.chat.id,
-            "🌲<b>Олівер:🌲</b>\n"
-            " Такої рослини тут немає." ,
+            "🌲<b>Олівер🌲</b>\n"
+            "«Такої рослини тут немає.»" ,
             parse_mode="HTML"
         )
 
@@ -158,8 +156,8 @@ def process_delete_plant(message):
     bot.send_message(
         message.chat.id,
         f"🌱 <b>{title}</b> більше не росте у теплиці.\n\n"
-        "🌲<b>Олівер:🌲</b>\n"
-        "Не переживай, іноді треба звільнити землю для чогось кращого.\n\n"
+        "🌲<b>Олівер🌲</b>\n"
+        "«Не переживай, іноді треба звільнити землю для чогось кращого.»\n\n"
         f"🌿 <b>Залишилось рослин:</b> {len(plants)}",
 
         parse_mode="HTML",
