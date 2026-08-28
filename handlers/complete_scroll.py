@@ -85,8 +85,8 @@ def choose_scroll(message):
         bot.send_message(
             message.chat.id,
 
-            "📜 <b>Жодного активного сувою.</b>\n\n"
-            "Марчелло поки не має чим тебе завантажити. 🦇",
+            "🦇 <b>Марчелло🦇</b>\n"
+            "📜 <b>Жодного активного сувою.</b>\n\n",
 
             parse_mode="HTML",
 
@@ -100,6 +100,7 @@ def choose_scroll(message):
     # =====================================================
 
     scroll_text = (
+        "🦇 <b>Марчелло🦇</b>\n"
         "📜 <b>Активні сувої:</b>\n\n"
     )
 
@@ -388,12 +389,8 @@ def complete_scroll(message):
         bot.send_message(
             message.chat.id,
 
-            "🦇 <b>Марчелло піднімає брову.</b>\n\n"
-            "Я не зміг зрозуміти номери сувоїв.\n\n"
-            "Напиши, наприклад:\n"
-            "<code>1</code>\n"
-            "або\n"
-            "<code>1, 3, 4</code>",
+            "🦇 <b>Марчелло🦇</b>\n"
+            "Я не зміг зрозуміти номери сувоїв.\n",
 
             parse_mode="HTML",
 
@@ -422,7 +419,7 @@ def complete_scroll(message):
         bot.send_message(
             message.chat.id,
 
-            "🦇 <b>Марчелло хитає головою.</b>\n\n"
+            "🦇 <b>Марчелло🦇</b>\n"
             f"Такого номера немає.\n"
             f"Доступні номери: "
             f"<b>1–{len(scrolls)}</b>.",
