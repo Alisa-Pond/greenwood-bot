@@ -96,8 +96,8 @@ def choose_plant(message):
         bot.send_message(
             message.chat.id,
 
-            "🌱 <b>У теплиці немає рослин.</b>\n\n"
-            "Олівер дивиться на порожній ґрунт. 🌿",
+            "🌲<b>Олівер:🌲</b>\n"
+            "«<b>У теплиці немає твоїх саджанців.»</b>\n\n",
 
             parse_mode="HTML",
             reply_markup=build_back_button(),
@@ -135,8 +135,9 @@ def choose_plant(message):
     msg = bot.send_message(
         message.chat.id,
 
-        "🌿 <b>Яку рослину ти виростила?</b>\n\n"
-        "Обери її зі списку:",
+        "🌲<b>Олівер:🌲</b>\n"
+        "« <b>Яку рослину ти виростив?</b>\n\n"
+        "Обери її зі списку.»",
 
         parse_mode="HTML",
         reply_markup=markup,
@@ -209,6 +210,7 @@ def complete_plant(message):
         bot.send_message(
             message.chat.id,
 
+            "🌲<b>Олівер:🌲</b>\n"
             "🌿 <b>Олівер піднімає брову.</b>\n\n"
             "«Цієї рослини в теплиці немає.»",
 
@@ -433,20 +435,19 @@ def complete_plant(message):
     bot.send_message(
         message.chat.id,
 
-        "🌳 <b>Олівер оглядає "
-        "вирощену рослину.</b>\n\n"
+        "🌲<b>Олівер🌲</b>\n"
 
-        f"🌱 <b>{title}</b>\n"
+        f"«🌱 <b>{title}</b>\n"
         f"⭐ Отримано: <b>{xp:.1f} XP</b>\n"
         f"🎯 Сфери: {spheres_text}\n"
-        f"🎁 Нагорода: <b>{reward}</b>"
+        f"🍭 Нагорода: <b>{reward}</b>"
 
         f"{overdue_text}"
 
         f"{loot_text}\n\n"
 
         "🌿 Рослину переміщено до "
-        "<b>Архіву теплиці</b>.",
+        "<b>Архіву теплиці</b>.»",
 
         parse_mode="HTML",
 
