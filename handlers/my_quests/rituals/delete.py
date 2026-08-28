@@ -190,7 +190,8 @@ def process_delete_ritual(message):
         bot.send_message(
             message.chat.id,
 
-            " Повертаємось до ритуалів.",
+            "🦇 <b>Марчелло🦇</b>\n"
+            "«Повертаємось до ритуалів.»",
 
             reply_markup=get_rituals_menu()
         )
@@ -222,7 +223,7 @@ def process_delete_ritual(message):
         bot.send_message(
             message.chat.id,
 
-            "🦇 <b>Марчелло🦇:</b>\n" 
+            "🦇 <b>Марчелло🦇</b>\n" 
             "Активних ритуалів більше немає.",
 
             reply_markup=get_rituals_menu()
