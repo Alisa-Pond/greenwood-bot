@@ -388,8 +388,7 @@ def process_scroll_creation(message):
 
             f"📚 <b>Активних сувоїв: "
             f"{active_count}</b>\n\n"
-
-            "🦇 <b>Марчелло🦇:</b>\n"
+            
             "Готовий до запису настпного сувою.»",
 
             parse_mode="HTML",
