@@ -24,9 +24,9 @@ def open_plant_archive(message):
 
         bot.send_message(
             message.chat.id,
-            "🌲<b>Олівер:🌲</b>\n"
-            "🌿 <b>Архів теплиці порожній.</b>\n\n"
-            "«Поки що тут нічого згадувати.\n"
+            "🌲<b>Олівер🌲</b>\n"
+            "« <b>Архів теплиці порожній.</b>\n\n"
+            "Поки що тут нічого згадувати.\n"
             "Посади щось варте пам'яті, садівнику.» 🌱",
             parse_mode="HTML",
             reply_markup=get_greenhouse_menu()
@@ -37,8 +37,8 @@ def open_plant_archive(message):
 
     text = (
         "📚 <b>Архів теплиці Грінвуду</b>\n\n"
-        "Тут зберігаються рослини, які ти виростила "
-        "до кінця.\n\n"
+        "«Тут зберігаються рослини, які ти виростив "
+        "до кінця.»\n\n"
         "────────────────────\n\n"
     )
 
@@ -82,7 +82,7 @@ def open_plant_archive(message):
             f"🌳 <b>{index}. {title}</b>\n"
             f"    └── 🎯 Сфери: {sphere_text}\n"
             f"    └── ⭐ Нагорода: {float(xp):.1f} XP\n"
-            f"    └── 🎁 У реальному житті: {reward}\n"
+            f"    └── 🍭 У реальному житті: {reward}\n"
             f"    └── 📅 Вирощено: {completed_date}\n\n"
         )
 
