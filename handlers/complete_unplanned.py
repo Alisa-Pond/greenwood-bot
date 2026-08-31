@@ -56,7 +56,7 @@ def roll_unplanned_loot_amount():
 
 @bot.message_handler(
     func=lambda message:
-        message.text == "✨ Зробити поза планом"
+        message.text == "✨ Позапланова подія"
 )
 def start_unplanned(message):
 
