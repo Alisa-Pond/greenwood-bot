@@ -772,6 +772,9 @@ LOOT_ITEMS = {
                 "day": 1,
                 "night": 1,
             },
+        
+        "story_only":
+            True,
     },
     
     "ice_amulet": {
