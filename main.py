@@ -123,7 +123,7 @@ import handlers.my_quests.expedition.complete
 # ---------------------------------------------------------
 # РЮКЗАК
 # ---------------------------------------------------------
-
+import handlers.main_quest
 import handlers.backpack
 
 
@@ -176,3 +176,4 @@ if __name__ == "__main__":
     bot.infinity_polling(
         skip_pending=True
     )
+
