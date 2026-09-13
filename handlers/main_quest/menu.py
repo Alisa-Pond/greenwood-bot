@@ -15,9 +15,13 @@ from keyboards import get_main_menu
 )
 def main_quest_menu(message):
 
-    user_id = message.from_user.id
+    user_id = str(
+        message.from_user.id
+    )
 
-    player = get_player(user_id)
+    player = get_player(
+        user_id
+    )
 
     if not player:
         bot.send_message(
