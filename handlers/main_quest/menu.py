@@ -1,95 +1,66 @@
-from telebot import types
+import logging
+from telebot import TeleBot
+from telebot.types import Message, CallbackQuery
 
-from services.config import bot
-from services.database import get_player
+from services.database import get_player, update_player
+from handlers.main_quest.chapter1 import start_chapter_1, handle_chapter_1_callback
 
-from keyboards import get_main_menu
-
-
-# =========================================================
-# ОСНОВНИЙ КВЕСТ
-# =========================================================
-
-@bot.message_handler(
-    func=lambda message: message.text == "📖 Основний квест"
-)
-def main_quest_menu(message):
-
-    user_id = str(
-        message.from_user.id
-    )
-
-    player = get_player(
-        user_id
-    )
-
-    if not player:
-        bot.send_message(
-            message.chat.id,
-            "🌲 Не вдалося знайти твого персонажа."
-        )
-        return
-
-    main_quest = player.get(
-        "main_quest",
-        {}
-    )
-
-    chapter = main_quest.get(
-        "chapter",
-        1
-    )
-
-    current_task = main_quest.get(
-        "current_task"
-    )
-
-    # =====================================================
-    # ГЛАВА 1
-    # =====================================================
-
-    if chapter == 1:
-
-        from handlers.main_quest.chapter1 import show_chapter1
-
-        show_chapter1(
-            message,
-            player,
-            current_task
-        )
-
-        return
-
-    # =====================================================
-    # ЯКЩО ГЛАВА ЩЕ НЕ РЕАЛІЗОВАНА
-    # =====================================================
-
-    markup = types.ReplyKeyboardMarkup(
-        resize_keyboard=True
-    )
-
-    markup.row(
-        types.KeyboardButton("🔙 Назад")
-    )
-
-    bot.send_message(
-        message.chat.id,
-        "🌲 Ця частина історії Грінвуду ще не відкрита.",
-        reply_markup=markup
-    )
+logger = logging.getLogger(__name__)
 
 
-# =========================================================
-# НАЗАД
-# =========================================================
+def init_main_quest_state() -> dict:
+    """Створює початковий стан основного квесту для нового гравця."""
+    return {
+        "current_chapter": 1,
+        "step": 1,
+        "completed": False,
+        "chapter_data": {}
+    }
 
-@bot.message_handler(
-    func=lambda message: message.text == "🔙 Назад"
-)
-def main_quest_back(message):
 
-    bot.send_message(
-        message.chat.id,
-        "🌲 Ти повернувся до головної стежки.",
-        reply_markup=get_main_menu()
-    )
+def register_main_quest_handlers(bot: TeleBot):
+    """Реєстрація обробників дій для основного квесту."""
+
+    @bot.message_handler(func=lambda message: message.text in ["📖 Основний квест", "Основний квест"])
+    def main_quest_entry_point(message: Message):
+        chat_id = message.chat.id
+        player = get_player(chat_id)
+
+        if not player:
+            bot.send_message(chat_id, "❌ Помилка: профілю персонажа не знайдено.")
+            return
+
+        # Зчитуємо або ініціалізуємо main_quest з JSON гравця
+        main_quest = player.get("main_quest")
+        if not main_quest or not isinstance(main_quest, dict):
+            main_quest = init_main_quest_state()
+            player["main_quest"] = main_quest
+            update_player(chat_id, {"main_quest": main_quest})
+
+        current_chapter = main_quest.get("current_chapter", 1)
+
+        # Маршрутизація по главах
+        if current_chapter == 1:
+            start_chapter_1(bot, message, player)
+        else:
+            bot.send_message(
+                chat_id,
+                "🌲 Ти завершив усі доступні глави основного квесту. Нові пригоди чекають попереду!"
+            )
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("mq_"))
+    def main_quest_callback_router(call: CallbackQuery):
+        chat_id = call.message.chat.id
+        player = get_player(chat_id)
+
+        if not player:
+            bot.answer_callback_query(call.id, "Помилка завантаження даних гравця.", show_alert=True)
+            return
+
+        main_quest = player.get("main_quest", {})
+        current_chapter = main_quest.get("current_chapter", 1)
+
+        if current_chapter == 1:
+            handle_chapter_1_callback(bot, call, player)
+        else:
+            bot.answer_callback_query(call.id, "Невідома глава квесту.")
