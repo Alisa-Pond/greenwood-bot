@@ -1,78 +1,10 @@
-import os
-import logging
-from threading import Thread
-
-import telebot
-from flask import Flask
-
-print("🌲 ЗАПУЩЕНО ХРОНІКИ ГРІНВУДУ")
-
-
-# =========================================================
-# FLASK СЕРВЕР ДЛЯ RENDER
-# =========================================================
-
-app = Flask(__name__)
-
-
-@app.route("/")
-def home():
-    return "Хроніки Грінвуду оживають! 🌲", 200
-
-
-def run_flask():
-    port = int(os.environ.get("PORT", 10000))
-
-    app.run(
-        host="0.0.0.0",
-        port=port,
-        use_reloader=False
-    )
-
-
-server_thread = Thread(
-    target=run_flask,
-    daemon=True
-)
-
-server_thread.start()
-
-
-# =========================================================
-# ЗАВАНТАЖЕННЯ БОТА
-# =========================================================
-
-print("🔧 Завантажую services.config...")
-
-from services.config import bot
-
-print("✅ services.config завантажено")
-
-
-# =========================================================
-# НАЛАШТУВАННЯ LOGGING
-# =========================================================
-
-telebot.logger.setLevel(logging.INFO)
-
-
-# =========================================================
-# SCHEDULER
-# =========================================================
-
-from services.scheduler import start_scheduler
-
-
-# =========================================================
-# РЕЄСТРАЦІЯ HANDLERS
-# =========================================================
-
 # =========================================================
 # РЕЄСТРАЦІЯ HANDLERS
 # =========================================================
 
 import handlers.profile
-import handlers.main_quest
+import handlers.main_quest  # Переконайся, що файл або модуль підключено
+import handlers.backpack
 
 import handlers.my_quests.menu
 
@@ -120,60 +52,4 @@ import handlers.my_quests.expedition.start
 import handlers.my_quests.expedition.timer
 import handlers.my_quests.expedition.complete
 
-# ---------------------------------------------------------
-# РЮКЗАК
-# ---------------------------------------------------------
-import handlers.main_quest
-import handlers.backpack
-
-
 print("🎉 Усі основні обробники підключені!")
-
-
-# =========================================================
-# ЗАПУСК
-# =========================================================
-
-if __name__ == "__main__":
-
-    print("🧹 Видалення старого Webhook...")
-
-    try:
-        bot.remove_webhook()
-
-    except Exception as error:
-
-        print(
-            f"⚠️ Помилка видалення webhook: {error}"
-        )
-
-
-    print(
-        "🚀 Запуск бота Хроніки Грінвуду..."
-    )
-
-
-    # -----------------------------------------------------
-    # ЗАПУСК ПЛАНУВАЛЬНИКА
-    # -----------------------------------------------------
-
-    start_scheduler()
-
-
-    print(
-        "⏰ Планувальник підсумків запущено."
-    )
-
-    print(
-        "🌅 Щоденні підсумки: 07:00 за Києвом."
-    )
-
-
-    # -----------------------------------------------------
-    # TELEGRAM POLLING
-    # -----------------------------------------------------
-
-    bot.infinity_polling(
-        skip_pending=True
-    )
-
