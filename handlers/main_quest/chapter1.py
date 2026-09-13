@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 
 # Посилання або Telegram File ID для картинок NPC (якщо немає — залиш "")
 NPC_IMAGES = {
-    "lili": "",      # Наприклад: "https://.../lili.png" або file_id
-    "marcello": "",  # Наприклад: "https://.../marcello.png"
-    "beatrice": ""   # Наприклад: "https://.../beatrice.png"
+    "lili": "https://tavnqcdrlonqdwttuqvw.supabase.co/storage/v1/object/public/npc_avatars/lily_pond.png",      # Наприклад: "https://.../lili.png" або file_id
+    "marcello": "https://tavnqcdrlonqdwttuqvw.supabase.co/storage/v1/object/public/npc_avatars/marcello.png",  # Наприклад: "https://.../marcello.png"
+    "beatrice": "https://tavnqcdrlonqdwttuqvw.supabase.co/storage/v1/object/public/npc_avatars/beatrice.png"   # Наприклад: "https://.../beatrice.png"
 }
 
 
