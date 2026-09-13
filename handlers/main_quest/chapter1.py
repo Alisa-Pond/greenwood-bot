@@ -1,270 +1,261 @@
 import time
-import logging
-from telebot import TeleBot
-from telebot.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-
+import traceback
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
+from services.config import bot
 from services.database import get_player, update_player
 
-logger = logging.getLogger(__name__)
-
-# Посилання або Telegram File ID для картинок NPC (якщо немає — залиш "")
-NPC_IMAGES = {
-    "lili": "https://tavnqcdrlonqdwttuqvw.supabase.co/storage/v1/object/public/npc_avatars/lily_pond.png",      # Наприклад: "https://.../lili.png" або file_id
-    "marcello": "https://tavnqcdrlonqdwttuqvw.supabase.co/storage/v1/object/public/npc_avatars/marcello.png",  # Наприклад: "https://.../marcello.png"
-    "beatrice": "https://tavnqcdrlonqdwttuqvw.supabase.co/storage/v1/object/public/npc_avatars/beatrice.png"   # Наприклад: "https://.../beatrice.png"
-}
+# Посилання або File ID для зображень персонажів (заміни на власні URL/file_id за потреби)
+LILY_PHOTO = "https://tavnqcdrlonqdwttuqvw.supabase.co/storage/v1/object/public/npc_avatars/lily_pond.png"
+MARCELLO_PHOTO = "https://tavnqcdrlonqdwttuqvw.supabase.co/storage/v1/object/public/npc_avatars/marcello.png"
+BEATRICE_PHOTO = "https://tavnqcdrlonqdwttuqvw.supabase.co/storage/v1/object/public/npc_avatars/beatrice.png"
 
 
-def calculate_absolute_sphere_xp(level: int, current_xp: float) -> float:
-    """
-    Обчислює загальний накопичений XP сфери від 1-го рівня.
-    Використовує криву зростання max_xp з множником 1.5.
-    """
-    total = 0.0
-    base_max_xp = 10.0  # Початковий max_xp на 1 рівні
-    
-    for lvl in range(1, level):
-        total += base_max_xp * (1.5 ** (lvl - 1))
-        
-    return total + current_xp
+# =========================================================
+# СЮЖЕТНІ СЦЕНИ РОЗДІЛУ 1
+# =========================================================
 
-
-def get_health_absolute_xp(player: dict) -> float:
-    """Отримує абсолютний XP у сфері health з профілю гравця."""
-    spheres = player.get("spheres", {})
-    health_data = spheres.get("health", {})
-    
-    level = health_data.get("level", 1)
-    xp = health_data.get("xp", 0.0)
-    
-    return calculate_absolute_sphere_xp(level, xp)
-
-
-def send_npc_photo_or_msg(bot: TeleBot, chat_id: int, npc_key: str, caption: str):
-    """Надсилає фото NPC, якщо є URL/file_id, або звичайне повідомлення."""
-    photo_src = NPC_IMAGES.get(npc_key, "").strip()
-    if photo_src:
-        try:
-            bot.send_photo(chat_id, photo_src, caption=caption)
-            return
-        except Exception as e:
-            logger.error(f"Помилка відправки фото {npc_key}: {e}")
-    
-    bot.send_message(chat_id, caption)
-
-
-def get_step_3_keyboard() -> InlineKeyboardMarkup:
-    """Клавіатура для кроку з перевіркою XP."""
-    markup = InlineKeyboardMarkup()
-    btn_continue = InlineKeyboardButton("🌲 Продовжити шлях", callback_query_data="mq_ch1_check_xp")
-    markup.add(btn_continue)
-    return markup
-
-
-def start_chapter_1(bot: TeleBot, message: Message, player: dict):
-    """Головна точка входу в Главу I."""
-    chat_id = message.chat.id
-    main_quest = player.get("main_quest", {})
-    step = main_quest.get("step", 1)
-
-    # Якщо гравець уже на етапі очікування 5 XP (Step 3) — показуємо одразу Повідомлення 3
-    if step == 3:
-        send_step_3_message(bot, chat_id)
-        return
-
-    # Якщо step == 1, починаємо показ Повідомлень 1-3
-    run_part_1_story(bot, chat_id, player)
-
-
-def run_part_1_story(bot: TeleBot, chat_id: int, player: dict):
-    """Надсилає Повідомлення 1, 2 та 3 з таймерами."""
-    
+def send_scene_1_and_2(chat_id):
+    """Сцена 1 та 2: Знайомство з Лілі та Марчелло."""
     # --- Повідомлення 1 ---
-    msg1 = (
-        "🌲 Грінвуд помітив тебе.\n\n"
+    text1 = (
+        "🌲 **Грінвуд помітив тебе.**\n\n"
         "Ти ще не встиг звикнути до думки, що опинився посеред дивного лісу, "
         "а вже знайшов першу мешканку, яка, здається, знає про нього значно більше, ніж збирається розповісти.\n\n"
-        "🪷 Лілі Понд 🪷\n"
+        "🪷 **Лілі Понд:**\n"
         "«Ну що ж, тепер ти знаєш, де опинився. Принаймні приблизно.\n"
         "Але перш ніж вирушати далі, я б на твоєму місці трохи озирнулася. Грінвуд не дуже любить поспішних гостей.»"
     )
-    bot.send_message(chat_id, msg1)
-    send_npc_photo_or_msg(bot, chat_id, "lili", "✨ Ви познайомилися з Лілі.")
+    bot.send_message(chat_id, text1, parse_mode="Markdown")
     
+    try:
+        bot.send_photo(chat_id, LILY_PHOTO, caption="✨ *Ви познайомилися з Лілі.*", parse_mode="Markdown")
+    except Exception:
+        bot.send_message(chat_id, "✨ *Ви познайомилися з Лілі.*", parse_mode="Markdown")
+
     time.sleep(2)
 
     # --- Повідомлення 2 ---
-    msg2 = (
+    text2 = (
         "Над ставком раптом пролітає маленька темна тінь. Кажан намагається зробити різкий поворот, "
-        "але одне крило підводить його. Він незграбно втрачає висоту й падає просто у воду. 💦 Плюсь!\n\n"
-        "🪷 Лілі Понд 🪷\n«О ні. Знову.»\n\n"
-        "🦇 Марчелло 🦇\n«Я майже зміг.»\n\n"
-        "🪷 Лілі Понд 🪷\n«Марчелло, любий, ти впав у воду.»"
+        "але одне крило підводить його. Він незграбно втрачає висоту й падає просто у воду. 💦 *Плюсь.*\n\n"
+        "🪷 **Лілі Понд:**\n«О ні. Знову.»\n\n"
+        "🦇 **Марчелло:**\n«Я майже зміг.»\n\n"
+        "🪷 **Лілі Понд:**\n«Марчелло, любий, ти впав у воду.»"
     )
-    bot.send_message(chat_id, msg2)
-    send_npc_photo_or_msg(bot, chat_id, "marcello", "✨ Ви познайомилися з Марчелло.")
+    bot.send_message(chat_id, text2, parse_mode="Markdown")
 
-    msg2_continuation = (
-        "🦇 Марчелло 🦇\n«Але цього разу я пролетів далі!»\n\n"
-        "🪷 Лілі Понд 🪷\n«Ти вже не вперше це робиш. І щоразу переконуєш мене, що наступного разу точно вийде.»\n\n"
-        "🦇 Марчелло 🦇\n«Наступного разу вийде! Я ж не можу просто сидіти без діла через своє кляте крило. Я висохну від нудьги.»\n\n"
-        "🪷 Лілі Понд 🪷\n«Беатріче намагався вилікувати твоє крило, але повернути тобі здатність літати не вдалося. "
-        "Можливо, він іще знайде спосіб цьому зарадити. До замку Беатріче звідси не надто близько, але в компанії дорога здається коротшою. "
-        "То що, мандрівнику? Приєднаєшся до нас?»\n\n"
-        "🥾 Ти 🥾\n«Я навіть не знаю, як сюди потрапив. Не знаю, куди маю йти і що взагалі повинен робити далі.»\n\n"
-        "🪷 Лілі Понд 🪷\n«Це нормально. У Грінвуді багато хто починає саме так. Приходить без відповідей, без чіткої дороги й без особливого уявлення, що робити далі. "
-        "Тож, мабуть, тобі залишається лише одне: почати створювати власну історію. "
-        "А якщо ти вже опинився тут, це навряд чи просто примха Лісу. Можливо, Грінвуд потребує тебе не менше, ніж ти потребуєш Грінвуду.»"
+    try:
+        bot.send_photo(chat_id, MARCELLO_PHOTO, caption="✨ *Ви познайомилися з Марчелло.*", parse_mode="Markdown")
+    except Exception:
+        bot.send_message(chat_id, "✨ *Ви познайомилися з Марчелло.*", parse_mode="Markdown")
+
+    text2_continue = (
+        "🦇 **Марчелло:**\n«Але цього разу я пролетів далі.»\n\n"
+        "🪷 **Лілі Понд:**\n«Ти вже не вперше це робиш. І щоразу переконуєш мене, що наступного разу точно вийде.»\n\n"
+        "🦇 **Марчелло:**\n«Наступного разу вийде! Я ж не можу просто сидіти без діла через своє кляте крило. Я висохну від нудьги.»\n\n"
+        "🪷 **Лілі Понд:**\n«Беатріче намагався вилікувати твоє крило, але повернути тобі здатність літати не вдалося. "
+        "Можливо, він іще знайде спосіб цьому зарадити. До замку Беатріче звідси не надто близько. Але в компанії дорога здається коротшою. То що, мандрівнику? Приєднаєшся до нас?»\n\n"
+        "🥾 **Ти:**\n«Я навіть не знаю, як сюди потрапив. Не знаю, куди маю йти і що взагалі повинен робити далі.»\n\n"
+        "🪷 **Лілі Понд:**\n«Це нормально. У Грінвуді багато хто починає саме так. Приходить без відповідей, без чіткої дороги й без особливого уявлення, що робити далі. "
+        "Тож, мабуть, тобі залишається лише одне: почати створювати власну історію. А якщо ти вже опинився тут, це навряд чи просто примха Лісу. "
+        "Можливо, Грінвуд потребує тебе не менше, ніж ти потребуєш Грінвуду.»"
     )
-    bot.send_message(chat_id, msg2_continuation)
+    bot.send_message(chat_id, text2_continue, parse_mode="Markdown")
 
     time.sleep(3)
-
-    # Фіксуємо початковий абсолютний XP гравця у Здоров'ї
-    current_abs_health_xp = get_health_absolute_xp(player)
-
-    main_quest = player.get("main_quest", {})
-    main_quest["step"] = 3
-    main_quest["chapter_data"] = {
-        "start_health_xp": current_abs_health_xp,
-        "target_xp": 5.0
-    }
-
-    update_player(chat_id, {"main_quest": main_quest})
-
-    # --- Повідомлення 3 ---
-    send_step_3_message(bot, chat_id)
+    send_scene_3_gate(chat_id)
 
 
-def send_step_3_message(bot: TeleBot, chat_id: int):
-    """Повідомлення 3 (Завдання на 5 XP)."""
-    msg3 = (
-        "🪷 Лілі Понд 🪷\n"
-        "«До замку Беатріче ще треба дістатися. А Грінвуд, знаєш, не дуже любить відкривати дорогу тим, хто стоїть на місці.»\n\n"
-        "🗯 Щоб продовжити шлях до замку Беатріче, тобі потрібно отримати 5 XP у сфері 💪 Здоров'я.\n\n"
+def send_scene_3_gate(chat_id):
+    """Повідомлення 3: Вимога 5 XP у Здоров'ї."""
+    text3 = (
+        "🪷 **Лілі Понд:**\n"
+        "«До замку Беатріче ще треба дістатися.\n"
+        "А Грінвуд, знаєш, не дуже любить відкривати дорогу тим, хто стоїть на місці.»\n\n"
+        "🗯 *Щоб продовжити шлях до замку Беатріче, тобі потрібно отримати 5 XP у сфері 💪 Здоров'я.*\n\n"
         "Прогуляйся, зроби корисний обід, позаймайся спортом або виконай будь-яку іншу справу, яка піде тобі на користь. "
-        "Коли будеш готовий, зафіксуй виконану активність скориставшись ✅ Виконати справу, а потім повертайся."
+        "Коли будеш готовий, зафіксуй виконану активність, скориставшись кнопку **✅ Виконати справу**, а потім повертайся."
     )
-    bot.send_message(chat_id, msg3, reply_markup=get_step_3_keyboard())
+
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("🔙 Назад", callback_data="main_menu"),
+        InlineKeyboardButton("🌲 Продовжити шлях", callback_data="ch1_check_health")
+    )
+
+    bot.send_message(chat_id, text3, reply_markup=keyboard, parse_mode="Markdown")
 
 
-def handle_chapter_1_callback(bot: TeleBot, call: CallbackQuery, player: dict):
-    """Обробка натискання кнопки '🌲 Продовжити шлях'."""
-    chat_id = call.message.chat.id
-
-    if call.data == "mq_ch1_check_xp":
-        main_quest = player.get("main_quest", {})
-        chapter_data = main_quest.get("chapter_data", {})
-
-        start_xp = chapter_data.get("start_health_xp", 0.0)
-        target_xp = chapter_data.get("target_xp", 5.0)
-
-        current_abs_xp = get_health_absolute_xp(player)
-        gained_xp = current_abs_xp - start_xp
-
-        if gained_xp >= target_xp:
-            bot.answer_callback_query(call.id, "Шлях відкрито!")
-            run_part_2_story(bot, chat_id, player)
-        else:
-            needed = round(target_xp - gained_xp, 1)
-            if needed < 0:
-                needed = 0
-            bot.answer_callback_query(
-                call.id,
-                f"🌲 Стежка поки не відкривається. Тобі ще потрібно отримати {needed} XP у сфері 💪 Здоров'я.",
-                show_alert=True
-            )
-
-
-def run_part_2_story(bot: TeleBot, chat_id: int, player: dict):
-    """Повідомлення 4, 5, 6 та завершення Глави I."""
-    
+def send_scene_4_to_6(chat_id, user_id):
+    """Повідомлення 4, 5, 6: Замок Беатріче, Синій листок та завершення Глави I."""
     # --- Повідомлення 4 ---
-    msg4 = (
+    text4 = (
         "Через деякий час стежка стає темнішою, дерева густішають, а попереду між ними починають виднітися обриси старого замку.\n"
         "Марчелло визирає з твоїх рук.\n\n"
-        "🪷 Лілі Понд 🪷\n«Беатріче не любить, коли до нього приходять без причини. Добре, що в нас є причина.»\n\n"
+        "🪷 **Лілі Понд:**\n«Беатріче не любить, коли до нього приходять без причини. Добре, що в нас є причина.»\n\n"
         "Замок зустрічає вас тишею. Високі темні вікна майже не пропускають світла, а біля входу на кам'яній стіні сидять кілька кажанів.\n"
         "Лілі стукає у двері. За кілька секунд вони відчиняються.\n"
         "Перед вами стоїть трохи сонний Беатріче."
     )
-    bot.send_message(chat_id, msg4)
-    send_npc_photo_or_msg(bot, chat_id, "beatrice", "✨ Ви познайомилися з Беатріче.")
+    bot.send_message(chat_id, text4, parse_mode="Markdown")
 
-    msg4_continuation = (
-        "🧛🏼 Беатріче 🧛🏼\n«Марчелло, Лілі і...»\n\n"
-        "🪷 Лілі Понд 🪷\n«Це новий мешканець Грінвуду. А Марчелло знову намагався літати.»\n\n"
+    try:
+        bot.send_photo(chat_id, BEATRICE_PHOTO, caption="✨ *Ви познайомилися з Беатріче.*", parse_mode="Markdown")
+    except Exception:
+        bot.send_message(chat_id, "✨ *Ви познайомилися з Беатріче.*", parse_mode="Markdown")
+
+    text4_continue = (
+        "🧛🏼 **Беатріче:**\n«Марчелло, Лілі і...»\n\n"
+        "🪷 **Лілі Понд:**\n«Це новий мешканець Грінвуду. А Марчелло знову намагався літати.»\n\n"
         "Беатріче обережно бере Марчелло на руки."
     )
-    bot.send_message(chat_id, msg4_continuation)
+    bot.send_message(chat_id, text4_continue, parse_mode="Markdown")
 
     time.sleep(2)
 
     # --- Повідомлення 5 ---
-    msg5 = (
-        "🧛🏼 Беатріче 🧛🏼\n"
+    text5 = (
+        "🧛🏼 **Беатріче:**\n"
         "«Його крило не дозволяє йому літати так, як раніше. Але не думай, що через це Марчелло став менш здібним. "
-        "Він живе тут уже достатньо давно, щоб знати безліч стежок і правил Лісу. Хоча, якщо він скаже тобі, що знає їх усі — не вір.»\n\n"
-        "🦇 Марчелло 🦇\n«Я знаю більшість!»\n\n"
-        "🧛🏼 Беатріче 🧛🏼\n«Він один із найрозумніших мешканців Грінвуду, яких я знаю. Особливо добре він ладнає з числами.»\n\n"
-        "🦇 Марчелло 🦇\n«Це називається точністю.»\n\n"
-        "Беатріче проводить вас до вітальні та жестом запрошує приєднатися. Замок усередині має той самий похмурий вікторіанський вигляд, що й зовні. "
-        "На стелі та дерев'яних балках, перевернувшись догори дриґом, сплять інші кажани.\n\n"
-        "🥾 Ти 🥾\n«Ти давно тут живеш?»\n\n"
-        "🧛🏼 Беатріче 🧛🏼\n«Досить давно. Настільки, що перестав рахувати.»\n\n"
-        "🥾 Ти 🥾\n«Але ти не пам'ятаєш, скільки саме?»\n\n"
-        "🧛🏼 Беатріче 🧛🏼\n«Не бачу особливого сенсу рахувати дні, якщо можеш проспати кілька з них поспіль.»\n\n"
-        "🪷 Лілі Понд 🪷\n«Замок не виглядав таким похмурим до того, як ти в ньому оселився.»\n\n"
-        "🧛🏼 Беатріче 🧛🏼\n«Ліс відкрив мені дорогу до замку — до цього ніхто не знав про його існування. Тоді я вже знав кількох кажанів, яким потрібне було спокійне місце для ночівлі. "
-        "Вони сплять удень, а в Грінвуді вдень буває доволі шумно. Так замок став домом не лише для мене.»\n\n"
-        "🥾 Ти 🥾\n«Тоді чому Марчелло досі намагається літати далеко поза замком?»\n\n"
-        "🦇 Марчелло 🦇\n«Бо я можу!»\n\n"
-        "🧛🏼 Беатріче 🧛🏼\n«Я не можу і не збираюся вирішувати за нього, коли йому час зупинитися. У Грінвуді не буває випадковостей — у тому числі й твоя поява.\n"
-        "Ти ще не знаєш цього Лісу. Тобі потрібен хтось, хто допоможе не заблукати серед його стежок. А Марчелло... можливо, йому потрібен хтось, з ким він зможе вирушати далі й реалізовувати свій потенціал. "
-        "Ви могли б стати чудовими супутниками, але це має бути ваше рішення.»\n\n"
-        "🦇 Марчелло 🦇\n«Я згоден. Тільки нехай не намагається рахувати за мене.»\n\n"
-        "🥾 Ти 🥾\n«Домовились.»\n\n"
-        "🪷 Лілі Понд 🪷\n«Ну от. А я вже боялася, що доведеться самій пояснювати тобі кожну стежку.»\n\n"
-        "🧛🏼 Беатріче 🧛🏼\n«Тоді вирішено. Думаю, вам обом є що дізнатися одне про одного. А тепер вам краще вирушати, поки світло ще не змінилося.»\n\n"
+        "І він живе тут уже достатньо давно, щоб знати безліч стежок і правил Лісу. Хоча, якщо він скаже тобі, що знає їх усі, не вір.»\n\n"
+        "🦇 **Марчелло:**\n«Я знаю більшість.»\n\n"
+        "🧛🏼 **Беатріче:**\n«Він один із найрозумніших мешканців Грінвуду, яких я знаю. Особливо добре він ладнає з числами.»\n\n"
+        "🦇 **Марчелло:**\n«Це називається точністю.»\n\n"
+        "Беатріче проводить вас до вітальні. Він сідає на диван і жестом запрошує вас приєднатися. "
+        "Замок усередині має той самий похмурий вікторіанський вигляд, що й зовні. На стелі та дерев'яних балках, перевернувшись догори дриґом, сплять інші кажани.\n\n"
+        "🥾 **Ти:**\n«Ти давно тут живеш?»\n\n"
+        "🧛🏼 **Беатріче:**\n«Досить давно. Настільки, що перестав рахувати.»\n\n"
+        "🥾 **Ти:**\n«Але ти не пам'ятаєш, скільки саме?»\n\n"
+        "🧛🏼 **Беатріче:**\n«Не бачу особливого сенсу рахувати дні, якщо можеш проспати кілька з них поспіль.»\n\n"
+        "🪷 **Лілі Понд:**\n«Замок не виглядав таким похмурим до того як тільки ти в ньому оселився.»\n\n"
+        "🧛🏼 **Беатріче:**\n«Ліс відкрив мені дорогу до замку, до цього ніхто не знав про його існування. Тоді я вже знав кількох кажанів, "
+        "яким потрібне було спокійне місце для ночівлі. Вони сплять удень, а в Грінвуді вдень буває доволі шумно. Так замок став домом не лише для мене.»\n\n"
+        "🥾 **Ти:**\n«Тоді чому Марчелло досі намагається літати далеко поза замком?»\n\n"
+        "🦇 **Марчелло:**\n«Бо я можу.»\n\n"
+        "🧛🏼 **Беатріче:**\n«Я не можу і не збираюся вирішувати за нього, коли йому час зупинитися. У Грінвуді не буває випадковостей, в тому числі і твоя поява.\n"
+        "Ти ще не знаєш цього Лісу. Тобі потрібен хтось, хто допоможе тобі не заблукати серед його стежок. А Марчелло... можливо, йому потрібен хтось, з ким він зможе вирушати далі і реалізовувати свій потенціал. Ви могли би стати чудовими супутниками, але це має бути ваше рішення.»\n\n"
+        "🦇 **Марчелло:**\n«Я згоден. Тільки нехай не намагається рахувати за мене.»\n\n"
+        "🥾 **Ти:**\n«Домовились.»\n\n"
+        "🪷 **Лілі Понд:**\n«Ну от. А я вже боялася, що доведеться самій пояснювати тобі кожну стежку.»\n\n"
+        "🧛🏼 **Беатріче:**\n«Тоді вирішено. Думаю, вам обом є що дізнатися одне про одного.\n"
+        "А тепер вам краще вирушати, поки світло ще не змінилося.»\n\n"
         "Марчелло перебирається тобі на плече. Ви прощаєтеся з Беатріче й виходите із замку."
     )
-    bot.send_message(chat_id, msg5)
+    bot.send_message(chat_id, text5, parse_mode="Markdown")
 
     time.sleep(4)
 
     # --- Повідомлення 6 ---
-    msg6 = (
-        "🦇 Марчелло 🦇\n«Зачекай.»\n\n"
+    text6 = (
+        "🦇 **Марчелло:**\n«Зачекай.»\n\n"
         "На кам'яній сходинці лежить синій листок, що явно не належить жодній рослині поблизу. Ви нахиляєтеся ближче.\n\n"
-        "🦇 Марчелло 🦇\n«Дивний.»\n\n"
-        "🪷 Лілі Понд 🪷\n«О, це я вже десь бачила... Тільки не тут. Олівер зовсім недавно садив дуже схожу рослину у своїй теплиці. І вона точно не мала опинитися біля замку Беатріче.»\n\n"
-        "🦇 Марчелло 🦇\n«Можливо, її приніс вітер?»\n\n"
-        "🪷 Лілі Понд 🪷\n«Може бути. А може, хтось її приніс. Хоча... якщо це та сама рослина, Олівер напевно вже її шукає. Він дуже пильно стежить за своїми саджанцями. "
-        "Свіжий листок не мав би просто так опинитися тут, відірваний від рослини. Я б на твоєму місці пішла до нього. Теплиця недалеко, але чомусь мені здається, що це важливо.»\n\n"
-        "🥾 Ти 🥾\n«Лілі, ти не підеш з нами?»\n\n"
-        "🪷 Лілі Понд 🪷\n«Я маю повернутися до ставка. Мені не варто надовго залишатися далеко від води. До того ж тепер у тебе є Марчелло. Він люб'язно вкаже дорогу.»\n\n"
-        "🦇 Марчелло 🦇\n«Я знаю шлях.»\n\n"
-        "🪷 Лілі Понд 🪷\n«Звичайно, знаєш.»\n\n"
+        "🦇 **Марчелло:**\n«Дивний.»\n\n"
+        "🪷 **Лілі Понд:**\n«О, це я вже десь бачила... Тільки не тут. Олівер зовсім недавно садив дуже схожу рослину у своїй теплиці. І вона точно не мала опинитися біля замку Беатріче.»\n\n"
+        "🦇 **Марчелло:**\n«Можливо, її приніс вітер?»\n\n"
+        "🪷 **Лілі Понд:**\n«Може бути. А може, хтось її приніс. Хоча... якщо це та сама рослина, Олівер напевно вже її шукає. Він дуже пильно стежить за своїми саджанцями. Свіжий листок не мав би просто так опинитися тут, відірваний від рослини. Я б на твоєму місці пішла до нього. Теплиця недалеко, але чомусь мені здається, що це важливо.»\n\n"
+        "🥾 **Ти:**\n«Лілі, ти не підеш з нами?»\n\n"
+        "🪷 **Лілі Понд:**\n«Я маю повернутися до ставка. Мені не варто надовго залишатися далеко від води. До того ж тепер у тебе є Марчелло. Він люб'язно вкаже дорогу.»\n\n"
+        "🦇 **Марчелло:**\n«Я знаю шлях.»\n\n"
+        "🪷 **Лілі Понд:**\n«Звичайно, знаєш.»\n\n"
         "Лілі усміхається й зникає в гущавині лісу.\n\n"
-        "🍃 До інвентарю додано: Синій листок підозрілої рослини.\n\n"
-        "🥾 Ти 🥾\n«Ну що ж. Схоже, у нас уже є наступна справа.»\n\n"
+        "🍃 **До інвентарю додано:** *Синій листок підозрілої рослини.*\n\n"
+        "🥾 **Ти:**\n«Ну що ж. Схоже, у нас уже є наступна справа.»\n\n"
         "Ви рушаєте стежкою в бік теплиці.\n\n"
-        "🎉 Вітаємо! Главу I завершено."
+        "🏆 **Кінець Глави I.**"
     )
-    bot.send_message(chat_id, msg6)
 
-    # Додаємо предмет в інвентар та оновлюємо прогрес основного квесту
-    inventory = player.get("inventory", {})
-    item_key = "Blue_Oliver's_leaf"
-    inventory[item_key] = inventory.get(item_key, 0) + 1
+    # Видаємо предмета в інвентар та зберігаємо завершення Глави I
+    player = get_player(user_id)
+    inventory = player.get("inventory", [])
+    if "Синій листок підозрілої рослини" not in inventory:
+        inventory.append("Синій листок підозрілої рослини")
 
     main_quest = player.get("main_quest", {})
-    main_quest["current_chapter"] = 2
-    main_quest["step"] = 1
-    main_quest["completed"] = False
-    main_quest["chapter_data"] = {}
-
-    update_player(chat_id, {
+    main_quest["chapter"] = 2
+    main_quest["step"] = "finished_ch1"
+    
+    update_player(user_id, {
         "inventory": inventory,
         "main_quest": main_quest
     })
+
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("🔙 Назад", callback_data="main_menu"),
+        InlineKeyboardButton("🌲 Продовжити шлях", callback_data="start_chapter_2")
+    )
+
+    bot.send_message(chat_id, text6, reply_markup=keyboard, parse_mode="Markdown")
+
+
+# =========================================================
+# ХЕНДЛЕРИ ТА КНОПКИ
+# =========================================================
+
+def register_chapter1_handlers(bot_instance):
+
+    @bot_instance.message_handler(func=lambda msg: msg.text == "📜 Основний квест")
+    def show_main_quest(message):
+        try:
+            user_id = message.from_user.id
+            player = get_player(user_id)
+            main_quest = player.get("main_quest", {})
+            chapter = main_quest.get("chapter", 1)
+            step = main_quest.get("step", "start")
+
+            if chapter == 1:
+                if step == "start":
+                    # Оновлюємо крок, що гравець почав 1 главу
+                    main_quest["step"] = "health_gate"
+                    update_player(user_id, {"main_quest": main_quest})
+                    send_scene_1_and_2(message.chat.id)
+                elif step == "health_gate":
+                    send_scene_3_gate(message.chat.id)
+                elif step == "finished_ch1":
+                    bot_instance.send_message(
+                        message.chat.id, 
+                        "🎉 **Главу I пройдено!** Чекай на продовження у ГЛАВІ II.",
+                        parse_mode="Markdown"
+                    )
+            else:
+                bot_instance.send_message(
+                    message.chat.id, 
+                    f"📖 **Глава {chapter}: Далі буде...**", 
+                    parse_mode="Markdown"
+                )
+
+        except Exception:
+            print("❌ ПОМИЛКА show_main_quest:")
+            print(traceback.format_exc())
+
+    @bot_instance.callback_query_handler(func=lambda call: call.data == "ch1_check_health")
+    def check_health_xp(call):
+        try:
+            user_id = call.from_user.id
+            player = get_player(user_id)
+            spheres = player.get("spheres", {})
+            
+            health_data = spheres.get("health", {})
+            current_xp = float(health_data.get("xp", 0.0))
+            required_xp = 5.0
+
+            if current_xp >= required_xp:
+                bot_instance.answer_callback_query(call.id, "✅ Стежка відкрита!")
+                # Змінюємо статус і переходимо до 4 повідомлення
+                main_quest = player.get("main_quest", {})
+                main_quest["step"] = "at_castle"
+                update_player(user_id, {"main_quest": main_quest})
+
+                send_scene_4_to_6(call.message.chat.id, user_id)
+            else:
+                needed = round(required_xp - current_xp, 1)
+                text = f"🌲 **Стежка поки не відкривається.** Тобі ще потрібно отримати **{needed} XP** у сфері 💪 Здоров'я."
+                bot_instance.answer_callback_query(call.id, f"Ще потрібно {needed} XP у Здоров'ї!", show_alert=True)
+                
+                # Додаємо повідомлення з нагадуванням
+                bot_instance.send_message(call.message.chat.id, text, parse_mode="Markdown")
+
+        except Exception:
+            print("❌ ПОМИЛКА check_health_xp:")
+            print(traceback.format_exc())
+            bot_instance.answer_callback_query(call.id, "Помилка перевірки.")
